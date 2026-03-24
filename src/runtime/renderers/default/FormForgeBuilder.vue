@@ -486,7 +486,7 @@ function cloneValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
-function resolveLoadedFormUuid(schema: FormForgeFormSchema): string | null {
+function resolveLoadedFormUuid(): string | null {
   const fromProps = typeof props.formUuid === 'string' && props.formUuid !== '' ? props.formUuid : null
   if (fromProps !== null) {
     return fromProps
@@ -504,7 +504,7 @@ function resolveLoadedFormUuid(schema: FormForgeFormSchema): string | null {
 }
 
 function applyLoadedForm(schema: FormForgeFormSchema): void {
-  const nextUuid = resolveLoadedFormUuid(schema)
+  const nextUuid = resolveLoadedFormUuid()
 
   draft.value = {
     uuid: nextUuid,
@@ -893,12 +893,12 @@ watch(() => selectedFieldKey.value, () => {
                 <template #item="{ element: field }">
                   <UCard
                     v-if="field !== undefined && field !== null"
+                    :ref="(element: unknown) => registerFieldElement(field.field_key, element)"
                     variant="subtle"
                     :class="[
                       'field-card',
                       isFieldSelected(field.field_key) ? 'field-card--active' : ''
                     ]"
-                    :ref="(element: unknown) => registerFieldElement(field.field_key, element)"
                     @click="selectField(page, field.field_key)"
                     @focusin="selectField(page, field.field_key)"
                   >

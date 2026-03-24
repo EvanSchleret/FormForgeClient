@@ -15,7 +15,11 @@ function clonePayload(payload: FormForgeSubmissionPayload): FormForgeSubmissionP
   if (typeof structuredClone === 'function') {
     try {
       return structuredClone(payload)
-    } catch {}
+    } catch {
+      return {
+        ...payload
+      }
+    }
   }
 
   return {

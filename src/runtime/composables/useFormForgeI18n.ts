@@ -88,7 +88,17 @@ const TRANSLATIONS = {
     'builder.error.publish': 'Publish failed',
     'builder.error.unpublish': 'Unpublish failed',
     'builder.optionDefaultLabel': 'Option',
-    'builder.optionsCount': '{count} options'
+    'builder.optionsCount': '{count} options',
+    'renderer.submit': 'Submit',
+    'renderer.loadingForm': 'Loading form',
+    'renderer.error.loadForm': 'Unable to load form',
+    'renderer.error.submit': 'Submission failed',
+    'renderer.error.missingFormKey': 'Missing form key',
+    'renderer.alert.fixFields': 'Please fix the following fields',
+    'renderer.alert.submitted': 'Form submitted',
+    'renderer.pageTitle': 'Page {index}',
+    'renderer.navigation.previous': 'Previous',
+    'renderer.navigation.next': 'Next'
   },
   fr: {
     'builder.fieldType.text': 'Réponse courte',
@@ -168,7 +178,17 @@ const TRANSLATIONS = {
     'builder.error.publish': 'Échec de la publication',
     'builder.error.unpublish': 'Échec de la dépublication',
     'builder.optionDefaultLabel': 'Option',
-    'builder.optionsCount': '{count} options'
+    'builder.optionsCount': '{count} options',
+    'renderer.submit': 'Envoyer',
+    'renderer.loadingForm': 'Chargement du formulaire',
+    'renderer.error.loadForm': 'Impossible de charger le formulaire',
+    'renderer.error.submit': 'Échec de l’envoi',
+    'renderer.error.missingFormKey': 'Clé du formulaire manquante',
+    'renderer.alert.fixFields': 'Veuillez corriger les champs suivants',
+    'renderer.alert.submitted': 'Formulaire envoyé',
+    'renderer.pageTitle': 'Page {index}',
+    'renderer.navigation.previous': 'Précédent',
+    'renderer.navigation.next': 'Suivant'
   }
 } as const
 

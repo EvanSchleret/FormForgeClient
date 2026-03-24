@@ -29,6 +29,7 @@ import type {
 } from '../../types'
 import { isFormForgeJsonObject } from '../../utils/object'
 import { useFormForgeForm } from '../../composables/useFormForgeForm'
+import { useFormForgeI18n } from '../../composables/useFormForgeI18n'
 import { useFormForgeSubmit } from '../../composables/useFormForgeSubmit'
 
 interface FormForgeValidationError {
@@ -116,6 +117,8 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  schema: undefined,
+  modelValue: undefined,
   disabled: false,
   zodSchema: undefined,
   validate: undefined,
@@ -123,7 +126,7 @@ const props = withDefaults(defineProps<Props>(), {
   formKey: undefined,
   formVersion: undefined,
   clientConfig: undefined,
-  submitLabel: 'Submit',
+  submitLabel: undefined,
   showSubmit: true,
   simulation: false,
   uploadMode: undefined,
@@ -131,6 +134,10 @@ const props = withDefaults(defineProps<Props>(), {
   showProgress: false,
   progressVariant: 'stepper',
   showAlertOnError: false
+})
+
+const { t } = useFormForgeI18n({
+  locale: () => props.clientConfig?.locale
 })
 
 const emit = defineEmits<{
@@ -732,7 +739,7 @@ const shouldShowProgress = computed<boolean>(() => {
 
 const stepperItems = computed<FormForgeStepperItem[]>(() => {
   return visiblePages.value.map((page, index) => ({
-    title: page.title !== '' ? page.title : `Page ${index + 1}`,
+    title: page.title !== '' ? page.title : t('renderer.pageTitle', { index: index + 1 }),
     description: typeof page.description === 'string' && page.description.trim() !== ''
       ? page.description
       : undefined,
@@ -779,6 +786,14 @@ const isLastVisiblePage = computed<boolean>(() => {
 
 const shouldShowErrorAlert = computed<boolean>(() => {
   return props.showAlertOnError && rendererErrors.value.length > 0
+})
+
+const resolvedSubmitLabel = computed<string>(() => {
+  if (typeof props.submitLabel === 'string' && props.submitLabel.trim() !== '') {
+    return props.submitLabel
+  }
+
+  return t('renderer.submit')
 })
 
 function isPageVisible(page: FormForgePageSchema): boolean {
@@ -1241,11 +1256,11 @@ function onFieldUpdate(field: FormForgeFieldSchema, value: FormForgeDynamicValue
   setFieldValue(field.name, value as FormForgeSubmissionPayload[string])
 }
 
-function getLooseModelValue(field: FormForgeFieldSchema): any {
-  return getComponentModelValue(field)
+function getLooseModelValue(field: FormForgeFieldSchema): never {
+  return getComponentModelValue(field) as never
 }
 
-function onFieldModelUpdate(field: FormForgeFieldSchema, nextValue: any): void {
+function onFieldModelUpdate(field: FormForgeFieldSchema, nextValue: unknown): void {
   onFieldUpdate(field, nextValue as FormForgeDynamicValue)
 }
 
@@ -1258,7 +1273,7 @@ async function onSubmit(): Promise<void> {
   }
 
   if (internalFormKey.value === '') {
-    emit('error', 'Missing form key')
+    emit('error', t('renderer.error.missingFormKey'))
     return
   }
 
@@ -1296,7 +1311,7 @@ async function onSubmit(): Promise<void> {
       navigateToFirstErrorPage(submitErrors)
     }
 
-    const message = error instanceof Error ? error.message : 'Submission failed'
+    const message = error instanceof Error ? error.message : t('renderer.error.submit')
     emit('error', message)
   }
 }
@@ -1331,14 +1346,14 @@ async function onSubmit(): Promise<void> {
         v-if="!usesExternalState && internalForm.loading.value"
         color="neutral"
         variant="soft"
-        title="Loading form"
+        :title="t('renderer.loadingForm')"
       />
 
       <UAlert
         v-if="!usesExternalState && internalForm.error.value"
         color="error"
         variant="soft"
-        title="Unable to load form"
+        :title="t('renderer.error.loadForm')"
         :description="internalForm.error.value"
       />
 
@@ -1346,7 +1361,7 @@ async function onSubmit(): Promise<void> {
         v-if="!usesExternalState && internalSubmit.error.value"
         color="error"
         variant="soft"
-        title="Submission failed"
+        :title="t('renderer.error.submit')"
         :description="internalSubmit.error.value.message"
       />
 
@@ -1354,7 +1369,7 @@ async function onSubmit(): Promise<void> {
         v-if="shouldShowErrorAlert"
         color="error"
         variant="soft"
-        title="Please fix the following fields"
+        :title="t('renderer.alert.fixFields')"
       >
         <template #description>
           <ul class="list-disc space-y-1 pl-5">
@@ -1373,7 +1388,7 @@ async function onSubmit(): Promise<void> {
         v-if="!usesExternalState && submittedResponse !== null"
         color="success"
         variant="soft"
-        title="Form submitted"
+        :title="t('renderer.alert.submitted')"
       />
 
       <section
@@ -1404,8 +1419,8 @@ async function onSubmit(): Promise<void> {
         <div class="space-y-4">
           <UFormField
             v-for="field in page.fields"
-            :key="field.field_key"
             v-show="isFieldVisible(field)"
+            :key="field.field_key"
             :name="field.name"
             :label="field.label"
             :help="field.help_text"
@@ -1510,7 +1525,7 @@ async function onSubmit(): Promise<void> {
           :disabled="!canGoPrev"
           @click="goToPrevPage"
         >
-          Previous
+          {{ t('renderer.navigation.previous') }}
         </UButton>
 
         <UButton
@@ -1519,7 +1534,7 @@ async function onSubmit(): Promise<void> {
           :disabled="!canGoNext"
           @click="goToNextPage"
         >
-          Next
+          {{ t('renderer.navigation.next') }}
         </UButton>
 
         <UButton
@@ -1528,7 +1543,7 @@ async function onSubmit(): Promise<void> {
           :loading="internalSubmit.submitting.value"
           :disabled="internalForm.loading.value || getResolvedSchema() === null"
         >
-          {{ submitLabel }}
+          {{ resolvedSubmitLabel }}
         </UButton>
       </div>
 
@@ -1541,7 +1556,7 @@ async function onSubmit(): Promise<void> {
           :loading="internalSubmit.submitting.value"
           :disabled="internalForm.loading.value || getResolvedSchema() === null"
         >
-          {{ submitLabel }}
+          {{ resolvedSubmitLabel }}
         </UButton>
       </div>
     </div>
