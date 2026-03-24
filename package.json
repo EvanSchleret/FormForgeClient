@@ -46,7 +46,7 @@
     "@types/node": "^24.0.0",
     "eslint": "^9.0.0",
     "eslint-plugin-vue": "^10.8.0",
-    "typescript": "^5.9.0",
+    "typescript": "^6.0.2",
     "typescript-eslint": "^8.57.1",
     "vitest": "^3.0.0",
     "vue-eslint-parser": "^10.4.0",
