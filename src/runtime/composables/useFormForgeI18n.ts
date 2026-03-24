@@ -1,0 +1,281 @@
+import { computed, useNuxtApp, useRuntimeConfig } from '#imports'
+import type { FormForgeJsonObject, FormForgeJsonValue } from '../types'
+
+export type FormForgeLocale = 'en' | 'fr'
+
+export interface UseFormForgeI18nOptions {
+  locale?: string | (() => string | undefined)
+}
+
+type FormForgeTranslationValues = Record<string, string | number>
+
+const TRANSLATIONS = {
+  en: {
+    'builder.fieldType.text': 'Short text',
+    'builder.fieldType.textarea': 'Long text',
+    'builder.fieldType.email': 'Email',
+    'builder.fieldType.number': 'Number',
+    'builder.fieldType.select': 'Select',
+    'builder.fieldType.select_menu': 'Select menu',
+    'builder.fieldType.radio': 'Multiple choice',
+    'builder.fieldType.checkbox': 'Checkbox',
+    'builder.fieldType.checkbox_group': 'Checkbox group',
+    'builder.fieldType.switch': 'Switch',
+    'builder.fieldType.date': 'Date',
+    'builder.fieldType.time': 'Time',
+    'builder.fieldType.datetime': 'Date & time',
+    'builder.fieldType.date_range': 'Date range',
+    'builder.fieldType.datetime_range': 'Datetime range',
+    'builder.fieldType.file': 'File upload',
+    'builder.targetType.page': 'Page',
+    'builder.targetType.field': 'Field',
+    'builder.formTitlePlaceholder': 'Form title',
+    'builder.categoryPlaceholder': 'Category',
+    'builder.loadingForm': 'Loading form...',
+    'builder.lastSave': 'Last save: {value}',
+    'builder.save': 'Save',
+    'builder.publish': 'Publish',
+    'builder.unpublish': 'Unpublish',
+    'builder.pageCounter': 'Page {current} / {total}',
+    'builder.pageTitlePlaceholder': 'Page title',
+    'builder.pageDescriptionPlaceholder': 'Page description (optional)',
+    'builder.tooltip.mergePage': 'Merge with previous page',
+    'builder.tooltip.deletePage': 'Delete page',
+    'builder.questionPlaceholder': 'Question',
+    'builder.tooltip.duplicateQuestion': 'Duplicate question',
+    'builder.tooltip.deleteQuestion': 'Delete question',
+    'builder.required': 'Required',
+    'builder.optionLabelPlaceholder': 'Option label',
+    'builder.addOption': 'Add option',
+    'builder.advancedSettings': 'Advanced settings',
+    'builder.placeholderPlaceholder': 'Placeholder',
+    'builder.helpTextPlaceholder': 'Help text',
+    'builder.minPlaceholder': 'Min',
+    'builder.maxPlaceholder': 'Max',
+    'builder.stepPlaceholder': 'Step',
+    'builder.multiple': 'Multiple',
+    'builder.acceptedExtensionsPlaceholder': 'Accepted extensions (.pdf,.png)',
+    'builder.conditions': 'Conditions',
+    'builder.addCondition': 'Add condition',
+    'builder.condition.action.show': 'Show',
+    'builder.condition.action.hide': 'Hide',
+    'builder.condition.action.skip': 'Skip',
+    'builder.condition.action.require': 'Require',
+    'builder.condition.action.disable': 'Disable',
+    'builder.condition.match.all': 'All',
+    'builder.condition.match.any': 'Any',
+    'builder.condition.operator.eq': 'Equals',
+    'builder.condition.operator.neq': 'Not equals',
+    'builder.condition.operator.in': 'In',
+    'builder.condition.operator.not_in': 'Not in',
+    'builder.condition.operator.gt': 'Greater than',
+    'builder.condition.operator.gte': 'Greater or equal',
+    'builder.condition.operator.lt': 'Less than',
+    'builder.condition.operator.lte': 'Less or equal',
+    'builder.condition.operator.contains': 'Contains',
+    'builder.condition.operator.not_contains': 'Does not contain',
+    'builder.condition.operator.is_empty': 'Is empty',
+    'builder.condition.operator.not_empty': 'Is not empty',
+    'builder.valuePlaceholder': 'Value',
+    'builder.remove': 'Remove',
+    'builder.addClause': 'Add clause',
+    'builder.deleteCondition': 'Delete condition',
+    'builder.rail.addQuestion': 'Add question',
+    'builder.rail.addPage': 'Add page',
+    'builder.loadingBuilder': 'Loading builder...',
+    'builder.error.loadForm': 'Failed to load form',
+    'builder.error.save': 'Save failed',
+    'builder.error.publish': 'Publish failed',
+    'builder.error.unpublish': 'Unpublish failed',
+    'builder.optionDefaultLabel': 'Option',
+    'builder.optionsCount': '{count} options'
+  },
+  fr: {
+    'builder.fieldType.text': 'Réponse courte',
+    'builder.fieldType.textarea': 'Réponse longue',
+    'builder.fieldType.email': 'E-mail',
+    'builder.fieldType.number': 'Nombre',
+    'builder.fieldType.select': 'Sélection',
+    'builder.fieldType.select_menu': 'Menu de sélection',
+    'builder.fieldType.radio': 'Choix multiples',
+    'builder.fieldType.checkbox': 'Case à cocher',
+    'builder.fieldType.checkbox_group': 'Groupe de cases',
+    'builder.fieldType.switch': 'Interrupteur',
+    'builder.fieldType.date': 'Date',
+    'builder.fieldType.time': 'Heure',
+    'builder.fieldType.datetime': 'Date et heure',
+    'builder.fieldType.date_range': 'Plage de dates',
+    'builder.fieldType.datetime_range': 'Plage date/heure',
+    'builder.fieldType.file': 'Téléversement de fichier',
+    'builder.targetType.page': 'Page',
+    'builder.targetType.field': 'Champ',
+    'builder.formTitlePlaceholder': 'Titre du formulaire',
+    'builder.categoryPlaceholder': 'Catégorie',
+    'builder.loadingForm': 'Chargement du formulaire...',
+    'builder.lastSave': 'Dernière sauvegarde : {value}',
+    'builder.save': 'Sauvegarder',
+    'builder.publish': 'Publier',
+    'builder.unpublish': 'Dépublier',
+    'builder.pageCounter': 'Page {current} / {total}',
+    'builder.pageTitlePlaceholder': 'Titre de la page',
+    'builder.pageDescriptionPlaceholder': 'Description de la page (optionnel)',
+    'builder.tooltip.mergePage': 'Fusionner avec la page précédente',
+    'builder.tooltip.deletePage': 'Supprimer la page',
+    'builder.questionPlaceholder': 'Question',
+    'builder.tooltip.duplicateQuestion': 'Dupliquer la question',
+    'builder.tooltip.deleteQuestion': 'Supprimer la question',
+    'builder.required': 'Obligatoire',
+    'builder.optionLabelPlaceholder': 'Libellé de l’option',
+    'builder.addOption': 'Ajouter une option',
+    'builder.advancedSettings': 'Paramètres avancés',
+    'builder.placeholderPlaceholder': 'Placeholder',
+    'builder.helpTextPlaceholder': 'Texte d’aide',
+    'builder.minPlaceholder': 'Min',
+    'builder.maxPlaceholder': 'Max',
+    'builder.stepPlaceholder': 'Pas',
+    'builder.multiple': 'Multiple',
+    'builder.acceptedExtensionsPlaceholder': 'Extensions acceptées (.pdf,.png)',
+    'builder.conditions': 'Conditions',
+    'builder.addCondition': 'Ajouter une condition',
+    'builder.condition.action.show': 'Afficher',
+    'builder.condition.action.hide': 'Masquer',
+    'builder.condition.action.skip': 'Passer',
+    'builder.condition.action.require': 'Rendre obligatoire',
+    'builder.condition.action.disable': 'Désactiver',
+    'builder.condition.match.all': 'Toutes',
+    'builder.condition.match.any': 'Au moins une',
+    'builder.condition.operator.eq': 'Égal à',
+    'builder.condition.operator.neq': 'Différent de',
+    'builder.condition.operator.in': 'Dans',
+    'builder.condition.operator.not_in': 'Pas dans',
+    'builder.condition.operator.gt': 'Supérieur à',
+    'builder.condition.operator.gte': 'Supérieur ou égal à',
+    'builder.condition.operator.lt': 'Inférieur à',
+    'builder.condition.operator.lte': 'Inférieur ou égal à',
+    'builder.condition.operator.contains': 'Contient',
+    'builder.condition.operator.not_contains': 'Ne contient pas',
+    'builder.condition.operator.is_empty': 'Est vide',
+    'builder.condition.operator.not_empty': 'N’est pas vide',
+    'builder.valuePlaceholder': 'Valeur',
+    'builder.remove': 'Retirer',
+    'builder.addClause': 'Ajouter une clause',
+    'builder.deleteCondition': 'Supprimer la condition',
+    'builder.rail.addQuestion': 'Ajouter une question',
+    'builder.rail.addPage': 'Ajouter une page',
+    'builder.loadingBuilder': 'Chargement du builder...',
+    'builder.error.loadForm': 'Échec du chargement du formulaire',
+    'builder.error.save': 'Échec de la sauvegarde',
+    'builder.error.publish': 'Échec de la publication',
+    'builder.error.unpublish': 'Échec de la dépublication',
+    'builder.optionDefaultLabel': 'Option',
+    'builder.optionsCount': '{count} options'
+  }
+} as const
+
+type FormForgeTranslationKey = keyof typeof TRANSLATIONS.en
+
+function normalizeLocale(locale: string | undefined): FormForgeLocale {
+  if (locale === undefined || locale === '') {
+    return 'en'
+  }
+
+  const lowered = locale.toLowerCase()
+  if (lowered.startsWith('fr')) {
+    return 'fr'
+  }
+
+  return 'en'
+}
+
+function readRuntimeLocale(value: FormForgeJsonValue | undefined): string | undefined {
+  if (!value || Array.isArray(value) || typeof value !== 'object') {
+    return undefined
+  }
+
+  const locale = (value as FormForgeJsonObject).locale
+  return typeof locale === 'string' ? locale : undefined
+}
+
+function resolveLocaleOption(locale: UseFormForgeI18nOptions['locale']): string | undefined {
+  if (typeof locale === 'function') {
+    return locale()
+  }
+
+  return locale
+}
+
+function readNuxtI18nLocale(value: unknown): string | undefined {
+  if (value === null || typeof value !== 'object') {
+    return undefined
+  }
+
+  if ('locale' in value) {
+    const localeValue = (value as { locale?: unknown }).locale
+
+    if (typeof localeValue === 'string') {
+      return localeValue
+    }
+
+    if (localeValue !== null && typeof localeValue === 'object' && 'value' in localeValue) {
+      const refValue = (localeValue as { value?: unknown }).value
+      if (typeof refValue === 'string') {
+        return refValue
+      }
+    }
+  }
+
+  if ('global' in value) {
+    const globalValue = (value as { global?: unknown }).global
+    if (globalValue !== null && typeof globalValue === 'object' && 'locale' in globalValue) {
+      const localeValue = (globalValue as { locale?: unknown }).locale
+
+      if (typeof localeValue === 'string') {
+        return localeValue
+      }
+
+      if (localeValue !== null && typeof localeValue === 'object' && 'value' in localeValue) {
+        const refValue = (localeValue as { value?: unknown }).value
+        if (typeof refValue === 'string') {
+          return refValue
+        }
+      }
+    }
+  }
+
+  return undefined
+}
+
+function interpolate(template: string, values?: FormForgeTranslationValues): string {
+  if (values === undefined) {
+    return template
+  }
+
+  return template.replaceAll(/\{([a-zA-Z0-9_]+)\}/g, (token, key: string) => {
+    const value = values[key]
+    return value === undefined ? token : String(value)
+  })
+}
+
+export function useFormForgeI18n(options: UseFormForgeI18nOptions = {}) {
+  const runtimeConfig = useRuntimeConfig()
+  const nuxtApp = useNuxtApp()
+
+  const locale = computed<FormForgeLocale>(() => {
+    const nuxtLocale = readNuxtI18nLocale((nuxtApp as { $i18n?: unknown }).$i18n)
+    const runtimeLocale = readRuntimeLocale((runtimeConfig.public as FormForgeJsonObject | undefined)?.formforge)
+    const optionLocale = resolveLocaleOption(options.locale)
+    return normalizeLocale(optionLocale ?? nuxtLocale ?? runtimeLocale)
+  })
+
+  function t(key: FormForgeTranslationKey, values?: FormForgeTranslationValues): string {
+    const table = TRANSLATIONS[locale.value]
+    const fallbackTable = TRANSLATIONS.en
+    const template = table[key] ?? fallbackTable[key] ?? key
+    return interpolate(template, values)
+  }
+
+  return {
+    locale,
+    t
+  }
+}

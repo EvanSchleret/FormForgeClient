@@ -1,0 +1,55 @@
+{
+  "name": "@formforge/client",
+  "version": "0.1.0",
+  "description": "Nuxt module and runtime client for FormForge",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/module.cjs",
+  "module": "./dist/module.mjs",
+  "types": "./dist/module.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/module.d.ts",
+      "import": "./dist/module.mjs",
+      "require": "./dist/module.cjs"
+    },
+    "./runtime": {
+      "types": "./dist/runtime.d.ts",
+      "import": "./dist/runtime.mjs",
+      "require": "./dist/runtime.cjs"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "nuxt-module-build build",
+    "dev": "nuxt-module-build build --stub",
+    "lint": "eslint .",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@nuxt/ui": "^4.0.0",
+    "nuxt": "^4.0.0"
+  },
+  "dependencies": {
+    "@internationalized/date": "^3.10.0",
+    "vuedraggable": "^4.1.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@nuxt/kit": "^4.0.0",
+    "@nuxt/module-builder": "^0.8.0",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-vue": "^10.8.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.57.1",
+    "vitest": "^3.0.0",
+    "vue-eslint-parser": "^10.4.0",
+    "vue-tsc": "^2.2.0"
+  }
+}
