@@ -254,6 +254,7 @@ Routes used:
 const management = useFormForgeManagement()
 
 const forms = await management.listForms()
+await management.refreshForms()
 await management.createForm({
   title: 'Contact form',
   pages: [],
@@ -275,6 +276,7 @@ await management.patchForm(formUuid, {
 
 Also available:
 
+- `refreshForms` (alias `refresh`)
 - `publishForm`
 - `unpublishForm`
 - `deleteForm`

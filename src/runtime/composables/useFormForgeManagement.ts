@@ -19,6 +19,8 @@ export function useFormForgeManagement(options: UseFormForgeManagementOptions = 
   const client = options.client ?? useFormForgeClient(options.clientConfig)
   const loading = ref<boolean>(false)
   const error = ref<string | null>(null)
+  const forms = ref<FormForgeJsonObject[]>([])
+  const lastListIncludeDeleted = ref<boolean>(false)
 
   async function withLoading<T>(callback: () => Promise<T>): Promise<T> {
     loading.value = true
@@ -39,7 +41,16 @@ export function useFormForgeManagement(options: UseFormForgeManagementOptions = 
   }
 
   async function listForms(includeDeleted: boolean = false): Promise<FormForgeJsonObject[]> {
-    return withLoading(() => client.listForms(includeDeleted))
+    return withLoading(async () => {
+      const response = await client.listForms(includeDeleted)
+      forms.value = response
+      lastListIncludeDeleted.value = includeDeleted
+      return response
+    })
+  }
+
+  async function refreshForms(): Promise<FormForgeJsonObject[]> {
+    return listForms(lastListIncludeDeleted.value)
   }
 
   async function patchForm(key: string, input: FormForgeManagementPatchInput, idempotencyKey?: string): Promise<FormForgeJsonObject> {
@@ -70,7 +81,11 @@ export function useFormForgeManagement(options: UseFormForgeManagementOptions = 
     client,
     loading,
     error,
+    forms,
+    lastListIncludeDeleted,
     listForms,
+    refreshForms,
+    refresh: refreshForms,
     createForm,
     patchForm,
     publishForm,
