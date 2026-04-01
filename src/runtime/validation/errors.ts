@@ -91,11 +91,64 @@ function extractMessage(payload: FormForgeJsonObject | null): string {
   return 'Request failed'
 }
 
+function collectPayloadMessages(payload: FormForgeJsonObject | null): string[] {
+  if (payload === null) {
+    return []
+  }
+
+  const messages: string[] = []
+  const messageValue: FormForgeJsonValue | undefined = payload.message
+
+  if (typeof messageValue === 'string' && messageValue.trim() !== '') {
+    messages.push(messageValue.trim())
+  }
+
+  const validationErrors = extractValidationErrors(payload)
+  if (validationErrors !== undefined) {
+    for (const [fieldName, fieldMessages] of Object.entries(validationErrors)) {
+      messages.push(fieldName)
+      for (const fieldMessage of fieldMessages) {
+        if (fieldMessage.trim() !== '') {
+          messages.push(fieldMessage.trim())
+        }
+      }
+    }
+  }
+
+  return messages
+}
+
+function hasCategoryInUseConflict(status: number, payload: FormForgeJsonObject | null): boolean {
+  if (status !== 409) {
+    return false
+  }
+
+  const flattened = collectPayloadMessages(payload)
+    .map((message) => message.toLowerCase())
+    .join(' ')
+
+  if (flattened === '') {
+    return false
+  }
+
+  const mentionsCategory = flattened.includes('category') || flattened.includes('catégorie')
+  const mentionsInUse =
+    flattened.includes('in use')
+    || flattened.includes('linked')
+    || flattened.includes('attach')
+    || flattened.includes('used')
+    || flattened.includes('utilis')
+    || flattened.includes('liée')
+
+  return mentionsCategory && mentionsInUse
+}
+
 export function normalizeFormForgeClientError(status: number, payload: FormForgeJsonObject | null): FormForgeClientError {
   return {
     status,
     code: mapStatusToCode(status),
     message: extractMessage(payload),
+    businessCode: hasCategoryInUseConflict(status, payload) ? 'CATEGORY_IN_USE' : undefined,
     fieldErrors: extractValidationErrors(payload),
     raw: payload
   }

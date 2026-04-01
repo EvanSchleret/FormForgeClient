@@ -15,6 +15,10 @@ function isFileValue(value: FormForgeManagedValue): value is File {
 }
 
 function appendJsonValue(formData: FormData, key: string, value: FormForgeSubmissionValue): void {
+  if (value === undefined) {
+    return
+  }
+
   if (value === null) {
     formData.append(key, '')
     return
@@ -41,6 +45,10 @@ export function buildManagedFormData(payload: FormForgeManagedPayload, meta?: Fo
   const formData: FormData = new FormData()
 
   for (const [fieldName, fieldValue] of Object.entries(payload)) {
+    if (fieldValue === undefined) {
+      continue
+    }
+
     if (isFileValue(fieldValue)) {
       formData.append(fieldName, fieldValue)
       continue

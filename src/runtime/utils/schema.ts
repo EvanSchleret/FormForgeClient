@@ -16,6 +16,7 @@ import type {
   FormForgePageSchema
 } from '../types'
 import { getFormForgeStringArray, isFormForgeJsonObject, pickFormForgeDataEnvelope } from './object'
+import { normalizeFormForgeCategory } from './category'
 
 const FIELD_TYPES: FormForgeFieldType[] = [
   'text',
@@ -383,12 +384,16 @@ export function normalizeFormForgeSchema(payload: FormForgeJsonObject): FormForg
 
   const metaValue: FormForgeJsonValue | undefined = data.meta
   const meta: FormForgeJsonObject | undefined = isFormForgeJsonObject(metaValue) ? metaValue : undefined
+  const categoryItem = data.category_item === null
+    ? null
+    : normalizeFormForgeCategory(data.category_item)
 
   return {
     key: toString(data.key, ''),
     version: toString(data.version, ''),
     title: toString(data.title, ''),
     category: typeof data.category === 'string' || data.category === null ? data.category : undefined,
+    category_item: categoryItem ?? undefined,
     is_published: toBoolean(data.is_published, false),
     fields,
     pages,

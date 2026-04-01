@@ -14,6 +14,7 @@ import type {
   FormForgeJsonObject,
   FormForgeManagementCreateInput,
   FormForgeManagementPatchInput,
+  FormForgeScope,
   FormForgePageSchema
 } from '../types'
 
@@ -30,6 +31,8 @@ export interface FormForgeBuilderDraft {
 export interface UseFormForgeBuilderOptions {
   formUuid?: string
   formKey?: string
+  endpoint?: string
+  scope?: FormForgeScope
   initial?: Partial<FormForgeBuilderDraft>
   autosave?: boolean
   autosaveDelay?: number
@@ -373,7 +376,9 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
         }
 
         const created = await client.createForm(input, {
-          idempotencyKey
+          idempotencyKey,
+          endpoint: options.endpoint,
+          scope: options.scope
         })
 
         const nextUuid = extractFormUuid(created)
@@ -389,7 +394,9 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
       } else {
         const patchInput: FormForgeManagementPatchInput = input
         const patched = await client.patchForm(mutationIdentifier, patchInput, {
-          idempotencyKey
+          idempotencyKey,
+          endpoint: options.endpoint,
+          scope: options.scope
         })
 
         const nextUuid = extractFormUuid(patched)
@@ -429,7 +436,9 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
 
     try {
       await client.publishForm(mutationIdentifier, {
-        idempotencyKey
+        idempotencyKey,
+        endpoint: options.endpoint,
+        scope: options.scope
       })
     } catch (caughtError) {
       error.value = caughtError instanceof Error ? caughtError.message : 'Failed to publish form'
@@ -451,7 +460,9 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
 
     try {
       await client.unpublishForm(mutationIdentifier, {
-        idempotencyKey
+        idempotencyKey,
+        endpoint: options.endpoint,
+        scope: options.scope
       })
     } catch (caughtError) {
       error.value = caughtError instanceof Error ? caughtError.message : 'Failed to unpublish form'

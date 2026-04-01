@@ -3,6 +3,7 @@ import { buildManagedFormData, type FormForgeManagedPayload } from '../utils/for
 import { toFormForgeJsonSubmissionPayload } from '../utils/submission'
 import { createFormForgeZodSchema, validateFormForgePayload } from '../validation/zod'
 import { useFormForgeClient } from './useFormForgeClient'
+import type { FormForgeRequestOptions } from '../api/request'
 import type {
   FormForgeClient,
   FormForgeClientConfig,
@@ -10,6 +11,7 @@ import type {
   FormForgeFieldSchema,
   FormForgeFormSchema,
   FormForgeJsonObject,
+  FormForgeScope,
   FormForgeStagedUploadValue,
   FormForgeSubmissionPayload,
   FormForgeSubmissionResponse,
@@ -21,12 +23,14 @@ export interface UseFormForgeSubmitOptions {
   schema: () => FormForgeFormSchema | null
   state: () => FormForgeSubmissionPayload
   version?: string
+  endpoint?: string
+  scope?: FormForgeScope
   client?: FormForgeClient
   clientConfig?: FormForgeClientConfig
   validateLocal?: boolean
 }
 
-export interface FormForgeSubmitOptions {
+export interface FormForgeSubmitOptions extends FormForgeRequestOptions {
   mode?: FormForgeUploadMode
   version?: string
   meta?: FormForgeJsonObject
@@ -63,6 +67,107 @@ function isStagedUploadToken(value: FormForgeSubmissionPayload[string]): value i
   return typeof uploadToken === 'string'
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return false
+  }
+
+  if (typeof File !== 'undefined' && value instanceof File) {
+    return false
+  }
+
+  return true
+}
+
+function hasUploadTokenOrPath(value: Record<string, unknown>): boolean {
+  const uploadToken = value.upload_token
+  if (typeof uploadToken === 'string' && uploadToken.trim() !== '') {
+    return true
+  }
+
+  const path = value.path
+  if (typeof path === 'string' && path.trim() !== '') {
+    return true
+  }
+
+  return false
+}
+
+function isEmptyFileSubmissionValue(value: FormForgeSubmissionPayload[string]): boolean {
+  if (value === undefined || value === null) {
+    return true
+  }
+
+  if (isFileValue(value) || isStagedUploadToken(value)) {
+    return false
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return true
+    }
+
+    return value.every((item) => {
+      if (item === undefined || item === null) {
+        return true
+      }
+
+      if (isFileValue(item)) {
+        return false
+      }
+
+      if (isStagedUploadToken(item)) {
+        return false
+      }
+
+      if (isPlainObject(item)) {
+        return !hasUploadTokenOrPath(item)
+      }
+
+      return false
+    })
+  }
+
+  if (isPlainObject(value)) {
+    return !hasUploadTokenOrPath(value)
+  }
+
+  return false
+}
+
+function isOptionalFieldValueAbsent(field: FormForgeFieldSchema, value: FormForgeSubmissionPayload[string]): boolean {
+  if (value === undefined || value === null) {
+    return true
+  }
+
+  if (typeof value === 'string' && value.trim() === '') {
+    return true
+  }
+
+  if (field.type === 'file') {
+    return isEmptyFileSubmissionValue(value)
+  }
+
+  if (field.type === 'checkbox_group' && Array.isArray(value) && value.length === 0) {
+    return true
+  }
+
+  if ((field.type === 'date_range' || field.type === 'datetime_range') && isPlainObject(value)) {
+    const start = value.start
+    const end = value.end
+    const startEmpty = start === undefined || start === null || start === ''
+    const endEmpty = end === undefined || end === null || end === ''
+
+    return startEmpty && endEmpty
+  }
+
+  if (Array.isArray(value) && value.length === 0) {
+    return true
+  }
+
+  return false
+}
+
 function isFormForgeClientError(error: object): error is FormForgeClientError {
   const maybeError = error as FormForgeClientError
 
@@ -74,7 +179,9 @@ async function stageSingleFile(
   formKey: string,
   field: FormForgeFieldSchema,
   file: File,
-  version: string | undefined
+  version: string | undefined,
+  endpoint: string | undefined,
+  scope: FormForgeScope | undefined
 ): Promise<FormForgeStagedUploadValue> {
   const staged = await client.stageUpload(
     formKey,
@@ -84,7 +191,9 @@ async function stageSingleFile(
       file
     },
     {
-      version
+      version,
+      endpoint,
+      scope
     }
   )
 
@@ -98,14 +207,16 @@ async function stageFieldFiles(
   formKey: string,
   field: FormForgeFieldSchema,
   value: FormForgeSubmissionPayload[string],
-  version: string | undefined
+  version: string | undefined,
+  endpoint: string | undefined,
+  scope: FormForgeScope | undefined
 ): Promise<FormForgeSubmissionPayload[string]> {
-  if (value === null || isStagedUploadToken(value)) {
+  if (value === null || value === undefined || isStagedUploadToken(value)) {
     return value
   }
 
   if (isFileValue(value)) {
-    return stageSingleFile(client, formKey, field, value, version)
+    return stageSingleFile(client, formKey, field, value, version, endpoint, scope)
   }
 
   if (Array.isArray(value)) {
@@ -113,7 +224,7 @@ async function stageFieldFiles(
 
     for (const item of value) {
       if (isFileValue(item)) {
-        const stagedItem = await stageSingleFile(client, formKey, field, item, version)
+        const stagedItem = await stageSingleFile(client, formKey, field, item, version, endpoint, scope)
         stagedValues.push(stagedItem)
       }
 
@@ -123,6 +234,10 @@ async function stageFieldFiles(
     }
 
     return stagedValues
+  }
+
+  if (isPlainObject(value)) {
+    return hasUploadTokenOrPath(value) ? value : null
   }
 
   return value
@@ -136,12 +251,32 @@ function buildSubmissionPayload(fields: FormForgeFieldSchema[], state: FormForge
   const payload: FormForgeSubmissionPayload = {}
 
   for (const field of fields) {
-    if (state[field.name] !== undefined) {
-      payload[field.name] = state[field.name]
+    const fieldValue = state[field.name]
+
+    if (fieldValue === undefined) {
+      continue
     }
+
+    if (field.required === false && isOptionalFieldValueAbsent(field, fieldValue)) {
+      continue
+    }
+
+    payload[field.name] = fieldValue
   }
 
   return payload
+}
+
+function pruneOptionalEmptyFields(payload: FormForgeSubmissionPayload, fields: FormForgeFieldSchema[]): void {
+  for (const field of fields) {
+    if (field.required !== false) {
+      continue
+    }
+
+    if (isOptionalFieldValueAbsent(field, payload[field.name])) {
+      delete payload[field.name]
+    }
+  }
 }
 
 export function useFormForgeSubmit(options: UseFormForgeSubmitOptions) {
@@ -165,7 +300,10 @@ export function useFormForgeSubmit(options: UseFormForgeSubmitOptions) {
 
     const mode: FormForgeUploadMode = submitOptions.mode ?? options.clientConfig?.uploadMode ?? 'staged'
     const version: string | undefined = submitOptions.version ?? options.version
+    const endpoint: string | undefined = submitOptions.endpoint ?? options.endpoint
+    const scope: FormForgeScope | undefined = submitOptions.scope ?? options.scope
     const payload = buildSubmissionPayload(submittableFields, options.state())
+    pruneOptionalEmptyFields(payload, submittableFields)
 
     fieldErrors.value = {}
     error.value = null
@@ -192,7 +330,9 @@ export function useFormForgeSubmit(options: UseFormForgeSubmitOptions) {
         const formData = buildManagedFormData(payload as FormForgeManagedPayload, submitOptions.meta)
         const managedResponse = await client.submitFormMultipart(options.key, formData, {
           version,
-          test: submitOptions.test
+          test: submitOptions.test,
+          endpoint,
+          scope
         })
         response.value = managedResponse
         return managedResponse
@@ -209,9 +349,22 @@ export function useFormForgeSubmit(options: UseFormForgeSubmitOptions) {
           }
 
           const currentValue = jsonPayload[field.name]
-          jsonPayload[field.name] = await stageFieldFiles(client, options.key, field, currentValue, version)
+          if (currentValue === undefined) {
+            continue
+          }
+
+          const stagedValue = await stageFieldFiles(client, options.key, field, currentValue, version, endpoint, scope)
+
+          if (stagedValue === undefined) {
+            delete jsonPayload[field.name]
+            continue
+          }
+
+          jsonPayload[field.name] = stagedValue
         }
       }
+
+      pruneOptionalEmptyFields(jsonPayload, submittableFields)
 
       const submitResponse = await client.submitForm(
         options.key,
@@ -221,7 +374,9 @@ export function useFormForgeSubmit(options: UseFormForgeSubmitOptions) {
           test: submitOptions.test
         },
         {
-          version
+          version,
+          endpoint,
+          scope
         }
       )
 

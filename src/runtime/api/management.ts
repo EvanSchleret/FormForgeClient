@@ -2,49 +2,87 @@ import type {
   FormForgeDiffResponse,
   FormForgeHttpAdapter,
   FormForgeJsonObject,
+  FormForgeJsonValue,
   FormForgeManagementCreateInput,
+  FormForgeManagementForm,
   FormForgeManagementPatchInput,
   FormForgeRevisionSummary
 } from '../types'
 import { isFormForgeJsonObject, pickFormForgeDataEnvelope } from '../utils/object'
+import { normalizeFormForgeCategory } from '../utils/category'
+import { resolveEndpointPath, type FormForgeRequestOptions } from './request'
 
-export interface FormForgeMutationOptions {
+export interface FormForgeMutationOptions extends FormForgeRequestOptions {
   idempotencyKey?: string
 }
 
-function asJsonObjectArray(value: unknown): FormForgeJsonObject[] {
+export type FormForgeManagementRequestOptions = FormForgeRequestOptions
+
+function normalizeManagementForm(value: unknown): FormForgeManagementForm | null {
+  if (!isFormForgeJsonObject(value as FormForgeJsonValue | null | undefined)) {
+    return null
+  }
+
+  const rawValue = value as FormForgeJsonObject
+
+  const category = typeof rawValue.category === 'string' || rawValue.category === null
+    ? rawValue.category
+    : undefined
+
+  const rawCategoryItem = rawValue.category_item
+  const categoryItem = rawCategoryItem === null
+    ? null
+    : normalizeFormForgeCategory(rawCategoryItem)
+
+  const normalized: FormForgeManagementForm = {
+    ...rawValue
+  }
+
+  if (category !== undefined) {
+    normalized.category = category
+  }
+
+  if (rawCategoryItem === null || categoryItem !== null) {
+    normalized.category_item = categoryItem
+  }
+
+  return normalized
+}
+
+function asManagementFormArray(value: unknown): FormForgeManagementForm[] {
   if (!Array.isArray(value)) {
     return []
   }
 
-  const items: FormForgeJsonObject[] = []
+  const items: FormForgeManagementForm[] = []
 
   for (const item of value) {
-    if (isFormForgeJsonObject(item)) {
-      items.push(item)
+    const normalized = normalizeManagementForm(item)
+    if (normalized !== null) {
+      items.push(normalized)
     }
   }
 
   return items
 }
 
-function normalizeFormsList(payload: FormForgeJsonObject): FormForgeJsonObject[] {
+function normalizeFormsList(payload: FormForgeJsonObject): FormForgeManagementForm[] {
   const dataValue = payload.data
 
   if (Array.isArray(dataValue)) {
-    return asJsonObjectArray(dataValue)
+    return asManagementFormArray(dataValue)
   }
 
   if (!isFormForgeJsonObject(dataValue)) {
-    return asJsonObjectArray(payload.items ?? payload.forms)
+    return asManagementFormArray(payload.items ?? payload.forms)
   }
 
   const nestedData = dataValue.data
   if (Array.isArray(nestedData)) {
-    return asJsonObjectArray(nestedData)
+    return asManagementFormArray(nestedData)
   }
 
-  return asJsonObjectArray(dataValue.items ?? dataValue.forms)
+  return asManagementFormArray(dataValue.items ?? dataValue.forms)
 }
 
 function withMutationHeaders(options: FormForgeMutationOptions = {}): Record<string, string> {
@@ -65,23 +103,24 @@ export async function createFormForgeForm(
   http: FormForgeHttpAdapter,
   input: FormForgeManagementCreateInput,
   options: FormForgeMutationOptions = {}
-): Promise<FormForgeJsonObject> {
+): Promise<FormForgeManagementForm> {
   const response = await http<FormForgeJsonObject>({
-    path: '/forms',
+    path: resolveEndpointPath(options.endpoint, '/forms', {}, options.scope),
     method: 'POST',
     headers: withMutationHeaders(options),
     json: toJsonObject(input)
   })
 
-  return pickFormForgeDataEnvelope(response.data)
+  return normalizeManagementForm(pickFormForgeDataEnvelope(response.data)) ?? {}
 }
 
 export async function fetchFormForgeForms(
   http: FormForgeHttpAdapter,
-  includeDeleted: boolean = false
-): Promise<FormForgeJsonObject[]> {
+  includeDeleted: boolean = false,
+  options: FormForgeManagementRequestOptions = {}
+): Promise<FormForgeManagementForm[]> {
   const response = await http<FormForgeJsonObject>({
-    path: '/forms',
+    path: resolveEndpointPath(options.endpoint, '/forms', {}, options.scope),
     method: 'GET',
     query: {
       include_deleted: includeDeleted ? 1 : 0
@@ -96,66 +135,77 @@ export async function patchFormForgeForm(
   key: string,
   input: FormForgeManagementPatchInput,
   options: FormForgeMutationOptions = {}
-): Promise<FormForgeJsonObject> {
+): Promise<FormForgeManagementForm> {
   const response = await http<FormForgeJsonObject>({
-    path: `/forms/${key}`,
+    path: resolveEndpointPath(options.endpoint, `/forms/${key}`, {
+      key
+    }, options.scope),
     method: 'PATCH',
     headers: withMutationHeaders(options),
     json: toJsonObject(input)
   })
 
-  return pickFormForgeDataEnvelope(response.data)
+  return normalizeManagementForm(pickFormForgeDataEnvelope(response.data)) ?? {}
 }
 
 export async function publishFormForgeForm(
   http: FormForgeHttpAdapter,
   key: string,
   options: FormForgeMutationOptions = {}
-): Promise<FormForgeJsonObject> {
+): Promise<FormForgeManagementForm> {
   const response = await http<FormForgeJsonObject>({
-    path: `/forms/${key}/publish`,
+    path: resolveEndpointPath(options.endpoint, `/forms/${key}/publish`, {
+      key
+    }, options.scope),
     method: 'POST',
     headers: withMutationHeaders(options)
   })
 
-  return pickFormForgeDataEnvelope(response.data)
+  return normalizeManagementForm(pickFormForgeDataEnvelope(response.data)) ?? {}
 }
 
 export async function unpublishFormForgeForm(
   http: FormForgeHttpAdapter,
   key: string,
   options: FormForgeMutationOptions = {}
-): Promise<FormForgeJsonObject> {
+): Promise<FormForgeManagementForm> {
   const response = await http<FormForgeJsonObject>({
-    path: `/forms/${key}/unpublish`,
+    path: resolveEndpointPath(options.endpoint, `/forms/${key}/unpublish`, {
+      key
+    }, options.scope),
     method: 'POST',
     headers: withMutationHeaders(options)
   })
 
-  return pickFormForgeDataEnvelope(response.data)
+  return normalizeManagementForm(pickFormForgeDataEnvelope(response.data)) ?? {}
 }
 
 export async function deleteFormForgeForm(
   http: FormForgeHttpAdapter,
   key: string,
   options: FormForgeMutationOptions = {}
-): Promise<FormForgeJsonObject> {
+): Promise<FormForgeManagementForm> {
   const response = await http<FormForgeJsonObject>({
-    path: `/forms/${key}`,
+    path: resolveEndpointPath(options.endpoint, `/forms/${key}`, {
+      key
+    }, options.scope),
     method: 'DELETE',
     headers: withMutationHeaders(options)
   })
 
-  return pickFormForgeDataEnvelope(response.data)
+  return normalizeManagementForm(pickFormForgeDataEnvelope(response.data)) ?? {}
 }
 
 export async function fetchFormForgeRevisions(
   http: FormForgeHttpAdapter,
   key: string,
-  includeDeleted: boolean = false
+  includeDeleted: boolean = false,
+  options: FormForgeManagementRequestOptions = {}
 ): Promise<FormForgeRevisionSummary[]> {
   const response = await http<FormForgeJsonObject>({
-    path: `/forms/${key}/revisions`,
+    path: resolveEndpointPath(options.endpoint, `/forms/${key}/revisions`, {
+      key
+    }, options.scope),
     method: 'GET',
     query: {
       include_deleted: includeDeleted ? 1 : 0
@@ -196,10 +246,15 @@ export async function fetchFormForgeDiff(
   http: FormForgeHttpAdapter,
   key: string,
   fromVersion: number,
-  toVersion: number
+  toVersion: number,
+  options: FormForgeManagementRequestOptions = {}
 ): Promise<FormForgeDiffResponse> {
   const response = await http<FormForgeJsonObject>({
-    path: `/forms/${key}/diff/${fromVersion}/${toVersion}`,
+    path: resolveEndpointPath(options.endpoint, `/forms/${key}/diff/${fromVersion}/${toVersion}`, {
+      key,
+      fromVersion,
+      toVersion
+    }, options.scope),
     method: 'GET'
   })
 

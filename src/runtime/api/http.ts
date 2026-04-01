@@ -1,4 +1,6 @@
 import type {
+  FormForgeBaseURLParams,
+  FormForgeBaseURLParamsInput,
   FormForgeBeforeRequestContext,
   FormForgeClientConfig,
   FormForgeHttpAdapter,
@@ -20,6 +22,36 @@ function normalizeBaseUrl(baseURL: string | undefined): string {
   }
 
   return baseURL
+}
+
+function resolveBaseURLParams(input: FormForgeBaseURLParamsInput | undefined): FormForgeBaseURLParams {
+  if (input === undefined) {
+    return {}
+  }
+
+  if (typeof input === 'function') {
+    return input()
+  }
+
+  return input
+}
+
+function resolveBaseURL(baseURLTemplate: string, paramsInput: FormForgeBaseURLParamsInput | undefined): string {
+  if (!baseURLTemplate.includes('{')) {
+    return baseURLTemplate
+  }
+
+  const params = resolveBaseURLParams(paramsInput)
+
+  return baseURLTemplate.replaceAll(/\{([a-zA-Z0-9_]+)\}/g, (token: string, key: string) => {
+    const value = params[key]
+
+    if (value === undefined || value === '') {
+      return token
+    }
+
+    return encodeURIComponent(String(value))
+  })
 }
 
 function normalizePath(path: string): string {
@@ -89,7 +121,8 @@ async function parseResponsePayload(response: Response): Promise<FormForgeJsonOb
 async function runBeforeRequest(
   callback: FormForgeClientConfig['beforeRequest'],
   request: FormForgeHttpRequest,
-  headers: Record<string, string>
+  headers: Record<string, string>,
+  url: string
 ): Promise<void> {
   if (callback === undefined) {
     return
@@ -97,14 +130,15 @@ async function runBeforeRequest(
 
   const context: FormForgeBeforeRequestContext = {
     request,
-    headers
+    headers,
+    url
   }
 
   await callback(context)
 }
 
 export function createFormForgeHttpAdapter(config: FormForgeClientConfig = {}): FormForgeHttpAdapter {
-  const baseURL: string = normalizeBaseUrl(config.baseURL)
+  const baseURLTemplate: string = normalizeBaseUrl(config.baseURL)
   const fetchImpl: typeof fetch = config.fetch ?? fetch
   const defaultHeaders: Record<string, string> = {
     Accept: 'application/json',
@@ -114,7 +148,8 @@ export function createFormForgeHttpAdapter(config: FormForgeClientConfig = {}): 
 
   return async function formForgeHttpAdapter<TData>(request: FormForgeHttpRequest): Promise<FormForgeHttpResponse<TData>> {
     const endpointPath: string = normalizePath(request.path)
-    const targetPath: string = appendQuery(`${baseURL}${endpointPath}`, request.query)
+    const resolvedBaseURL: string = resolveBaseURL(baseURLTemplate, config.baseURLParams)
+    const targetPath: string = appendQuery(`${resolvedBaseURL}${endpointPath}`, request.query)
 
     const headers: Record<string, string> = {
       ...defaultHeaders,
@@ -128,7 +163,7 @@ export function createFormForgeHttpAdapter(config: FormForgeClientConfig = {}): 
       body = JSON.stringify(request.json)
     }
 
-    await runBeforeRequest(config.beforeRequest, request, headers)
+    await runBeforeRequest(config.beforeRequest, request, headers, targetPath)
 
     let response: Response
 

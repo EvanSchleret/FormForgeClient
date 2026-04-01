@@ -1,15 +1,20 @@
 import { ref } from '#imports'
 import { createFormForgeZodSchema } from '../validation/zod'
 import { useFormForgeClient } from './useFormForgeClient'
-import type { FormForgeClient, FormForgeClientConfig, FormForgeFormSchema, FormForgeSubmissionPayload } from '../types'
+import type { FormForgeClient, FormForgeClientConfig, FormForgeFormSchema, FormForgeScope, FormForgeSubmissionPayload } from '../types'
+import type { FormForgeRequestOptions } from '../api/request'
 
 export interface UseFormForgeFormOptions {
   key: string
   version?: string
+  endpoint?: string
+  scope?: FormForgeScope
   immediate?: boolean
   client?: FormForgeClient
   clientConfig?: FormForgeClientConfig
 }
+
+export type FormForgeFormRequestOptions = FormForgeRequestOptions
 
 function clonePayload(payload: FormForgeSubmissionPayload): FormForgeSubmissionPayload {
   if (typeof structuredClone === 'function') {
@@ -71,14 +76,24 @@ export function useFormForgeForm(options: UseFormForgeFormOptions) {
 
   const zodSchema = ref<object | undefined>(undefined)
 
-  async function fetchSchema(): Promise<FormForgeFormSchema> {
+  function resolveEndpoint(requestOptions: FormForgeFormRequestOptions = {}): string | undefined {
+    return requestOptions.endpoint ?? options.endpoint
+  }
+
+  function resolveScope(requestOptions: FormForgeFormRequestOptions = {}): FormForgeScope | undefined {
+    return requestOptions.scope ?? options.scope
+  }
+
+  async function fetchSchema(requestOptions: FormForgeFormRequestOptions = {}): Promise<FormForgeFormSchema> {
     loading.value = true
     lastError.value = null
 
     try {
+      const endpoint = resolveEndpoint(requestOptions)
+      const scope = resolveScope(requestOptions)
       const nextSchema = options.version !== undefined && options.version !== ''
-        ? await client.getFormVersion(options.key, options.version)
-        : await client.getForm(options.key)
+        ? await client.getFormVersion(options.key, options.version, { endpoint, scope })
+        : await client.getForm(options.key, { endpoint, scope })
 
       const nextState = createInitialPayload(nextSchema)
 

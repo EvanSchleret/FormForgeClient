@@ -7,6 +7,17 @@ describe('normalizeFormForgeSchema', () => {
       key: 'contact-form',
       version: '3',
       title: 'Contact Form',
+      category: 'survey',
+      category_item: {
+        id: 10,
+        key: 'survey',
+        name: 'Survey',
+        description: null,
+        is_active: true,
+        meta: {},
+        created_at: null,
+        updated_at: null
+      },
       is_published: true,
       api: {},
       fields: [
@@ -34,6 +45,8 @@ describe('normalizeFormForgeSchema', () => {
     })
 
     expect(schema.key).toBe('contact-form')
+    expect(schema.category).toBe('survey')
+    expect(schema.category_item?.key).toBe('survey')
     expect(schema.fields[0]?.name).toBe('name')
     expect(schema.fields[1]?.name).toBe('email')
     expect(schema.pages.length).toBe(1)

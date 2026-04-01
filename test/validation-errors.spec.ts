@@ -22,4 +22,17 @@ describe('normalizeFormForgeClientError', () => {
 
     expect(error.code).toBe('forbidden')
   })
+
+  it('maps category in use conflict to CATEGORY_IN_USE business code', () => {
+    const error = normalizeFormForgeClientError(409, {
+      message: 'Category is in use by existing forms.',
+      errors: {
+        category: ['Category is linked to forms.']
+      }
+    })
+
+    expect(error.code).toBe('conflict')
+    expect(error.businessCode).toBe('CATEGORY_IN_USE')
+    expect(error.fieldErrors?.category).toEqual(['Category is linked to forms.'])
+  })
 })

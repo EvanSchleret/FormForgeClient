@@ -1,15 +1,18 @@
 import { ref } from '#imports'
 import { useFormForgeClient } from './useFormForgeClient'
-import type { FormForgeClient, FormForgeClientConfig, FormForgeStageUploadInput, FormForgeStagedUploadResponse } from '../types'
+import type { FormForgeRequestOptions } from '../api/request'
+import type { FormForgeClient, FormForgeClientConfig, FormForgeScope, FormForgeStageUploadInput, FormForgeStagedUploadResponse } from '../types'
 
 export interface UseFormForgeUploadsOptions {
   key: string
   version?: string
+  endpoint?: string
+  scope?: FormForgeScope
   client?: FormForgeClient
   clientConfig?: FormForgeClientConfig
 }
 
-export interface FormForgeUploadOptions {
+export interface FormForgeUploadOptions extends FormForgeRequestOptions {
   version?: string
 }
 
@@ -28,7 +31,9 @@ export function useFormForgeUploads(options: UseFormForgeUploadsOptions) {
         options.key,
         input,
         {
-          version: stageOptions.version ?? options.version
+          version: stageOptions.version ?? options.version,
+          endpoint: stageOptions.endpoint ?? options.endpoint,
+          scope: stageOptions.scope ?? options.scope
         }
       )
       lastUpload.value = response

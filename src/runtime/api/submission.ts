@@ -1,8 +1,9 @@
 import type { FormForgeHttpAdapter, FormForgeJsonObject, FormForgeSubmitInput, FormForgeSubmissionResponse } from '../types'
 import { buildJsonSubmitBody } from '../utils/form-data'
 import { pickFormForgeDataEnvelope } from '../utils/object'
+import { resolveEndpointPath, type FormForgeRequestOptions } from './request'
 
-interface FormForgeSubmitOptions {
+interface FormForgeSubmitOptions extends FormForgeRequestOptions {
   version?: string
 }
 
@@ -27,7 +28,10 @@ export async function submitFormForgeJson(
   }
 
   const response = await http<FormForgeJsonObject>({
-    path: buildSubmitPath(key, options.version),
+    path: resolveEndpointPath(options.endpoint, buildSubmitPath(key, options.version), {
+      key,
+      version: options.version ?? ''
+    }, options.scope),
     method: 'POST',
     headers,
     json: buildJsonSubmitBody(input.payload, input.meta)
@@ -52,7 +56,10 @@ export async function submitFormForgeMultipart(
   }
 
   const response = await http<FormForgeJsonObject>({
-    path: buildSubmitPath(key, options.version),
+    path: resolveEndpointPath(options.endpoint, buildSubmitPath(key, options.version), {
+      key,
+      version: options.version ?? ''
+    }, options.scope),
     method: 'POST',
     headers,
     body: formData

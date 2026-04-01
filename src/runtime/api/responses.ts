@@ -1,5 +1,6 @@
 import type { FormForgeHttpAdapter, FormForgeJsonObject, FormForgeResponsesListResponse } from '../types'
 import { isFormForgeJsonObject, pickFormForgeDataEnvelope } from '../utils/object'
+import { resolveEndpointPath, type FormForgeRequestOptions } from './request'
 
 function asJsonObjectArray(value: unknown): FormForgeJsonObject[] {
   if (!Array.isArray(value)) {
@@ -39,10 +40,13 @@ function normalizeResponsesList(payload: FormForgeJsonObject): FormForgeJsonObje
 export async function fetchFormForgeResponses(
   http: FormForgeHttpAdapter,
   key: string,
-  query: Record<string, string | number | boolean | undefined> = {}
+  query: Record<string, string | number | boolean | undefined> = {},
+  options: FormForgeRequestOptions = {}
 ): Promise<FormForgeResponsesListResponse> {
   const response = await http<FormForgeJsonObject>({
-    path: `/forms/${key}/responses`,
+    path: resolveEndpointPath(options.endpoint, `/forms/${key}/responses`, {
+      key
+    }, options.scope),
     method: 'GET',
     query
   })
@@ -56,10 +60,14 @@ export async function fetchFormForgeResponses(
 export async function fetchFormForgeResponse(
   http: FormForgeHttpAdapter,
   key: string,
-  submissionId: string
+  submissionId: string,
+  options: FormForgeRequestOptions = {}
 ): Promise<FormForgeJsonObject> {
   const response = await http<FormForgeJsonObject>({
-    path: `/forms/${key}/responses/${submissionId}`,
+    path: resolveEndpointPath(options.endpoint, `/forms/${key}/responses/${submissionId}`, {
+      key,
+      submissionId
+    }, options.scope),
     method: 'GET'
   })
 
@@ -69,10 +77,14 @@ export async function fetchFormForgeResponse(
 export async function deleteFormForgeResponse(
   http: FormForgeHttpAdapter,
   key: string,
-  submissionId: string
+  submissionId: string,
+  options: FormForgeRequestOptions = {}
 ): Promise<FormForgeJsonObject> {
   const response = await http<FormForgeJsonObject>({
-    path: `/forms/${key}/responses/${submissionId}`,
+    path: resolveEndpointPath(options.endpoint, `/forms/${key}/responses/${submissionId}`, {
+      key,
+      submissionId
+    }, options.scope),
     method: 'DELETE'
   })
 

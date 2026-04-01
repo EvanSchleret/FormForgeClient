@@ -1,10 +1,12 @@
 import { ref, useRoute, watch } from '#imports'
 import { useFormForgeClient } from './useFormForgeClient'
+import type { FormForgeRequestOptions } from '../api/request'
 import type {
   FormForgeClient,
   FormForgeClientConfig,
   FormForgeJsonObject,
-  FormForgeResponsesListResponse
+  FormForgeResponsesListResponse,
+  FormForgeScope
 } from '../types'
 
 type FormForgeResponsesQueryValue = string | number | boolean | undefined
@@ -21,15 +23,21 @@ export interface UseFormForgeResponsesQuerySync {
 export interface UseFormForgeResponsesOptions {
   key: string
   immediate?: boolean
+  endpoint?: string
+  scope?: FormForgeScope
   client?: FormForgeClient
   clientConfig?: FormForgeClientConfig
   querySync?: UseFormForgeResponsesQuerySync
 }
 
+export type FormForgeResponsesRequestOptions = FormForgeRequestOptions
+
 export interface FormForgeResponsesRefreshOptions {
   mode?: 'auto' | 'list' | 'resource'
   query?: FormForgeResponsesQuery
   submissionId?: string
+  endpoint?: string
+  scope?: FormForgeScope
 }
 
 function normalizeRouteQueryValue(value: FormForgeRouteQueryValue): FormForgeResponsesQueryValue {
@@ -69,6 +77,8 @@ export function useFormForgeResponses(options: UseFormForgeResponsesOptions) {
   const lastMeta = ref<FormForgeJsonObject | undefined>(undefined)
   const current = ref<FormForgeJsonObject | null>(null)
   const lastListQuery = ref<FormForgeResponsesQuery>({})
+  const lastListEndpoint = ref<string | undefined>(options.endpoint)
+  const lastListScope = ref<FormForgeScope | undefined>(options.scope)
   const lastSubmissionId = ref<string | null>(null)
   const lastMode = ref<'list' | 'resource' | null>(null)
   const immediateLoad = options.immediate ?? true
@@ -106,6 +116,14 @@ export function useFormForgeResponses(options: UseFormForgeResponsesOptions) {
     }
   }
 
+  function resolveEndpoint(requestOptions: FormForgeResponsesRequestOptions = {}): string | undefined {
+    return requestOptions.endpoint ?? options.endpoint
+  }
+
+  function resolveScope(requestOptions: FormForgeResponsesRequestOptions = {}): FormForgeScope | undefined {
+    return requestOptions.scope ?? options.scope
+  }
+
   async function withLoading<T>(callback: () => Promise<T>): Promise<T> {
     loading.value = true
     error.value = null
@@ -121,22 +139,33 @@ export function useFormForgeResponses(options: UseFormForgeResponsesOptions) {
   }
 
   async function listResponses(
-    query: FormForgeResponsesQuery = {}
+    query: FormForgeResponsesQuery = {},
+    requestOptions: FormForgeResponsesRequestOptions = {}
   ): Promise<FormForgeResponsesListResponse> {
     return withLoading(async () => {
       const resolvedQuery = createListQuery(query)
-      const response = await client.listResponses(options.key, resolvedQuery)
+      const endpoint = resolveEndpoint(requestOptions)
+      const scope = resolveScope(requestOptions)
+      const response = await client.listResponses(options.key, resolvedQuery, {
+        endpoint,
+        scope
+      })
       list.value = response.data
       lastMeta.value = response.meta
       lastListQuery.value = resolvedQuery
+      lastListEndpoint.value = endpoint
+      lastListScope.value = scope
       lastMode.value = 'list'
       return response
     })
   }
 
-  async function getResponse(submissionId: string): Promise<FormForgeJsonObject> {
+  async function getResponse(submissionId: string, requestOptions: FormForgeResponsesRequestOptions = {}): Promise<FormForgeJsonObject> {
     return withLoading(async () => {
-      const response = await client.getResponse(options.key, submissionId)
+      const response = await client.getResponse(options.key, submissionId, {
+        endpoint: resolveEndpoint(requestOptions),
+        scope: resolveScope(requestOptions)
+      })
       current.value = response
       lastSubmissionId.value = submissionId
       lastMode.value = 'resource'
@@ -144,9 +173,12 @@ export function useFormForgeResponses(options: UseFormForgeResponsesOptions) {
     })
   }
 
-  async function deleteResponse(submissionId: string): Promise<FormForgeJsonObject> {
+  async function deleteResponse(submissionId: string, requestOptions: FormForgeResponsesRequestOptions = {}): Promise<FormForgeJsonObject> {
     return withLoading(async () => {
-      const response = await client.deleteResponse(options.key, submissionId)
+      const response = await client.deleteResponse(options.key, submissionId, {
+        endpoint: resolveEndpoint(requestOptions),
+        scope: resolveScope(requestOptions)
+      })
       current.value = response
       list.value = list.value.filter((item) => {
         const id = item.submission_id
@@ -158,30 +190,47 @@ export function useFormForgeResponses(options: UseFormForgeResponsesOptions) {
 
   async function refresh(options: FormForgeResponsesRefreshOptions = {}): Promise<FormForgeResponsesListResponse | FormForgeJsonObject> {
     const mode = options.mode ?? 'auto'
+    const endpoint = options.endpoint ?? lastListEndpoint.value ?? undefined
+    const scope = options.scope ?? lastListScope.value
 
     if (mode === 'list') {
-      return listResponses(options.query ?? lastListQuery.value)
+      return listResponses(options.query ?? lastListQuery.value, {
+        endpoint,
+        scope
+      })
     }
 
     if (mode === 'resource') {
       const submissionId = options.submissionId ?? lastSubmissionId.value
 
       if (typeof submissionId === 'string' && submissionId !== '') {
-        return getResponse(submissionId)
+        return getResponse(submissionId, {
+          endpoint,
+          scope
+        })
       }
 
-      return listResponses(options.query ?? lastListQuery.value)
+      return listResponses(options.query ?? lastListQuery.value, {
+        endpoint,
+        scope
+      })
     }
 
     if (lastMode.value === 'resource') {
       const submissionId = options.submissionId ?? lastSubmissionId.value
 
       if (typeof submissionId === 'string' && submissionId !== '') {
-        return getResponse(submissionId)
+        return getResponse(submissionId, {
+          endpoint,
+          scope
+        })
       }
     }
 
-    return listResponses(options.query ?? lastListQuery.value)
+    return listResponses(options.query ?? lastListQuery.value, {
+      endpoint,
+      scope
+    })
   }
 
   if (syncOptions.enabled === true) {
@@ -192,7 +241,10 @@ export function useFormForgeResponses(options: UseFormForgeResponsesOptions) {
         ...syncOptions.extraKeys.map((key) => route.query[key])
       ],
       () => {
-        listResponses().catch(() => {})
+        listResponses({}, {
+          endpoint: lastListEndpoint.value ?? options.endpoint,
+          scope: lastListScope.value ?? options.scope
+        }).catch(() => {})
       },
       {
         immediate: false
@@ -201,7 +253,10 @@ export function useFormForgeResponses(options: UseFormForgeResponsesOptions) {
   }
 
   if (immediateLoad === true) {
-    listResponses().catch(() => {})
+    listResponses({}, {
+      endpoint: options.endpoint,
+      scope: options.scope
+    }).catch(() => {})
   }
 
   return {
@@ -212,6 +267,8 @@ export function useFormForgeResponses(options: UseFormForgeResponsesOptions) {
     lastMeta,
     current,
     lastListQuery,
+    lastListEndpoint,
+    lastListScope,
     lastSubmissionId,
     refresh,
     listResponses,

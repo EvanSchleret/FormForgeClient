@@ -1,13 +1,17 @@
 import { ref } from '#imports'
 import { useFormForgeClient } from './useFormForgeClient'
-import type { FormForgeClient, FormForgeClientConfig, FormForgeFormSchema } from '../types'
+import type { FormForgeClient, FormForgeClientConfig, FormForgeFormSchema, FormForgeScope } from '../types'
 
 export interface FormForgeGetFormParams {
   key: string
   version?: string
+  endpoint?: string
+  scope?: FormForgeScope
 }
 
 export interface UseFormForgeGetFormOptions {
+  endpoint?: string
+  scope?: FormForgeScope
   client?: FormForgeClient
   clientConfig?: FormForgeClientConfig
 }
@@ -23,9 +27,11 @@ export function useFormForgeGetForm(options: UseFormForgeGetFormOptions = {}) {
     error.value = null
 
     try {
+      const endpoint = params.endpoint ?? options.endpoint
+      const scope = params.scope ?? options.scope
       const response = params.version !== undefined && params.version !== ''
-        ? await client.getFormVersion(params.key, params.version)
-        : await client.getForm(params.key)
+        ? await client.getFormVersion(params.key, params.version, { endpoint, scope })
+        : await client.getForm(params.key, { endpoint, scope })
 
       form.value = response
       return response

@@ -7,3 +7,8 @@ export { normalizeFormForgeClientError, normalizeNetworkFormForgeError, parseFor
 export { buildManagedFormData, buildJsonSubmitBody } from './utils/form-data'
 export { toFormForgeJsonSubmissionPayload, toFormForgeJsonSubmissionValue } from './utils/submission'
 export { normalizeFormForgeSchema } from './utils/schema'
+export {
+  normalizeFormForgeCategory,
+  normalizeFormForgeCategoryListResponse,
+  normalizeFormForgeCategoryOptions
+} from './utils/category'

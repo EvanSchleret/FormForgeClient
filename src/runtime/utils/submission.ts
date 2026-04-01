@@ -14,7 +14,13 @@ function isFileValue(value: FormForgeSubmissionValue): value is File {
   return value instanceof File
 }
 
-export function toFormForgeJsonSubmissionValue(value: FormForgeSubmissionValue): FormForgeJsonSubmissionValue | undefined {
+export function toFormForgeJsonSubmissionValue(
+  value: FormForgeSubmissionValue | undefined
+): FormForgeJsonSubmissionValue | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+
   if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
     return value
   }

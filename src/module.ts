@@ -1,8 +1,18 @@
 import { addComponent, addImports, addPlugin, addTypeTemplate, createResolver, defineNuxtModule } from '@nuxt/kit'
-import type { FormForgeClientConfig, FormForgeDatetimeMode, FormForgeUploadMode } from './runtime/types'
+import type {
+  FormForgeClientConfig,
+  FormForgeDatetimeMode,
+  FormForgeScopedRouteMap,
+  FormForgeScopeParams,
+  FormForgeUploadMode
+} from './runtime/types'
 
 export interface ModuleOptions {
   baseURL?: string
+  baseURLParams?: Record<string, string | number | undefined>
+  scopedRoutes?: FormForgeScopedRouteMap
+  defaultScope?: string
+  scopeParams?: FormForgeScopeParams
   credentials?: RequestCredentials
   headers?: Record<string, string>
   uploadMode?: FormForgeUploadMode
@@ -21,6 +31,9 @@ export default defineNuxtModule<ModuleOptions>({
   },
   defaults: {
     baseURL: '/api/formforge/v1',
+    scopedRoutes: {},
+    defaultScope: undefined,
+    scopeParams: {},
     credentials: 'include',
     headers: {},
     uploadMode: 'staged',
@@ -36,6 +49,10 @@ export default defineNuxtModule<ModuleOptions>({
     nuxt.options.runtimeConfig.public.formforge = {
       ...runtimeConfig,
       baseURL: options.baseURL,
+      baseURLParams: options.baseURLParams,
+      scopedRoutes: options.scopedRoutes,
+      defaultScope: options.defaultScope,
+      scopeParams: options.scopeParams,
       credentials: options.credentials,
       headers: options.headers,
       uploadMode: options.uploadMode,
@@ -55,6 +72,16 @@ export default defineNuxtModule<ModuleOptions>({
       filePath: resolver.resolve('./runtime/renderers/default/FormForgeBuilder.vue')
     })
 
+    addComponent({
+      name: 'FormForgeResponse',
+      filePath: resolver.resolve('./runtime/renderers/default/FormForgeResponse.vue')
+    })
+
+    addComponent({
+      name: 'FormForgeCategoryCreateModal',
+      filePath: resolver.resolve('./runtime/renderers/default/FormForgeCategoryCreateModal.vue')
+    })
+
     if (options.autoImports === true) {
       addImports([
         { from: resolver.resolve('./runtime/composables/useFormForgeApi'), name: 'useFormForgeApi' },
@@ -69,6 +96,8 @@ export default defineNuxtModule<ModuleOptions>({
         { from: resolver.resolve('./runtime/composables/useFormForgeSubmit'), name: 'useFormForgeSubmit' },
         { from: resolver.resolve('./runtime/composables/useFormForgeSubmission'), name: 'useFormForgeSubmission' },
         { from: resolver.resolve('./runtime/composables/useFormForgeResponses'), name: 'useFormForgeResponses' },
+        { from: resolver.resolve('./runtime/composables/useFormForgeCategory'), name: 'useFormForgeCategory' },
+        { from: resolver.resolve('./runtime/composables/useFormForgeCategory'), name: 'useFormForgeCategoryOptions' },
         { from: resolver.resolve('./runtime/composables/useFormForgeManagement'), name: 'useFormForgeManagement' },
         { from: resolver.resolve('./runtime/composables/useFormForgeWizard'), name: 'useFormForgeWizard' },
         { from: resolver.resolve('./runtime/composables/useFormForgeBuilder'), name: 'useFormForgeBuilder' }

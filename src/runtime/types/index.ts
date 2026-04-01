@@ -1,4 +1,19 @@
-export type { FormForgeClientError, FormForgeClientErrorCode, FormForgeValidationErrorPayload } from './errors'
+export type {
+  FormForgeClientError,
+  FormForgeClientErrorCode,
+  FormForgeBusinessErrorCode,
+  FormForgeValidationErrorPayload
+} from './errors'
+export type {
+  FormForgeCategory,
+  FormForgeCategoryCreateInput,
+  FormForgeCategoryUpdateInput,
+  FormForgeCategoryListQuery,
+  FormForgeCategoryListResponse,
+  FormForgePaginationMeta,
+  FormForgePaginationLinks,
+  FormForgeCategorySelectOption
+} from './category'
 export type {
   FormForgeFieldType,
   FormForgeFieldOption,
@@ -19,6 +34,8 @@ export type {
 } from './schema'
 export type {
   FormForgeBeforeRequestContext,
+  FormForgeBaseURLParams,
+  FormForgeBaseURLParamsInput,
   FormForgeClientConfig,
   FormForgeDraftRecord,
   FormForgeDraftResponse,
@@ -28,6 +45,12 @@ export type {
   FormForgeHttpResponse,
   FormForgeResolveInput,
   FormForgeSchemaVersionsResponse,
+  FormForgeScopedRouteDefinition,
+  FormForgeScopedRouteMap,
+  FormForgeScope,
+  FormForgeScopeParams,
+  FormForgeScopeParamsInput,
+  FormForgeResolvedScope,
   FormForgeStageUploadInput,
   FormForgeStagedUploadResponse,
   FormForgeSubmitInput,
@@ -48,6 +71,7 @@ export type { FormForgeClient } from '../api/client'
 export type {
   FormForgeManagementCreateInput,
   FormForgeManagementPatchInput,
+  FormForgeManagementForm,
   FormForgeRevisionSummary,
   FormForgeDiffResponse
 } from './management'

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from '#imports'
+import { useOverlay } from '@nuxt/ui/composables/useOverlay'
 import Draggable from 'vuedraggable'
 import {
   FORM_FORGE_BUILDER_CONDITION_ACTIONS,
@@ -8,16 +9,20 @@ import {
   FORM_FORGE_BUILDER_FIELD_TYPES,
   useFormForgeBuilder
 } from '../../composables/useFormForgeBuilder'
+import { useFormForgeCategory, useFormForgeCategoryOptions } from '../../composables/useFormForgeCategory'
 import { useFormForgeI18n } from '../../composables/useFormForgeI18n'
 import type {
   FormForgeBuilderDraft,
   UseFormForgeBuilderOptions
 } from '../../composables/useFormForgeBuilder'
 import type { FormForgeCondition, FormForgeFieldOption, FormForgeFieldSchema, FormForgeFieldType, FormForgeFormSchema, FormForgePageSchema } from '../../types'
+import type { FormForgeCategory, FormForgeCategorySelectOption } from '../../types'
+import FormForgeCategoryCreateModal from './FormForgeCategoryCreateModal.vue'
 
 interface Props {
   formUuid?: string
   formKey?: string
+  endpoint?: string
   loadFormKey?: string
   loadFormVersion?: string
   locale?: string
@@ -30,6 +35,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   formUuid: undefined,
   formKey: undefined,
+  endpoint: undefined,
   loadFormKey: undefined,
   loadFormVersion: undefined,
   locale: undefined,
@@ -50,6 +56,7 @@ const emit = defineEmits<{
 const builderOptions: UseFormForgeBuilderOptions = {
   formUuid: props.formUuid,
   formKey: props.formKey,
+  endpoint: props.endpoint,
   initial: props.modelValue,
   autosave: props.autosave,
   autosaveDelay: props.autosaveDelay
@@ -66,6 +73,19 @@ const publishing = builder.publishing
 const publishable = builder.publishable
 const lastSavedAt = builder.lastSavedAt
 const builderError = builder.error
+const overlay = useOverlay()
+const categoryManager = useFormForgeCategory({
+  immediate: true,
+  initialQuery: {
+    per_page: 200
+  },
+  endpoint: props.endpoint
+})
+const categoryOptions = useFormForgeCategoryOptions({
+  source: categoryManager,
+  includeInactive: true
+})
+const CATEGORY_NONE_VALUE = '__formforge_no_category__'
 
 const fieldElements = new Map<string, HTMLElement>()
 const builderRootElement = ref<HTMLElement | null>(null)
@@ -119,6 +139,40 @@ const draftCategory = computed<string | null>({
   }
 })
 
+const draftCategorySelectValue = computed<string>({
+  get() {
+    return draftCategory.value ?? CATEGORY_NONE_VALUE
+  },
+  set(value: string) {
+    draftCategory.value = value === CATEGORY_NONE_VALUE ? null : value
+  }
+})
+
+const categorySelectItems = computed<FormForgeCategorySelectOption[]>(() => {
+  const items: FormForgeCategorySelectOption[] = [
+    {
+      label: t('builder.categoryNone'),
+      value: CATEGORY_NONE_VALUE,
+      disabled: false
+    },
+    ...categoryOptions.value
+  ]
+
+  if (
+    typeof draftCategory.value === 'string'
+    && draftCategory.value !== ''
+    && !items.some((item) => item.value === draftCategory.value)
+  ) {
+    items.push({
+      label: draftCategory.value,
+      value: draftCategory.value,
+      disabled: false
+    })
+  }
+
+  return items
+})
+
 const draftPages = computed<FormForgePageSchema[]>({
   get() {
     return safePages.value
@@ -142,6 +196,15 @@ const draftMutationIdentifier = computed<string | null>(() => {
 
 function twoDigits(value: number): string {
   return String(value).padStart(2, '0')
+}
+
+function isFormForgeCategory(value: unknown): value is FormForgeCategory {
+  if (value === null || typeof value !== 'object') {
+    return false
+  }
+
+  const candidate = value as FormForgeCategory
+  return typeof candidate.key === 'string' && candidate.key !== '' && typeof candidate.name === 'string'
 }
 
 const formattedLastSavedAt = computed<string | null>(() => {
@@ -523,8 +586,8 @@ async function loadFormIntoBuilder(key: string, version?: string): Promise<void>
 
   try {
     const schema = version !== undefined && version !== ''
-      ? await builder.client.getFormVersion(key, version)
-      : await builder.client.getForm(key)
+      ? await builder.client.getFormVersion(key, version, { endpoint: props.endpoint })
+      : await builder.client.getForm(key, { endpoint: props.endpoint })
 
     if (requestId !== loadRequestId) {
       return
@@ -696,6 +759,32 @@ function addPageFromRail(): void {
   })
 }
 
+async function openCategoryCreateModal(): Promise<void> {
+  if (props.readonly) {
+    return
+  }
+
+  try {
+    const createCategoryModal = overlay.create(FormForgeCategoryCreateModal, {
+      destroyOnClose: true
+    })
+    const result = await createCategoryModal.open({
+      locale: props.locale,
+      endpoint: props.endpoint
+    })
+
+    if (!isFormForgeCategory(result)) {
+      return
+    }
+
+    categoryManager.list.value = [result, ...categoryManager.list.value.filter((item) => item.key !== result.key)]
+    draftCategory.value = result.key
+  } catch (caughtError) {
+    const message = caughtError instanceof Error ? caughtError.message : t('builder.error.categoryCreate')
+    emit('error', message)
+  }
+}
+
 function duplicateField(page: FormForgePageSchema, fieldKey: string): void {
   builder.duplicateField(page.page_key, fieldKey)
   builder.normalizeFieldLocations()
@@ -771,11 +860,23 @@ watch(() => selectedFieldKey.value, () => {
                 :disabled="readonly"
                 :placeholder="t('builder.formTitlePlaceholder')"
               />
-              <UInput
-                v-model="draftCategory"
-                :disabled="readonly"
-                :placeholder="t('builder.categoryPlaceholder')"
-              />
+              <div class="builder-category-control">
+                <USelect
+                  v-model="draftCategorySelectValue"
+                  :items="categorySelectItems"
+                  :disabled="readonly"
+                  :placeholder="t('builder.categoryPlaceholder')"
+                />
+                <UTooltip :text="t('builder.tooltip.addCategory')">
+                  <UButton
+                    color="neutral"
+                    variant="soft"
+                    icon="i-lucide-folder-plus"
+                    :disabled="readonly"
+                    @click="openCategoryCreateModal"
+                  />
+                </UTooltip>
+              </div>
             </div>
 
             <div class="builder-toolbar-actions">
@@ -1269,6 +1370,13 @@ watch(() => selectedFieldKey.value, () => {
   display: grid;
   gap: 0.85rem;
   grid-template-columns: 1fr;
+}
+
+.builder-category-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .builder-toolbar-actions {

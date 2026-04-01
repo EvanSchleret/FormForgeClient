@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { deleteFormForgeResponse, fetchFormForgeResponse, fetchFormForgeResponses } from '../src/runtime/api/responses'
-import type { FormForgeHttpAdapter } from '../src/runtime/types'
+import type { FormForgeHttpAdapter, FormForgeHttpRequest } from '../src/runtime/types'
 
 describe('responses api', () => {
   it('normalizes list responses from top-level data array', async () => {
@@ -77,5 +77,37 @@ describe('responses api', () => {
 
     expect(response.deleted).toBe(true)
     expect(response.submission_id).toBe('s5')
+  })
+
+  it('supports endpoint overrides', async () => {
+    const requests: FormForgeHttpRequest[] = []
+
+    const http: FormForgeHttpAdapter = async <TData>(request: FormForgeHttpRequest) => {
+      requests.push(request)
+
+      return {
+        status: 200,
+        headers: new Headers(),
+        data: {
+          data: {
+            submission_id: 's5'
+          }
+        } as TData
+      }
+    }
+
+    await fetchFormForgeResponses(http, 'form-key', {}, {
+      endpoint: '/admin/forms/{key}/responses'
+    })
+    await fetchFormForgeResponse(http, 'form-key', 's5', {
+      endpoint: '/admin/forms/{key}/responses/{submissionId}'
+    })
+    await deleteFormForgeResponse(http, 'form-key', 's5', {
+      endpoint: '/admin/forms/{key}/responses/{submissionId}'
+    })
+
+    expect(requests[0]?.path).toBe('/admin/forms/form-key/responses')
+    expect(requests[1]?.path).toBe('/admin/forms/form-key/responses/s5')
+    expect(requests[2]?.path).toBe('/admin/forms/form-key/responses/s5')
   })
 })

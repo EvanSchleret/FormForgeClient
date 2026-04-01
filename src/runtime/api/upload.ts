@@ -1,7 +1,8 @@
 import type { FormForgeHttpAdapter, FormForgeJsonObject, FormForgeStageUploadInput, FormForgeStagedUploadResponse } from '../types'
 import { pickFormForgeDataEnvelope } from '../utils/object'
+import { resolveEndpointPath, type FormForgeRequestOptions } from './request'
 
-interface FormForgeStageUploadOptions {
+interface FormForgeStageUploadOptions extends FormForgeRequestOptions {
   version?: string
 }
 
@@ -32,7 +33,10 @@ export async function stageFormForgeUpload(
   formData.append('file', input.file)
 
   const response = await http<FormForgeJsonObject>({
-    path: buildUploadPath(key, options.version),
+    path: resolveEndpointPath(options.endpoint, buildUploadPath(key, options.version), {
+      key,
+      version: options.version ?? ''
+    }, options.scope),
     method: 'POST',
     body: formData
   })

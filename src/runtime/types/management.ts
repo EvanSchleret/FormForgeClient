@@ -1,5 +1,6 @@
 import type { FormForgeCondition, FormForgeDraftSettings, FormForgeFieldSchema, FormForgePageSchema } from './schema'
 import type { FormForgeJsonObject } from './json'
+import type { FormForgeCategory } from './category'
 
 export interface FormForgeManagementCreateInput {
   title: string
@@ -21,6 +22,17 @@ export interface FormForgeManagementPatchInput {
   category?: string | null
   meta?: FormForgeJsonObject
   api?: FormForgeJsonObject
+}
+
+export type FormForgeManagementForm = FormForgeJsonObject & {
+  id?: string | number
+  uuid?: string
+  key?: string
+  title?: string
+  category?: string | null
+  is_published?: boolean
+  deleted_at?: string | null
+  category_item?: FormForgeCategory | null
 }
 
 export interface FormForgeRevisionSummary {

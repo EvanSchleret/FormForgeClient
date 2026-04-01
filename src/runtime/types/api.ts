@@ -4,6 +4,26 @@ export type FormForgeUploadMode = 'managed' | 'direct' | 'staged'
 
 export type FormForgeDatetimeMode = 'offset' | 'utc'
 
+export interface FormForgeResolvedScope {
+  prefix: string
+  params: Record<string, string | number>
+}
+
+export interface FormForgeScopedRouteDefinition {
+  prefix: string
+  paramsFromRoute: Record<string, string>
+}
+
+export type FormForgeScopedRouteMap = Record<string, FormForgeScopedRouteDefinition>
+
+export type FormForgeScope = string | FormForgeResolvedScope
+
+export type FormForgeScopeParams = Record<string, string | number | undefined>
+
+export type FormForgeScopeParamsInput =
+  | FormForgeScopeParams
+  | (() => FormForgeScopeParams)
+
 export interface FormForgeRangeValue {
   start: string | null
   end: string | null
@@ -130,10 +150,21 @@ export type FormForgeHttpAdapter = <TData>(request: FormForgeHttpRequest) => Pro
 export interface FormForgeBeforeRequestContext {
   request: FormForgeHttpRequest
   headers: Record<string, string>
+  url?: string
 }
+
+export type FormForgeBaseURLParams = Record<string, string | number | undefined>
+
+export type FormForgeBaseURLParamsInput =
+  | FormForgeBaseURLParams
+  | (() => FormForgeBaseURLParams)
 
 export interface FormForgeClientConfig {
   baseURL?: string
+  baseURLParams?: FormForgeBaseURLParamsInput
+  scopedRoutes?: FormForgeScopedRouteMap
+  defaultScope?: string
+  scopeParams?: FormForgeScopeParamsInput
   credentials?: RequestCredentials
   headers?: Record<string, string>
   fetch?: typeof fetch

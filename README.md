@@ -16,22 +16,27 @@
   <img src="https://img.shields.io/badge/TypeScript-strict-3178C6" alt="TypeScript strict" />
 </p>
 
-## Why this package
+## Read this first
 
-`@formforge/client` is the frontend companion for FormForge backend APIs.
+This package is feature-rich. You do not need all features on day one.
 
-It provides:
+Pick one integration mode and ship quickly:
 
-- a typed runtime HTTP client
-- auto-imported Nuxt composables
-- a Nuxt UI form renderer
-- a Nuxt UI form builder
-- support for `managed`, `direct`, and `staged` file submission
-- responses and management helpers (forms, revisions, diff)
+1. Renderer mode: mount `<FormForgeRenderer>` with a `form-key`.
+2. Controlled mode: use composables for custom UI and submit flow.
+3. Admin mode: use management/categories/responses composables.
 
-## Dependency
+You can start with mode 1 and adopt modes 2 and 3 later.
 
-This package requires the FormForge backend to work:
+## What this package gives you
+
+- Typed runtime client for FormForge backend API.
+- Auto-imported Nuxt composables.
+- UI components: renderer, builder, response viewer.
+- Upload workflows: `staged`, `managed`, `direct`.
+- Admin helpers: forms, categories, responses, revisions, diff.
+
+Backend package:
 
 - [evanschleret/formforge (FormForge)](https://github.com/EvanSchleret/formforge)
 
@@ -41,27 +46,15 @@ This package requires the FormForge backend to work:
 - `@nuxt/ui` `4.x`
 - Node.js `>=20` or Bun `>=1.3`
 
-## Installation
+## Fast path (5 minutes)
 
-Use your preferred package manager:
-
-```bash
-npm install @formforge/client
-```
-
-```bash
-pnpm add @formforge/client
-```
-
-```bash
-yarn add @formforge/client
-```
+### 1) Install
 
 ```bash
 bun add @formforge/client
 ```
 
-## Nuxt setup
+### 2) Register module
 
 ```ts
 // nuxt.config.ts
@@ -78,31 +71,7 @@ export default defineNuxtConfig({
 })
 ```
 
-## Auto-imports
-
-When `autoImports` is enabled (default), composables are available without manual imports:
-
-- `useFormForgeApi`
-- `useFormForgeClient`
-- `useFormForgeSchema`
-- `useFormForgeGetForm`
-- `useFormForgeI18n`
-- `useFormForgeResolver`
-- `useFormForgeDrafts`
-- `useFormForgeUploads`
-- `useFormForgeForm`
-- `useFormForgeSubmit`
-- `useFormForgeSubmission`
-- `useFormForgeResponses`
-- `useFormForgeManagement`
-- `useFormForgeWizard`
-- `useFormForgeBuilder`
-
-## Renderer quick start
-
-### Internal mode (recommended)
-
-Pass only a `form-key` and the renderer handles fetch + submit internally.
+### 3) Render a form
 
 ```vue
 <script setup lang="ts">
@@ -112,21 +81,25 @@ const route = useRoute()
 <template>
   <FormForgeRenderer
     :form-key="String(route.params.form)"
-    simulation
     show-progress
-    progress-variant="stepper"
     show-alert-on-error
-    clear-after-submit
-    submit-label="Send (simulation)"
     @submitted="(response) => console.log(response)"
     @error="(message) => console.error(message)"
   />
 </template>
 ```
 
-### Controlled mode (advanced)
+At this point, you can fetch schema and submit without extra setup.
 
-Use this when you want full control over state and submission.
+## Integration modes
+
+### Mode A: renderer only (fastest)
+
+Use `<FormForgeRenderer>` in internal mode. The component handles fetch and submit.
+
+### Mode B: controlled form (custom UX)
+
+Use `useFormForgeForm` and `useFormForgeSubmit` when you need full control.
 
 ```vue
 <script setup lang="ts">
@@ -144,47 +117,136 @@ const submitter = useFormForgeSubmit({
 })
 
 async function onSubmit(): Promise<void> {
-  await submitter.submit({
-    mode: 'staged',
-    test: true
-  })
+  await submitter.submit({ mode: 'staged' })
 }
 </script>
-
-<template>
-  <div class="space-y-4">
-    <FormForgeRenderer
-      v-if="form.schema"
-      :schema="form.schema"
-      :model-value="form.state"
-      :zod-schema="form.zodSchema"
-      show-progress
-      show-alert-on-error
-      @update:model-value="form.replaceState"
-    />
-
-    <UButton
-      :loading="submitter.submitting"
-      @click="onSubmit"
-    >
-      Submit
-    </UButton>
-  </div>
-</template>
 ```
 
-Notes:
+### Mode C: admin/backoffice
 
-- in controlled mode, you own submit flow (button + `useFormForgeSubmit`)
-- `show-progress` is active only when the schema has multiple visible pages
-- supported progress variants are `stepper` and `progress`
+Use `useFormForgeManagement`, `useFormForgeCategory`, and `useFormForgeResponses`.
 
-## Builder quick start
+```ts
+const management = useFormForgeManagement()
+const categories = useFormForgeCategory({ immediate: true })
+const responses = useFormForgeResponses({
+  key: 'form-uuid',
+  immediate: true
+})
+```
+
+## Scoped routes
+
+FormForge backend can expose endpoints in non-scoped and/or scoped mode:
+
+- non-scoped: `/api/formforge/v1/...`
+- scoped: `/api/formforge/v1/<scope-prefix>/...`
+
+### Scoped call with `route.params.user`
+
+```ts
+const management = useFormForgeManagement()
+
+await management.listForms(false, {
+  scope: 'user'
+})
+```
+
+### Global named scopes (`nuxt.config.ts`)
+
+```ts
+// nuxt.config.ts
+export default defineNuxtConfig({
+  formforgeClient: {
+    baseURL: '/api/formforge/v1',
+    scopedRoutes: {
+      user: {
+        prefix: 'users/{user:uuid}',
+        paramsFromRoute: {
+          user: 'user'
+        }
+      },
+      team: {
+        prefix: 'teams/{team}',
+        paramsFromRoute: {
+          team: 'team'
+        }
+      }
+    },
+    defaultScope: 'user'
+  }
+})
+```
+
+`paramsFromRoute` is the dictionary:
+
+- key: placeholder name used in the prefix (`{user:uuid}` -> `user`)
+- value: route param key to read (`route.params.user`)
+
+### Per-request override priority
+
+Request scope name has priority over `defaultScope`.
+
+```ts
+await management.listForms(false, {
+  scope: 'team'
+})
+```
+
+### Legacy owner headers migration
+
+In scoped mode, owner is resolved from route params on backend side.
+
+- The client does not inject owner headers automatically.
+- If needed, keep legacy headers explicitly via `beforeRequest`.
+
+```ts
+export default defineNuxtPlugin((nuxtApp) => {
+  nuxtApp.hook('formforge:beforeRequest', ({ headers }) => {
+    headers['X-FormForge-Owner-Type'] = 'user'
+    headers['X-FormForge-Owner-Id'] = 'user-a'
+  })
+})
+```
+
+No scope configured means no behavior change.
+
+## Common recipes
+
+### Responses list with route query sync
+
+```ts
+const responses = useFormForgeResponses({
+  key: 'form-uuid',
+  immediate: true,
+  querySync: {
+    enabled: true,
+    pageKey: 'page',
+    perPageKey: 'per_page',
+    extraKeys: ['search', 'sort']
+  }
+})
+
+await responses.refresh()
+await responses.getResponse('submission-uuid')
+await responses.deleteResponse('submission-uuid')
+```
+
+### Category options for `<USelect>`
+
+```ts
+const options = useFormForgeCategoryOptions({
+  query: {
+    per_page: 200,
+    is_active: true
+  }
+})
+```
+
+### Builder quick usage
 
 ```vue
 <script setup lang="ts">
-const route = useRoute()
-
 const model = ref({
   uuid: null,
   key: null,
@@ -199,118 +261,43 @@ const model = ref({
 <template>
   <FormForgeBuilder
     v-model="model"
-    :load-form-key="String(route.params.form)"
     :autosave="true"
     :autosave-delay="5000"
-    @save="(draft) => console.log('saved', draft)"
-    @publish="(draft) => console.log('published', draft)"
-    @unpublish="(draft) => console.log('unpublished', draft)"
-    @error="(message) => console.error(message)"
   />
 </template>
 ```
 
-Notes:
+### Read-only response component
 
-- updates/publish actions use the form UUID on backend mutation endpoints
-- `load-form-key` can be a UUID key to preload a form into the builder
-
-## Responses composable
-
-```ts
-const responses = useFormForgeResponses({
-  key: '8f0c189e-a9d2-484b-9438-b6166db81462',
-  immediate: true,
-  querySync: {
-    enabled: true,
-    pageKey: 'page',
-    perPageKey: 'per_page',
-    extraKeys: ['search', 'sort']
-  }
-})
-
-await responses.getResponse('submission-uuid')
-await responses.deleteResponse('submission-uuid')
-await responses.refresh()
-await responses.refresh({ mode: 'list' })
-await responses.refresh({ mode: 'resource', submissionId: 'submission-uuid' })
+```vue
+<template>
+  <FormForgeResponse
+    :form-key="'form-uuid'"
+    :response-uuid="'submission-uuid'"
+    layout="line"
+  />
+</template>
 ```
 
-Notes:
+## Endpoint overrides
 
-- `list` is loaded automatically when `immediate` is `true` (default)
-- route query changes re-trigger list loading when `querySync.enabled` is `true` (default)
-- in template, iterate with `v-for="item in responses.list"` and a stable key like `item.submission_id`
+All API composables support endpoint override:
 
-Routes used:
-
-- `GET /forms/{key}/responses`
-- `GET /forms/{key}/responses/{submissionId}`
-- `DELETE /forms/{key}/responses/{submissionId}`
-
-## Management composable
+- composable default: `endpoint` option
+- per call override: method options
 
 ```ts
-const management = useFormForgeManagement()
-
-const forms = await management.listForms()
-await management.refreshForms()
-await management.createForm({
-  title: 'Contact form',
-  pages: [],
-  fields: [],
-  conditions: [],
-  drafts: { enabled: true }
+const management = useFormForgeManagement({
+  endpoint: '/admin/forms'
 })
 
-const formUuid = '8f0c189e-a9d2-484b-9438-b6166db81462'
-
-await management.patchForm(formUuid, {
-  title: 'Contact form v2',
-  pages: [],
-  fields: [],
-  conditions: [],
-  drafts: { enabled: true }
+await management.listForms(false)
+await management.createForm({ title: 'Survey' }, {
+  endpoint: '/admin/forms'
 })
 ```
 
-Also available:
-
-- `refreshForms` (alias `refresh`)
-- `publishForm`
-- `unpublishForm`
-- `deleteForm`
-- `getRevisions`
-- `getDiff`
-
-## Upload modes
-
-Upload behavior is backend-defined. Client submission mode chooses the request format:
-
-- `staged` default, uploads staged then submitted as tokens
-- `managed` multipart submit
-- `direct` JSON file references (`disk`, `path`, ...)
-
-Per-submit override:
-
-```ts
-await submitter.submit({ mode: 'managed' })
-```
-
-## Datetime behavior
-
-- `offset` default, sends browser-local offset (`2026-03-20T14:00:00+01:00`)
-- `utc` sends UTC ISO format
-
-Backend-managed fields are not sent by the submit composable:
-
-- `submitted_by_id`
-- `submitted_by_type`
-- `type`
-- `updated_at`
-- `ip_address`
-
-## Runtime API and auth hooks
+## Runtime hooks and auth
 
 `FormForgeClientConfig` supports:
 
@@ -319,7 +306,7 @@ Backend-managed fields are not sent by the submit composable:
 - `credentials`
 - `beforeRequest`
 
-Nuxt hook for auth/header injection before every FormForge request:
+Nuxt hook before every FormForge request:
 
 ```ts
 // plugins/formforge-auth.client.ts
@@ -336,17 +323,67 @@ export default defineNuxtPlugin((nuxtApp) => {
 
 With Sanctum cookie auth, keep `credentials: 'include'`.
 
-## Development
+## Upload and datetime modes
 
-Use any package manager:
+### Upload mode
 
-```bash
-npm install
-npm run lint
-npm run typecheck
-npm run test
-npm run build
+- `staged` default, uploads first then submit tokens.
+- `managed` multipart submit.
+- `direct` JSON file references (`disk`, `path`, ...).
+
+```ts
+await submitter.submit({ mode: 'managed' })
 ```
+
+### Datetime mode
+
+- `offset` default, sends local offset.
+- `utc` sends UTC ISO.
+
+Backend-managed fields are never sent by submit composables:
+
+- `submitted_by_id`
+- `submitted_by_type`
+- `type`
+- `updated_at`
+- `ip_address`
+
+## Composables quick index
+
+Core:
+
+- `useFormForgeClient`
+- `useFormForgeApi`
+- `useFormForgeSchema`
+- `useFormForgeGetForm`
+- `useFormForgeForm`
+- `useFormForgeSubmit`
+- `useFormForgeSubmission`
+- `useFormForgeResolver`
+
+Admin:
+
+- `useFormForgeManagement`
+- `useFormForgeCategory`
+- `useFormForgeCategoryOptions`
+- `useFormForgeResponses`
+
+Helpers:
+
+- `useFormForgeDrafts`
+- `useFormForgeUploads`
+- `useFormForgeWizard`
+- `useFormForgeBuilder`
+- `useFormForgeI18n`
+
+## Components
+
+- `FormForgeRenderer`
+- `FormForgeBuilder`
+- `FormForgeResponse`
+- `FormForgeCategoryCreateModal`
+
+## Development
 
 ```bash
 pnpm install
@@ -355,34 +392,6 @@ pnpm typecheck
 pnpm test
 pnpm build
 ```
-
-```bash
-bun install
-bun run lint
-bun run typecheck
-bun run test
-bun run build
-```
-
-## Roadmap
-
-- [x] Nuxt 4 module and runtime client
-- [x] Nuxt UI renderer with internal and controlled modes
-- [x] Nuxt UI builder with autosave and publish flow
-- [x] Responses composable (list/get/delete/refresh)
-- [x] Runtime auth hook (`formforge:beforeRequest`)
-- [ ] Extended renderer examples and recipes
-- [ ] More composable-focused integration examples
-- [ ] Dedicated API reference page for all options and events
-
-## Other packages
-
-If you want to explore more of my packages:
-
-- [evanschleret/lara-mjml](https://github.com/EvanSchleret/lara-mjml)
-- [evanschleret/laravel-user-presence](https://github.com/EvanSchleret/laravel-user-presence)
-- [evanschleret/laravel-typebridge](https://github.com/EvanSchleret/laravel-typebridge)
-- [evanschleret/formform (FormForge)](https://github.com/EvanSchleret/formforge)
 
 ## Open source
 

@@ -10,10 +10,13 @@ export type FormForgeClientErrorCode =
   | 'server_error'
   | 'network_error'
 
+export type FormForgeBusinessErrorCode = 'CATEGORY_IN_USE'
+
 export interface FormForgeClientError {
   status: number
   code: FormForgeClientErrorCode
   message: string
+  businessCode?: FormForgeBusinessErrorCode
   fieldErrors?: Record<string, string[]>
   raw?: FormForgeJsonObject | null
 }

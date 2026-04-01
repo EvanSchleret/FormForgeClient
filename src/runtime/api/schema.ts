@@ -7,19 +7,32 @@ import type {
 } from '../types'
 import { isFormForgeJsonObject, pickFormForgeDataEnvelope } from '../utils/object'
 import { normalizeFormForgeSchema } from '../utils/schema'
+import { resolveEndpointPath, type FormForgeRequestOptions } from './request'
 
-export async function fetchFormForgeSchema(http: FormForgeHttpAdapter, key: string): Promise<FormForgeFormSchema> {
+export async function fetchFormForgeSchema(
+  http: FormForgeHttpAdapter,
+  key: string,
+  options: FormForgeRequestOptions = {}
+): Promise<FormForgeFormSchema> {
   const response = await http<FormForgeJsonObject>({
-    path: `/forms/${key}`,
+    path: resolveEndpointPath(options.endpoint, `/forms/${key}`, {
+      key
+    }, options.scope),
     method: 'GET'
   })
 
   return normalizeFormForgeSchema(response.data)
 }
 
-export async function fetchFormForgeSchemaVersions(http: FormForgeHttpAdapter, key: string): Promise<FormForgeSchemaVersionsResponse> {
+export async function fetchFormForgeSchemaVersions(
+  http: FormForgeHttpAdapter,
+  key: string,
+  options: FormForgeRequestOptions = {}
+): Promise<FormForgeSchemaVersionsResponse> {
   const response = await http<FormForgeJsonObject>({
-    path: `/forms/${key}/versions`,
+    path: resolveEndpointPath(options.endpoint, `/forms/${key}/versions`, {
+      key
+    }, options.scope),
     method: 'GET'
   })
 
@@ -29,9 +42,17 @@ export async function fetchFormForgeSchemaVersions(http: FormForgeHttpAdapter, k
   }
 }
 
-export async function fetchFormForgeSchemaVersion(http: FormForgeHttpAdapter, key: string, version: string): Promise<FormForgeFormSchema> {
+export async function fetchFormForgeSchemaVersion(
+  http: FormForgeHttpAdapter,
+  key: string,
+  version: string,
+  options: FormForgeRequestOptions = {}
+): Promise<FormForgeFormSchema> {
   const response = await http<FormForgeJsonObject>({
-    path: `/forms/${key}/versions/${version}`,
+    path: resolveEndpointPath(options.endpoint, `/forms/${key}/versions/${version}`, {
+      key,
+      version
+    }, options.scope),
     method: 'GET'
   })
 
@@ -42,11 +63,16 @@ export async function resolveFormForgeSchema(
   http: FormForgeHttpAdapter,
   key: string,
   input: FormForgeResolveInput = {},
-  version?: string
+  version?: string,
+  options: FormForgeRequestOptions = {}
 ): Promise<FormForgeFormSchema> {
-  const path = version !== undefined && version !== ''
+  const fallbackPath = version !== undefined && version !== ''
     ? `/forms/${key}/versions/${version}/resolve`
     : `/forms/${key}/resolve`
+  const path = resolveEndpointPath(options.endpoint, fallbackPath, {
+    key,
+    version: version ?? ''
+  }, options.scope)
 
   const body: FormForgeJsonObject = {
     payload: JSON.parse(JSON.stringify(input.payload ?? {})) as FormForgeJsonObject,

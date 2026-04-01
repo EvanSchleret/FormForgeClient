@@ -8,6 +8,7 @@ import type {
   FormForgeJsonValue
 } from '../types'
 import { isFormForgeJsonObject } from '../utils/object'
+import { resolveEndpointPath, type FormForgeRequestOptions } from './request'
 
 function pickNullableDataEnvelope(payload: FormForgeJsonObject): FormForgeJsonObject | null {
   const dataValue: FormForgeJsonValue | undefined = payload.data
@@ -57,7 +58,8 @@ function toDraftRecord(value: FormForgeJsonObject | null): FormForgeDraftRecord 
 export async function saveFormForgeDraft(
   http: FormForgeHttpAdapter,
   key: string,
-  input: FormForgeDraftSaveInput
+  input: FormForgeDraftSaveInput,
+  options: FormForgeRequestOptions = {}
 ): Promise<FormForgeDraftResponse> {
   const body: FormForgeJsonObject = {
     payload: JSON.parse(JSON.stringify(input.payload)) as FormForgeJsonObject
@@ -68,7 +70,9 @@ export async function saveFormForgeDraft(
   }
 
   const response = await http<FormForgeJsonObject>({
-    path: `/forms/${key}/drafts`,
+    path: resolveEndpointPath(options.endpoint, `/forms/${key}/drafts`, {
+      key
+    }, options.scope),
     method: 'POST',
     json: body
   })
@@ -79,9 +83,15 @@ export async function saveFormForgeDraft(
   }
 }
 
-export async function fetchCurrentFormForgeDraft(http: FormForgeHttpAdapter, key: string): Promise<FormForgeDraftResponse> {
+export async function fetchCurrentFormForgeDraft(
+  http: FormForgeHttpAdapter,
+  key: string,
+  options: FormForgeRequestOptions = {}
+): Promise<FormForgeDraftResponse> {
   const response = await http<FormForgeJsonObject>({
-    path: `/forms/${key}/drafts/current`,
+    path: resolveEndpointPath(options.endpoint, `/forms/${key}/drafts/current`, {
+      key
+    }, options.scope),
     method: 'GET'
   })
 
@@ -91,9 +101,15 @@ export async function fetchCurrentFormForgeDraft(http: FormForgeHttpAdapter, key
   }
 }
 
-export async function deleteCurrentFormForgeDraft(http: FormForgeHttpAdapter, key: string): Promise<FormForgeDraftResponse> {
+export async function deleteCurrentFormForgeDraft(
+  http: FormForgeHttpAdapter,
+  key: string,
+  options: FormForgeRequestOptions = {}
+): Promise<FormForgeDraftResponse> {
   const response = await http<FormForgeJsonObject>({
-    path: `/forms/${key}/drafts/current`,
+    path: resolveEndpointPath(options.endpoint, `/forms/${key}/drafts/current`, {
+      key
+    }, options.scope),
     method: 'DELETE'
   })
 

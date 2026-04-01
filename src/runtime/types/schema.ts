@@ -1,4 +1,5 @@
 import type { FormForgeJsonObject, FormForgeJsonValue } from './json'
+import type { FormForgeCategory } from './category'
 
 export type FormForgeFieldType =
   | 'text'
@@ -136,6 +137,7 @@ export interface FormForgeFormSchema {
   version: string
   title: string
   category?: string | null
+  category_item?: FormForgeCategory | null
   is_published: boolean
   fields: FormForgeFieldSchema[]
   pages: FormForgePageSchema[]

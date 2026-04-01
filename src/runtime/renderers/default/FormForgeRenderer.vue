@@ -105,6 +105,7 @@ interface Props {
   datetimeMode?: FormForgeDatetimeMode
   formKey?: string
   formVersion?: string
+  endpoint?: string
   clientConfig?: FormForgeClientConfig
   submitLabel?: string
   showSubmit?: boolean
@@ -125,6 +126,7 @@ const props = withDefaults(defineProps<Props>(), {
   datetimeMode: 'offset',
   formKey: undefined,
   formVersion: undefined,
+  endpoint: undefined,
   clientConfig: undefined,
   submitLabel: undefined,
   showSubmit: true,
@@ -210,6 +212,7 @@ const internalFormKey = computed<string>(() => {
 const internalForm = useFormForgeForm({
   key: internalFormKey.value === '' ? '__missing_form_key__' : internalFormKey.value,
   version: props.formVersion,
+  endpoint: props.endpoint,
   immediate: false,
   clientConfig: props.clientConfig
 })
@@ -217,6 +220,7 @@ const internalForm = useFormForgeForm({
 const internalSubmit = useFormForgeSubmit({
   key: internalFormKey.value === '' ? '__missing_form_key__' : internalFormKey.value,
   version: props.formVersion,
+  endpoint: props.endpoint,
   schema: (): FormForgeFormSchema | null => internalForm.schema.value as FormForgeFormSchema | null,
   state: (): FormForgeSubmissionPayload => internalForm.state.value as FormForgeSubmissionPayload,
   clientConfig: props.clientConfig

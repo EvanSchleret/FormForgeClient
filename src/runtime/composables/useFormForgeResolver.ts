@@ -1,11 +1,14 @@
 import { onBeforeUnmount, ref, watch } from '#imports'
 import { toFormForgeJsonSubmissionPayload } from '../utils/submission'
 import { useFormForgeClient } from './useFormForgeClient'
-import type { FormForgeClient, FormForgeClientConfig, FormForgeFormSchema, FormForgeSubmissionPayload } from '../types'
+import type { FormForgeClient, FormForgeClientConfig, FormForgeFormSchema, FormForgeScope, FormForgeSubmissionPayload } from '../types'
+import type { FormForgeRequestOptions } from '../api/request'
 
 export interface UseFormForgeResolverOptions {
   key: string
   version?: string
+  endpoint?: string
+  scope?: FormForgeScope
   delay?: number
   payload?: () => FormForgeSubmissionPayload
   immediate?: boolean
@@ -15,7 +18,7 @@ export interface UseFormForgeResolverOptions {
   clientConfig?: FormForgeClientConfig
 }
 
-export interface FormForgeResolveOptions {
+export interface FormForgeResolveOptions extends FormForgeRequestOptions {
   debug?: boolean
 }
 
@@ -53,7 +56,9 @@ export function useFormForgeResolver(options: UseFormForgeResolverOptions) {
           debug: resolveOptions.debug === true
         },
         {
-          version: options.version
+          version: options.version,
+          endpoint: resolveOptions.endpoint ?? options.endpoint,
+          scope: resolveOptions.scope ?? options.scope
         }
       )
 
