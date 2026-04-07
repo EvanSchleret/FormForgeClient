@@ -1,5 +1,5 @@
 {
-  "name": "@formforge/client",
+  "name": "@evanschleret/formforgeclient",
   "version": "0.1.0",
   "description": "Nuxt module and runtime client for FormForge",
   "license": "MIT",
@@ -31,7 +31,7 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "@nuxt/ui": "^4.0.0",
+    "@nuxt/ui": "^4.6.0",
     "nuxt": "^4.0.0"
   },
   "dependencies": {

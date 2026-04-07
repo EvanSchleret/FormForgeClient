@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-At this stage, only the latest published version of `@formforge/client` is considered supported for security fixes.
+At this stage, only the latest published version of `@evanschleret/formforgeclient` is considered supported for security fixes.
 
 ## Reporting a vulnerability
 

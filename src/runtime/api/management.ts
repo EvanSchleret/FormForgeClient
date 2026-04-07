@@ -16,7 +16,12 @@ export interface FormForgeMutationOptions extends FormForgeRequestOptions {
   idempotencyKey?: string
 }
 
-export type FormForgeManagementRequestOptions = FormForgeRequestOptions
+export type FormForgeManagementFilterValue = string | number | boolean | undefined
+export type FormForgeManagementFilters = Record<string, FormForgeManagementFilterValue>
+
+export interface FormForgeManagementRequestOptions extends FormForgeRequestOptions {
+  filters?: FormForgeManagementFilters
+}
 
 function normalizeManagementForm(value: unknown): FormForgeManagementForm | null {
   if (!isFormForgeJsonObject(value as FormForgeJsonValue | null | undefined)) {
@@ -119,10 +124,13 @@ export async function fetchFormForgeForms(
   includeDeleted: boolean = false,
   options: FormForgeManagementRequestOptions = {}
 ): Promise<FormForgeManagementForm[]> {
+  const filters: FormForgeManagementFilters = options.filters ?? {}
+
   const response = await http<FormForgeJsonObject>({
     path: resolveEndpointPath(options.endpoint, '/forms', {}, options.scope),
     method: 'GET',
     query: {
+      ...filters,
       include_deleted: includeDeleted ? 1 : 0
     }
   })

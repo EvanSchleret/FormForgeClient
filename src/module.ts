@@ -23,7 +23,7 @@ export interface ModuleOptions {
 
 export default defineNuxtModule<ModuleOptions>({
   meta: {
-    name: '@formforge/client',
+    name: '@evanschleret/formforgeclient',
     configKey: 'formforgeClient',
     compatibility: {
       nuxt: '>=4.0.0'
@@ -107,7 +107,7 @@ export default defineNuxtModule<ModuleOptions>({
     const typeTemplate = addTypeTemplate({
       filename: 'types/formforge-client.d.ts',
       getContents: () => `
-import type { FormForgeBeforeRequestContext, FormForgeClient } from '@formforge/client/runtime'
+import type { FormForgeBeforeRequestContext, FormForgeClient } from '@evanschleret/formforgeclient/runtime'
 
 declare module '#app' {
   interface NuxtApp {

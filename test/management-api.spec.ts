@@ -96,6 +96,33 @@ describe('fetchFormForgeForms', () => {
     expect(forms[0]?.category).toBe('events')
     expect(forms[0]?.category_item?.name).toBe('Events')
   })
+
+  it('forwards filters as query params', async () => {
+    const requests: FormForgeHttpRequest[] = []
+
+    const http: FormForgeHttpAdapter = async <TData>(request: FormForgeHttpRequest) => {
+      requests.push(request)
+
+      return {
+        status: 200,
+        headers: new Headers(),
+        data: {
+          data: []
+        } as TData
+      }
+    }
+
+    await fetchFormForgeForms(http, false, {
+      filters: {
+        category: 'survey',
+        search: 'contact'
+      }
+    })
+
+    expect(requests[0]?.query?.category).toBe('survey')
+    expect(requests[0]?.query?.search).toBe('contact')
+    expect(requests[0]?.query?.include_deleted).toBe(0)
+  })
 })
 
 describe('form create/patch category support', () => {

@@ -1,6 +1,6 @@
 import { computed, ref } from '#imports'
 import { useFormForgeClient } from './useFormForgeClient'
-import type { FormForgeManagementRequestOptions, FormForgeMutationOptions } from '../api/management'
+import type { FormForgeManagementFilters, FormForgeManagementRequestOptions, FormForgeMutationOptions } from '../api/management'
 import type {
   FormForgeBusinessErrorCode,
   FormForgeClient,
@@ -47,6 +47,7 @@ export function useFormForgeManagement(options: UseFormForgeManagementOptions = 
   const lastListIncludeDeleted = ref<boolean>(false)
   const lastListEndpoint = ref<string | undefined>(options.endpoint)
   const lastListScope = ref<FormForgeScope | undefined>(options.scope)
+  const lastListFilters = ref<FormForgeManagementFilters>({})
   const fieldErrors = computed<Record<string, string[]>>(() => clientError.value?.fieldErrors ?? {})
   const businessErrorCode = computed<FormForgeBusinessErrorCode | undefined>(() => clientError.value?.businessCode)
   const hasCategoryValidationError = computed<boolean>(() => {
@@ -113,14 +114,17 @@ export function useFormForgeManagement(options: UseFormForgeManagementOptions = 
     return withLoading(async () => {
       const endpoint = resolveRequestEndpoint(options.endpoint)
       const scope = resolveRequestScope(options.scope)
+      const filters = options.filters ?? {}
       const response = await client.listForms(includeDeleted, {
         endpoint,
-        scope
+        scope,
+        filters
       })
       forms.value = response
       lastListIncludeDeleted.value = includeDeleted
       lastListEndpoint.value = endpoint
       lastListScope.value = scope
+      lastListFilters.value = filters
       return response
     })
   }
@@ -128,7 +132,8 @@ export function useFormForgeManagement(options: UseFormForgeManagementOptions = 
   async function refreshForms(): Promise<FormForgeManagementForm[]> {
     return listForms(lastListIncludeDeleted.value, {
       endpoint: lastListEndpoint.value,
-      scope: lastListScope.value
+      scope: lastListScope.value,
+      filters: lastListFilters.value
     })
   }
 
@@ -199,6 +204,7 @@ export function useFormForgeManagement(options: UseFormForgeManagementOptions = 
     lastListIncludeDeleted,
     lastListEndpoint,
     lastListScope,
+    lastListFilters,
     listForms,
     refreshForms,
     refresh: refreshForms,
