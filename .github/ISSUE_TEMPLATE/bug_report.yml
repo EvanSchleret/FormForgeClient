@@ -48,7 +48,7 @@ body:
       label: Environment
       description: Please share relevant versions and execution context.
       placeholder: |
-        - @formforge/client version:
+        - @evanschleret/formforgeclient version:
         - Nuxt version:
         - @nuxt/ui version:
         - Bun version:
