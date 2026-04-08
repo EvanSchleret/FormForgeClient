@@ -19,9 +19,9 @@ describe('http baseURL placeholders', () => {
     }
 
     const http = createFormForgeHttpAdapter({
-      baseURL: 'http://localhost:8000/api/communities/{community}/formforge/v1',
+      baseURL: 'http://localhost:8000/api/teams/{team}/formforge/v1',
       baseURLParams: () => ({
-        community: 'acme'
+        team: 'acme'
       }),
       fetch: fetchMock
     })
@@ -33,7 +33,7 @@ describe('http baseURL placeholders', () => {
 
     await http<{ data: [] }>(request)
 
-    expect(requests[0]).toBe('http://localhost:8000/api/communities/acme/formforge/v1/categories')
+    expect(requests[0]).toBe('http://localhost:8000/api/teams/acme/formforge/v1/categories')
   })
 
   it('keeps unresolved placeholders untouched', async () => {
@@ -52,7 +52,7 @@ describe('http baseURL placeholders', () => {
     }
 
     const http = createFormForgeHttpAdapter({
-      baseURL: 'http://localhost:8000/api/communities/{community}/formforge/v1',
+      baseURL: 'http://localhost:8000/api/teams/{team}/formforge/v1',
       fetch: fetchMock
     })
 
@@ -61,6 +61,6 @@ describe('http baseURL placeholders', () => {
       method: 'GET'
     })
 
-    expect(requests[0]).toBe('http://localhost:8000/api/communities/{community}/formforge/v1/categories')
+    expect(requests[0]).toBe('http://localhost:8000/api/teams/{team}/formforge/v1/categories')
   })
 })

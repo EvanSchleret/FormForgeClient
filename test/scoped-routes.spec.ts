@@ -10,31 +10,31 @@ describe('scoped routes', () => {
 
   it('builds scoped URL with simple placeholder', () => {
     const path = resolveEndpointPath(undefined, '/forms', {}, {
-      prefix: 'communities/{community}',
+      prefix: 'teams/{team}',
       params: {
-        community: 'acme'
+        team: 'acme'
       }
     })
 
-    expect(path).toBe('/communities/acme/forms')
+    expect(path).toBe('/teams/acme/forms')
   })
 
   it('builds scoped URL with binding placeholder', () => {
     const path = resolveEndpointPath(undefined, '/forms', {}, {
-      prefix: 'communities/{community:uuid}',
+      prefix: 'teams/{team:uuid}',
       params: {
-        community: 'acme'
+        team: 'acme'
       }
     })
 
-    expect(path).toBe('/communities/acme/forms')
+    expect(path).toBe('/teams/acme/forms')
   })
 
   it('throws a clear error when scope param is missing', () => {
     expect(() => resolveEndpointPath(undefined, '/forms', {}, {
-      prefix: 'communities/{community:uuid}',
+      prefix: 'teams/{team:uuid}',
       params: {}
-    })).toThrowError('Missing required scope param "community" for scope prefix "communities/{community:uuid}"')
+    })).toThrowError('Missing required scope param "team" for scope prefix "teams/{team:uuid}"')
   })
 
   it('uses default named scope when request scope is not provided', async () => {
@@ -55,23 +55,23 @@ describe('scoped routes', () => {
     const client = createFormForgeClient({
       baseURL: 'http://localhost:8000/api/formforge/v1',
       scopedRoutes: {
-        community: {
-          prefix: 'communities/{community}',
+        team: {
+          prefix: 'teams/{team}',
           paramsFromRoute: {
-            community: 'community'
+            team: 'team'
           }
         }
       },
-      defaultScope: 'community',
+      defaultScope: 'team',
       scopeParams: () => ({
-        community: 'global'
+        team: 'global'
       }),
       fetch: fetchMock
     })
 
     await client.listForms(false)
 
-    expect(requests[0]).toBe('http://localhost:8000/api/formforge/v1/communities/global/forms?include_deleted=0')
+    expect(requests[0]).toBe('http://localhost:8000/api/formforge/v1/teams/global/forms?include_deleted=0')
   })
 
   it('supports scoped management routes when non-scoped route is unavailable', async () => {
@@ -89,7 +89,7 @@ describe('scoped routes', () => {
         })
       }
 
-      if (url.endsWith('/api/formforge/v1/communities/acme/forms?include_deleted=0')) {
+      if (url.endsWith('/api/formforge/v1/teams/acme/forms?include_deleted=0')) {
         return new Response(JSON.stringify({
           data: []
         }), {
@@ -113,16 +113,16 @@ describe('scoped routes', () => {
     const client = createFormForgeClient({
       baseURL: 'http://localhost:8000/api/formforge/v1',
       scopedRoutes: {
-        community: {
-          prefix: 'communities/{community:uuid}',
+        team: {
+          prefix: 'teams/{team:uuid}',
           paramsFromRoute: {
-            community: 'community'
+            team: 'team'
           }
         }
       },
-      defaultScope: 'community',
+      defaultScope: 'team',
       scopeParams: () => ({
-        community: 'acme'
+        team: 'acme'
       }),
       fetch: fetchMock
     })
@@ -149,29 +149,29 @@ describe('scoped routes', () => {
     const client = createFormForgeClient({
       baseURL: 'http://localhost:8000/api/formforge/v1',
       scopedRoutes: {
-        community: {
-          prefix: 'communities/{community}',
-          paramsFromRoute: {
-            community: 'community'
-          }
-        },
         team: {
           prefix: 'teams/{team}',
           paramsFromRoute: {
             team: 'team'
           }
+        },
+        teamOverride: {
+          prefix: 'teams/{team}',
+          paramsFromRoute: {
+            team: 'teamOverride'
+          }
         }
       },
-      defaultScope: 'community',
+      defaultScope: 'team',
       scopeParams: () => ({
-        community: 'acme',
-        team: 'core'
+        team: 'acme',
+        teamOverride: 'core'
       }),
       fetch: fetchMock
     })
 
     await client.listForms(false, {
-      scope: 'team'
+      scope: 'teamOverride'
     })
 
     expect(requests[0]).toBe('http://localhost:8000/api/formforge/v1/teams/core/forms?include_deleted=0')
@@ -190,18 +190,18 @@ describe('scoped routes', () => {
     const client = createFormForgeClient({
       baseURL: 'http://localhost:8000/api/formforge/v1',
       scopedRoutes: {
-        community: {
-          prefix: 'communities/{community:uuid}',
+        team: {
+          prefix: 'teams/{team:uuid}',
           paramsFromRoute: {
-            community: 'community'
+            team: 'team'
           }
         }
       },
-      defaultScope: 'community',
+      defaultScope: 'team',
       scopeParams: () => ({}),
       fetch: fetchMock
     })
 
-    await expect(client.listForms(false)).rejects.toThrowError('Missing scope param source "community" for named scope "community"')
+    await expect(client.listForms(false)).rejects.toThrowError('Missing scope param source "team" for named scope "team"')
   })
 })

@@ -68,14 +68,14 @@ export default defineNuxtConfig({
   formforgeClient: {
     baseURL: '/api/formforge/v1',
     scopedRoutes: {
-      community: {
-        prefix: 'communities/{community}',
+      team: {
+        prefix: 'teams/{team}',
         paramsFromRoute: {
-          community: 'community'
+          team: 'team'
         }
       }
     },
-    defaultScope: 'community'
+    defaultScope: 'team'
   }
 })
 ```
