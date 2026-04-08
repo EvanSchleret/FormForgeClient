@@ -119,7 +119,7 @@ function buildFieldBaseSchema(field: FormForgeFieldSchema): z.ZodTypeAny {
   }
 
   if (field.type === 'file') {
-    const fileSchema = z.custom<File>((value: File): boolean => {
+    const fileSchema = z.custom<File>((value: unknown): value is File => {
       if (typeof File === 'undefined') {
         return false
       }
