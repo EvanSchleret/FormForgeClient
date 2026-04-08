@@ -1079,7 +1079,7 @@ watch(() => selectedFieldKey.value, () => {
                         class="field-options"
                       >
                         <div
-                          v-for="(option, optionIndex) in field.options"
+                          v-for="(option, optionIndex) in (field.options as FormForgeFieldOption[])"
                           :key="optionIndex"
                           class="field-option-row"
                         >
