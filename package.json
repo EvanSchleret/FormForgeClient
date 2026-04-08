@@ -44,7 +44,7 @@
     "@nuxt/kit": "^4.0.0",
     "@nuxt/module-builder": "^0.8.0",
     "@types/node": "^24.0.0",
-    "eslint": "^9.0.0",
+    "eslint": "^10.2.0",
     "eslint-plugin-vue": "^10.8.0",
     "typescript": "^5.9.0",
     "typescript-eslint": "^8.57.1",
