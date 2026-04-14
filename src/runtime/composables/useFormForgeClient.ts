@@ -1,6 +1,6 @@
 import { useNuxtApp, useRoute, useRuntimeConfig } from '#imports'
 import { createFormForgeClient } from '../api'
-import type { FormForgeClient, FormForgeClientConfig, FormForgeJsonObject } from '../types'
+import type { FormForgeClient, FormForgeClientConfig, FormForgeJsonObject, FormForgeScopedRouteMap } from '../types'
 
 interface FormForgeNuxtRouteBridge {
   _route?: {
@@ -55,7 +55,7 @@ function mergeRouteValues(
 }
 
 function templateSegmentKey(value: string): string | null {
-  const matched = value.match(/^\{([a-zA-Z0-9_]+)\}$/)
+  const matched = value.match(/^\{([a-zA-Z0-9_]+)(?::[^}]+)?\}$/)
   return matched?.[1] ?? null
 }
 
@@ -154,6 +154,25 @@ function withInferredMissingValues(
   return resolved
 }
 
+function inferScopeSourcesFromPath(
+  scopedRoutes: FormForgeScopedRouteMap | undefined,
+  currentPath: string | undefined
+): Record<string, string> {
+  const inferredSources: Record<string, string> = {}
+
+  for (const scopedRoute of Object.values(scopedRoutes ?? {})) {
+    const inferredScopeParams = inferParamsFromPath(scopedRoute.prefix, currentPath)
+    for (const [scopeParam, sourceParam] of Object.entries(scopedRoute.paramsFromRoute)) {
+      const inferredValue = inferredScopeParams[scopeParam]
+      if (inferredValue !== undefined && inferredValue !== '' && inferredSources[sourceParam] === undefined) {
+        inferredSources[sourceParam] = inferredValue
+      }
+    }
+  }
+
+  return inferredSources
+}
+
 export function useFormForgeClient(config: FormForgeClientConfig = {}): FormForgeClient {
   const nuxtApp = useNuxtApp() as ReturnType<typeof useNuxtApp> & FormForgeNuxtRouteBridge
   const route = useRoute()
@@ -183,8 +202,13 @@ export function useFormForgeClient(config: FormForgeClientConfig = {}): FormForg
         ...appRouteParams
       }
     )
-    const inferredFromPath = inferParamsFromPath(config.baseURL ?? (runtimePublicConfig as FormForgeClientConfig | undefined)?.baseURL, composableRoutePath || appRoutePath)
-    return withInferredMissingValues(mergedRouteValues, inferredFromPath)
+    const resolvedPath = composableRoutePath || appRoutePath
+    const resolvedBaseURL = config.baseURL ?? (runtimePublicConfig as FormForgeClientConfig | undefined)?.baseURL
+    const resolvedScopedRoutes = config.scopedRoutes ?? (runtimePublicConfig as FormForgeClientConfig | undefined)?.scopedRoutes
+    const inferredFromBaseURL = inferParamsFromPath(resolvedBaseURL, resolvedPath)
+    const withBaseURLValues = withInferredMissingValues(mergedRouteValues, inferredFromBaseURL)
+    const inferredFromScopes = inferScopeSourcesFromPath(resolvedScopedRoutes, resolvedPath)
+    return withInferredMissingValues(withBaseURLValues, inferredFromScopes)
   }
 
   const baseConfig = runtimePublicConfig as FormForgeClientConfig | undefined

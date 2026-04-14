@@ -11,6 +11,8 @@ export interface FormForgeManagementCreateInput {
   category?: string | null
   meta?: FormForgeJsonObject
   api?: FormForgeJsonObject
+  auto_publish?: boolean
+  autoPublish?: boolean
 }
 
 export interface FormForgeManagementPatchInput {
@@ -22,6 +24,8 @@ export interface FormForgeManagementPatchInput {
   category?: string | null
   meta?: FormForgeJsonObject
   api?: FormForgeJsonObject
+  auto_publish?: boolean
+  autoPublish?: boolean
 }
 
 export type FormForgeManagementForm = FormForgeJsonObject & {

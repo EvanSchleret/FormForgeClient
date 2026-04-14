@@ -104,6 +104,24 @@ function toJsonObject(input: FormForgeManagementCreateInput | FormForgeManagemen
   return JSON.parse(JSON.stringify(input)) as FormForgeJsonObject
 }
 
+function shouldAutoPublish(input: FormForgeManagementCreateInput | FormForgeManagementPatchInput): boolean {
+  return input.auto_publish === true || input.autoPublish === true
+}
+
+function toManagementMutationPayload(input: FormForgeManagementCreateInput | FormForgeManagementPatchInput): FormForgeJsonObject {
+  const payload = toJsonObject(input)
+
+  if ('autoPublish' in payload) {
+    delete payload.autoPublish
+  }
+
+  if (shouldAutoPublish(input)) {
+    payload.auto_publish = true
+  }
+
+  return payload
+}
+
 export async function createFormForgeForm(
   http: FormForgeHttpAdapter,
   input: FormForgeManagementCreateInput,
@@ -113,7 +131,7 @@ export async function createFormForgeForm(
     path: resolveEndpointPath(options.endpoint, '/forms', {}, options.scope),
     method: 'POST',
     headers: withMutationHeaders(options),
-    json: toJsonObject(input)
+    json: toManagementMutationPayload(input)
   })
 
   return normalizeManagementForm(pickFormForgeDataEnvelope(response.data)) ?? {}
@@ -150,7 +168,7 @@ export async function patchFormForgeForm(
     }, options.scope),
     method: 'PATCH',
     headers: withMutationHeaders(options),
-    json: toJsonObject(input)
+    json: toManagementMutationPayload(input)
   })
 
   return normalizeManagementForm(pickFormForgeDataEnvelope(response.data)) ?? {}

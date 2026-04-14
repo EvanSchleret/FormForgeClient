@@ -1,6 +1,6 @@
 import { defineNuxtPlugin, useRoute, useRuntimeConfig } from '#imports'
 import { createFormForgeClient } from './api'
-import type { FormForgeBeforeRequestContext, FormForgeClientConfig } from './types'
+import type { FormForgeBeforeRequestContext, FormForgeClientConfig, FormForgeScopedRouteMap } from './types'
 
 interface FormForgeNuxtAppHookBridge {
   callHook(name: 'formforge:beforeRequest', context: FormForgeBeforeRequestContext): Promise<void>
@@ -55,7 +55,7 @@ function mergeRouteValues(
 }
 
 function templateSegmentKey(value: string): string | null {
-  const matched = value.match(/^\{([a-zA-Z0-9_]+)\}$/)
+  const matched = value.match(/^\{([a-zA-Z0-9_]+)(?::[^}]+)?\}$/)
   return matched?.[1] ?? null
 }
 
@@ -154,6 +154,25 @@ function withInferredMissingValues(
   return resolved
 }
 
+function inferScopeSourcesFromPath(
+  scopedRoutes: FormForgeScopedRouteMap | undefined,
+  currentPath: string | undefined
+): Record<string, string> {
+  const inferredSources: Record<string, string> = {}
+
+  for (const scopedRoute of Object.values(scopedRoutes ?? {})) {
+    const inferredScopeParams = inferParamsFromPath(scopedRoute.prefix, currentPath)
+    for (const [scopeParam, sourceParam] of Object.entries(scopedRoute.paramsFromRoute)) {
+      const inferredValue = inferredScopeParams[scopeParam]
+      if (inferredValue !== undefined && inferredValue !== '' && inferredSources[sourceParam] === undefined) {
+        inferredSources[sourceParam] = inferredValue
+      }
+    }
+  }
+
+  return inferredSources
+}
+
 export default defineNuxtPlugin((nuxtApp) => {
   const runtimeConfig = useRuntimeConfig()
   const route = useRoute()
@@ -177,8 +196,11 @@ export default defineNuxtPlugin((nuxtApp) => {
         ...appRouteParams
       }
     )
-    const inferredFromPath = inferParamsFromPath(publicConfig?.baseURL, composableRoutePath || appRoutePath)
-    return withInferredMissingValues(mergedRouteValues, inferredFromPath)
+    const resolvedPath = composableRoutePath || appRoutePath
+    const inferredFromBaseURL = inferParamsFromPath(publicConfig?.baseURL, resolvedPath)
+    const withBaseURLValues = withInferredMissingValues(mergedRouteValues, inferredFromBaseURL)
+    const inferredFromScopes = inferScopeSourcesFromPath(publicConfig?.scopedRoutes, resolvedPath)
+    return withInferredMissingValues(withBaseURLValues, inferredFromScopes)
   }
 
   const runtimeBaseURLParams = publicConfig?.baseURLParams

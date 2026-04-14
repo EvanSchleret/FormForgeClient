@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from '#imports'
+import { computed, ref, useTemplateRef, watch } from '#imports'
 import { getLocalTimeZone, parseAbsoluteToLocal, parseDate, parseDateTime, parseTime } from '@internationalized/date'
 import type { DateValue, Time } from '@internationalized/date'
 import UCheckbox from '@nuxt/ui/components/Checkbox.vue'
@@ -89,11 +89,18 @@ type FormForgeDynamicValue =
 type FormForgeDynamicObject = { [key: string]: FormForgeDynamicValue }
 
 type FormForgeProgressVariant = 'stepper' | 'progress'
+type FormForgeValidateEvent = 'input' | 'change' | 'blur'
 
 interface FormForgeStepperItem {
   title: string
   description?: string
   value: number
+}
+
+interface FormForgeExposedError {
+  id?: string
+  name?: string
+  message: string
 }
 
 interface Props {
@@ -115,6 +122,8 @@ interface Props {
   showProgress?: boolean
   progressVariant?: FormForgeProgressVariant
   showAlertOnError?: boolean
+  validateOn?: FormForgeValidateEvent[]
+  validateOnBlur?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -135,7 +144,9 @@ const props = withDefaults(defineProps<Props>(), {
   clearAfterSubmit: false,
   showProgress: false,
   progressVariant: 'stepper',
-  showAlertOnError: false
+  showAlertOnError: false,
+  validateOn: undefined,
+  validateOnBlur: undefined
 })
 
 const { t } = useFormForgeI18n({
@@ -148,6 +159,8 @@ const emit = defineEmits<{
   (event: 'submitted', value: FormForgeSubmissionResponse): void
   (event: 'error', value: string): void
 }>()
+
+const rendererForm = useTemplateRef('rendererForm')
 
 function isRefLike(value: unknown): value is { value: unknown; __v_isRef?: boolean } {
   if (typeof value !== 'object' || value === null) {
@@ -197,8 +210,12 @@ function unwrapZodSchemaProp(value: Props['zodSchema']): object | undefined {
   return value
 }
 
-const usesExternalState = computed<boolean>(() => {
-  return props.schema !== undefined && props.modelValue !== undefined
+const usesExternalModel = computed<boolean>(() => {
+  return props.modelValue !== undefined
+})
+
+const usesExternalSchema = computed<boolean>(() => {
+  return props.schema !== undefined
 })
 
 const internalFormKey = computed<string>(() => {
@@ -230,11 +247,11 @@ const submittedResponse = ref<FormForgeSubmissionResponse | null>(null)
 const rendererErrors = ref<FormForgeRuntimeErrorItem[]>([])
 
 watch(
-  () => [usesExternalState.value, internalFormKey.value, props.formVersion] as const,
-  async ([externalState, formKey]) => {
+  () => [usesExternalSchema.value, internalFormKey.value, props.formVersion] as const,
+  async ([externalSchema, formKey]) => {
     submittedResponse.value = null
 
-    if (externalState || formKey === '') {
+    if (externalSchema || formKey === '') {
       return
     }
 
@@ -246,7 +263,7 @@ watch(
 )
 
 function getResolvedSchema(): FormForgeFormSchema | null {
-  if (usesExternalState.value) {
+  if (usesExternalSchema.value) {
     return unwrapSchemaProp(props.schema)
   }
 
@@ -254,7 +271,7 @@ function getResolvedSchema(): FormForgeFormSchema | null {
 }
 
 function getResolvedZodSchema(): object | undefined {
-  if (usesExternalState.value) {
+  if (usesExternalSchema.value) {
     return unwrapZodSchemaProp(props.zodSchema)
   }
 
@@ -263,7 +280,7 @@ function getResolvedZodSchema(): object | undefined {
 
 const formState = computed<FormForgeSubmissionPayload>({
   get: () => {
-    const value = usesExternalState.value
+    const value = usesExternalModel.value
       ? unwrapModelValueProp(props.modelValue)
       : internalForm.state.value
 
@@ -274,7 +291,7 @@ const formState = computed<FormForgeSubmissionPayload>({
     return value
   },
   set: (value: FormForgeSubmissionPayload): void => {
-    if (usesExternalState.value) {
+    if (usesExternalModel.value) {
       emit('update:modelValue', value)
       return
     }
@@ -920,6 +937,93 @@ function onFormError(event: FormForgeRuntimeErrorEvent): void {
   navigateToFirstErrorPage(errors)
 }
 
+type FormForgeValidateOptions = {
+  name?: string | string[]
+  silent?: boolean
+  nested?: boolean
+  transform?: boolean
+}
+
+type FormForgeFormRef = {
+  validate: (options?: FormForgeValidateOptions) => Promise<unknown>
+  clear: (path?: string | RegExp) => void
+  getErrors: (path?: string | RegExp) => FormForgeExposedError[]
+}
+
+async function validateForm(options: FormForgeValidateOptions = {}): Promise<boolean> {
+  const formInstance = rendererForm.value as FormForgeFormRef | undefined
+  if (formInstance === undefined) {
+    return true
+  }
+
+  try {
+    await formInstance.validate(options)
+    rendererErrors.value = []
+    return true
+  } catch {
+    const errors = formInstance.getErrors()
+    rendererErrors.value = errors.map((error) => ({
+      id: error.id,
+      name: error.name,
+      message: error.message
+    }))
+    navigateToFirstErrorPage(rendererErrors.value)
+    return false
+  }
+}
+
+async function validateField(name: string): Promise<boolean> {
+  return validateForm({
+    name
+  })
+}
+
+function clearErrors(path?: string | RegExp): void {
+  const formInstance = rendererForm.value as FormForgeFormRef | undefined
+  if (formInstance === undefined) {
+    return
+  }
+
+  formInstance.clear(path)
+  rendererErrors.value = []
+}
+
+function getErrors(path?: string | RegExp): FormForgeExposedError[] {
+  const formInstance = rendererForm.value as FormForgeFormRef | undefined
+  if (formInstance === undefined) {
+    return []
+  }
+
+  return formInstance.getErrors(path)
+}
+
+const shouldValidateFieldOnBlur = computed<boolean>(() => {
+  if (props.validateOnBlur !== undefined) {
+    return props.validateOnBlur
+  }
+
+  if (Array.isArray(props.validateOn)) {
+    return props.validateOn.includes('blur')
+  }
+
+  return usesExternalModel.value
+})
+
+function onFieldBlur(fieldName: string): void {
+  if (!shouldValidateFieldOnBlur.value) {
+    return
+  }
+
+  validateField(fieldName).catch(() => {})
+}
+
+defineExpose({
+  validate: validateForm,
+  validateField,
+  clearErrors,
+  getErrors
+})
+
 function hasDateMethod(value: FormForgeDynamicValue): value is DateValue & { toDate: (timeZone: string) => Date } {
   if (value === null || Array.isArray(value) || typeof value !== 'object') {
     return false
@@ -1195,7 +1299,7 @@ function getComponentProps(field: FormForgeFieldSchema, page: FormForgePageSchem
   const metaUi = getFieldMetaUi(field)
   const isDisabled =
     props.disabled
-    || (!usesExternalState.value && internalSubmit.submitting.value)
+    || (!usesExternalModel.value && internalSubmit.submitting.value)
     || isFieldDisabled(field, page)
 
   const componentProps: FormForgeDynamicObject = {
@@ -1272,7 +1376,7 @@ async function onSubmit(): Promise<void> {
   rendererErrors.value = []
   emit('submit', formState.value)
 
-  if (usesExternalState.value) {
+  if (usesExternalModel.value) {
     return
   }
 
@@ -1323,9 +1427,11 @@ async function onSubmit(): Promise<void> {
 
 <template>
   <UForm
+    ref="rendererForm"
     :state="formState"
     :schema="getResolvedZodSchema()"
-    :validate="validate"
+    :validate="props.validate"
+    :validate-on="props.validateOn"
     @submit="onSubmit"
     @error="onFormError"
   >
@@ -1347,14 +1453,14 @@ async function onSubmit(): Promise<void> {
       />
 
       <UAlert
-        v-if="!usesExternalState && internalForm.loading.value"
+        v-if="!usesExternalSchema && internalForm.loading.value"
         color="neutral"
         variant="soft"
         :title="t('renderer.loadingForm')"
       />
 
       <UAlert
-        v-if="!usesExternalState && internalForm.error.value"
+        v-if="!usesExternalSchema && internalForm.error.value"
         color="error"
         variant="soft"
         :title="t('renderer.error.loadForm')"
@@ -1362,7 +1468,7 @@ async function onSubmit(): Promise<void> {
       />
 
       <UAlert
-        v-if="!usesExternalState && internalSubmit.error.value"
+        v-if="!usesExternalModel && internalSubmit.error.value"
         color="error"
         variant="soft"
         :title="t('renderer.error.submit')"
@@ -1389,7 +1495,7 @@ async function onSubmit(): Promise<void> {
       </UAlert>
 
       <UAlert
-        v-if="!usesExternalState && submittedResponse !== null"
+        v-if="!usesExternalModel && submittedResponse !== null"
         color="success"
         variant="soft"
         :title="t('renderer.alert.submitted')"
@@ -1430,6 +1536,7 @@ async function onSubmit(): Promise<void> {
             :help="field.help_text"
             :required="isFieldRequired(field)"
             :ui="getFieldMetaUi(field).formField"
+            @focusout="() => onFieldBlur(field.name)"
           >
             <UInput
               v-if="field.type === 'text' || field.type === 'email'"
@@ -1542,7 +1649,7 @@ async function onSubmit(): Promise<void> {
         </UButton>
 
         <UButton
-          v-else-if="!usesExternalState && showSubmit"
+          v-else-if="!usesExternalModel && showSubmit"
           type="submit"
           :loading="internalSubmit.submitting.value"
           :disabled="internalForm.loading.value || getResolvedSchema() === null"
@@ -1552,7 +1659,7 @@ async function onSubmit(): Promise<void> {
       </div>
 
       <div
-        v-else-if="!usesExternalState && showSubmit"
+        v-else-if="!usesExternalModel && showSubmit"
         class="flex justify-end"
       >
         <UButton

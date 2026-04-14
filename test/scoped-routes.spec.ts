@@ -204,4 +204,42 @@ describe('scoped routes', () => {
 
     await expect(client.listForms(false)).rejects.toThrowError('Missing scope param source "team" for named scope "team"')
   })
+
+  it('uses baseURL params as fallback source for named scope params', async () => {
+    const requests: string[] = []
+    const fetchMock: typeof fetch = async (input) => {
+      requests.push(String(input))
+
+      return new Response(JSON.stringify({
+        data: []
+      }), {
+        status: 200,
+        headers: {
+          'content-type': 'application/json'
+        }
+      })
+    }
+
+    const client = createFormForgeClient({
+      baseURL: 'http://localhost:8000/api/formforge/v1',
+      scopedRoutes: {
+        team: {
+          prefix: 'teams/{team:uuid}',
+          paramsFromRoute: {
+            team: 'team'
+          }
+        }
+      },
+      defaultScope: 'team',
+      scopeParams: () => ({}),
+      baseURLParams: () => ({
+        team: 'acme'
+      }),
+      fetch: fetchMock
+    })
+
+    await client.listForms(false)
+
+    expect(requests[0]).toBe('http://localhost:8000/api/formforge/v1/teams/acme/forms?include_deleted=0')
+  })
 })

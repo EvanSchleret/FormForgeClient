@@ -40,6 +40,11 @@ export interface UseFormForgeBuilderOptions {
   clientConfig?: FormForgeClientConfig
 }
 
+export interface FormForgeBuilderSaveOptions {
+  idempotencyKey?: string
+  autoPublish?: boolean
+}
+
 export const FORM_FORGE_BUILDER_FIELD_TYPES: FormForgeFieldType[] = [
   'text',
   'textarea',
@@ -331,7 +336,7 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
     }
   }
 
-  function toManagementInput(): FormForgeManagementCreateInput {
+  function toManagementInput(autoPublish: boolean = false): FormForgeManagementCreateInput {
     normalizeFieldLocations()
 
     const pages = draft.value.pages as FormForgePageSchema[]
@@ -352,10 +357,21 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
       drafts: draft.value.drafts as FormForgeDraftSettings
     }
 
+    if (autoPublish) {
+      input.auto_publish = true
+    }
+
     return input
   }
 
-  async function save(idempotencyKey?: string): Promise<void> {
+  async function save(saveOptions: FormForgeBuilderSaveOptions | string = {}): Promise<void> {
+    const resolvedSaveOptions = typeof saveOptions === 'string'
+      ? { idempotencyKey: saveOptions, autoPublish: false }
+      : {
+          idempotencyKey: saveOptions.idempotencyKey,
+          autoPublish: saveOptions.autoPublish === true
+        }
+
     if (draft.value.title.trim() === '') {
       throw new Error('Title is required to save')
     }
@@ -364,7 +380,7 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
     error.value = null
 
     try {
-      const input: FormForgeManagementCreateInput = toManagementInput()
+      const input: FormForgeManagementCreateInput = toManagementInput(resolvedSaveOptions.autoPublish)
 
       const mutationIdentifier = resolveMutationIdentifier(draft.value)
 
@@ -376,7 +392,7 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
         }
 
         const created = await client.createForm(input, {
-          idempotencyKey,
+          idempotencyKey: resolvedSaveOptions.idempotencyKey,
           endpoint: options.endpoint,
           scope: options.scope
         })
@@ -394,7 +410,7 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
       } else {
         const patchInput: FormForgeManagementPatchInput = input
         const patched = await client.patchForm(mutationIdentifier, patchInput, {
-          idempotencyKey,
+          idempotencyKey: resolvedSaveOptions.idempotencyKey,
           endpoint: options.endpoint,
           scope: options.scope
         })

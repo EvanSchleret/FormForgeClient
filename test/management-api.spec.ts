@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createFormForgeForm, fetchFormForgeForms, patchFormForgeForm } from '../src/runtime/api/management'
-import type { FormForgeHttpAdapter, FormForgeHttpRequest } from '../src/runtime/types'
+import type { FormForgeHttpAdapter, FormForgeHttpRequest, FormForgeManagementCreateInput, FormForgeManagementPatchInput } from '../src/runtime/types'
 
 describe('fetchFormForgeForms', () => {
   it('supports custom endpoint override', async () => {
@@ -178,5 +178,167 @@ describe('form create/patch category support', () => {
 
     expect(form.category).toBeNull()
     expect(form.category_item).toBeNull()
+  })
+})
+
+describe('form create/patch auto publish payload support', () => {
+  it('sends auto_publish on create when provided in snake_case', async () => {
+    const requests: FormForgeHttpRequest[] = []
+
+    const http: FormForgeHttpAdapter = async <TData>(request: FormForgeHttpRequest) => {
+      requests.push(request)
+
+      return {
+        status: 201,
+        headers: new Headers(),
+        data: {
+          data: {
+            key: 'feedback',
+            title: 'Feedback',
+            is_published: true
+          }
+        } as TData
+      }
+    }
+
+    const input = {
+      title: 'Feedback',
+      fields: [
+        { type: 'text', name: 'message', required: true }
+      ],
+      auto_publish: true
+    } as FormForgeManagementCreateInput
+
+    await createFormForgeForm(http, input)
+
+    expect(requests[0]?.path).toBe('/forms')
+    expect(requests[0]?.method).toBe('POST')
+    expect(requests[0]?.json).toEqual({
+      title: 'Feedback',
+      fields: [
+        { type: 'text', name: 'message', required: true }
+      ],
+      auto_publish: true
+    })
+  })
+
+  it('maps autoPublish to auto_publish on create', async () => {
+    const requests: FormForgeHttpRequest[] = []
+
+    const http: FormForgeHttpAdapter = async <TData>(request: FormForgeHttpRequest) => {
+      requests.push(request)
+
+      return {
+        status: 201,
+        headers: new Headers(),
+        data: {
+          data: {
+            key: 'feedback',
+            title: 'Feedback',
+            is_published: true
+          }
+        } as TData
+      }
+    }
+
+    const input = {
+      title: 'Feedback',
+      fields: [
+        { type: 'text', name: 'message', required: true }
+      ],
+      autoPublish: true
+    } as FormForgeManagementCreateInput
+
+    await createFormForgeForm(http, input)
+
+    expect(requests[0]?.json).toEqual({
+      title: 'Feedback',
+      fields: [
+        { type: 'text', name: 'message', required: true }
+      ],
+      auto_publish: true
+    })
+  })
+
+  it('sends auto_publish on patch when provided in snake_case', async () => {
+    const requests: FormForgeHttpRequest[] = []
+
+    const http: FormForgeHttpAdapter = async <TData>(request: FormForgeHttpRequest) => {
+      requests.push(request)
+
+      return {
+        status: 200,
+        headers: new Headers(),
+        data: {
+          data: {
+            key: 'feedback',
+            title: 'Feedback v2',
+            is_published: true
+          }
+        } as TData
+      }
+    }
+
+    const input = {
+      title: 'Feedback v2',
+      fields: [
+        { type: 'text', name: 'message', required: true },
+        { type: 'email', name: 'email', required: true }
+      ],
+      auto_publish: true
+    } as FormForgeManagementPatchInput
+
+    await patchFormForgeForm(http, 'feedback', input)
+
+    expect(requests[0]?.path).toBe('/forms/feedback')
+    expect(requests[0]?.method).toBe('PATCH')
+    expect(requests[0]?.json).toEqual({
+      title: 'Feedback v2',
+      fields: [
+        { type: 'text', name: 'message', required: true },
+        { type: 'email', name: 'email', required: true }
+      ],
+      auto_publish: true
+    })
+  })
+
+  it('maps autoPublish to auto_publish on patch', async () => {
+    const requests: FormForgeHttpRequest[] = []
+
+    const http: FormForgeHttpAdapter = async <TData>(request: FormForgeHttpRequest) => {
+      requests.push(request)
+
+      return {
+        status: 200,
+        headers: new Headers(),
+        data: {
+          data: {
+            key: 'feedback',
+            title: 'Feedback v2',
+            is_published: true
+          }
+        } as TData
+      }
+    }
+
+    const input = {
+      title: 'Feedback v2',
+      fields: [
+        { type: 'text', name: 'message', required: true },
+        { type: 'email', name: 'email', required: true }
+      ],
+      autoPublish: true
+    } as FormForgeManagementPatchInput
+
+    await patchFormForgeForm(http, 'feedback', input)
+
+    expect(requests[0]?.json).toEqual({
+      title: 'Feedback v2',
+      fields: [
+        { type: 'text', name: 'message', required: true },
+        { type: 'email', name: 'email', required: true }
+      ],
+      auto_publish: true
+    })
   })
 })

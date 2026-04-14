@@ -4,6 +4,7 @@ import type {
   FormForgeCategoryListQuery,
   FormForgeCategoryListResponse,
   FormForgeCategoryUpdateInput,
+  FormForgeBaseURLParamsInput,
   FormForgeClientConfig,
   FormForgeDraftResponse,
   FormForgeDraftSaveInput,
@@ -108,6 +109,18 @@ class FormForgeClientImpl implements FormForgeClient {
     return input
   }
 
+  private resolveBaseURLParams(input: FormForgeBaseURLParamsInput | undefined): Record<string, string | number | undefined> {
+    if (input === undefined) {
+      return {}
+    }
+
+    if (typeof input === 'function') {
+      return input()
+    }
+
+    return input
+  }
+
   private resolveNamedScope(name: string): FormForgeResolvedScope {
     const scopedRoutes = this.config.scopedRoutes ?? {}
     const routeDefinition: FormForgeScopedRouteDefinition | undefined = scopedRoutes[name]
@@ -117,10 +130,11 @@ class FormForgeClientImpl implements FormForgeClient {
     }
 
     const sourceParams = this.resolveScopeParams(this.config.scopeParams)
+    const baseURLParams = this.resolveBaseURLParams(this.config.baseURLParams)
     const params: Record<string, string | number> = {}
 
     for (const [scopeParam, sourceParam] of Object.entries(routeDefinition.paramsFromRoute)) {
-      const value = sourceParams[sourceParam]
+      const value = sourceParams[sourceParam] ?? baseURLParams[sourceParam]
 
       if (value === undefined || value === '') {
         throw new Error(`Missing scope param source "${sourceParam}" for named scope "${name}"`)

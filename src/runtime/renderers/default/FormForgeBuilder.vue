@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from '#imports'
 import { useOverlay } from '@nuxt/ui/composables/useOverlay'
+import { useToast } from '@nuxt/ui/composables/useToast'
 import Draggable from 'vuedraggable'
 import {
   FORM_FORGE_BUILDER_CONDITION_ACTIONS,
@@ -30,6 +31,10 @@ interface Props {
   autosave?: boolean
   autosaveDelay?: number
   readonly?: boolean
+  disableTitleInput?: boolean
+  disableCategoryControl?: boolean
+  disablePublishAction?: boolean
+  defaultPublished?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -42,7 +47,11 @@ const props = withDefaults(defineProps<Props>(), {
   modelValue: undefined,
   autosave: true,
   autosaveDelay: 5000,
-  readonly: false
+  readonly: false,
+  disableTitleInput: false,
+  disableCategoryControl: false,
+  disablePublishAction: false,
+  defaultPublished: false
 })
 
 const emit = defineEmits<{
@@ -66,6 +75,7 @@ const builder = useFormForgeBuilder(builderOptions)
 const { t } = useFormForgeI18n({
   locale: () => props.locale
 })
+const toast = useToast()
 const draft = builder.draft
 const isClientReady = ref<boolean>(false)
 const saving = builder.saving
@@ -75,7 +85,7 @@ const lastSavedAt = builder.lastSavedAt
 const builderError = builder.error
 const overlay = useOverlay()
 const categoryManager = useFormForgeCategory({
-  immediate: true,
+  immediate: !props.disableCategoryControl,
   initialQuery: {
     per_page: 200
   },
@@ -93,6 +103,7 @@ const builderColumnElement = ref<HTMLElement | null>(null)
 const railTop = ref<number>(120)
 const railLeft = ref<number>(0)
 const loadingRemoteForm = ref<boolean>(false)
+const isPublished = ref<boolean>(props.defaultPublished)
 let loadRequestId = 0
 
 const safePages = computed<FormForgePageSchema[]>(() => {
@@ -192,6 +203,10 @@ const draftMutationIdentifier = computed<string | null>(() => {
   }
 
   return null
+})
+
+const showTopControls = computed<boolean>(() => {
+  return !props.disableTitleInput || !props.disableCategoryControl
 })
 
 function twoDigits(value: number): string {
@@ -578,6 +593,8 @@ function applyLoadedForm(schema: FormForgeFormSchema): void {
     conditions: cloneValue(schema.conditions),
     drafts: cloneValue(schema.drafts)
   }
+
+  isPublished.value = schema.is_published === true
 }
 
 async function loadFormIntoBuilder(key: string, version?: string): Promise<void> {
@@ -698,8 +715,24 @@ function setOptionLabel(field: FormForgeFieldSchema, optionIndex: number, value:
 
 async function save(): Promise<void> {
   try {
-    await builder.save()
+    const shouldAutoPublish = props.defaultPublished
+    await builder.save({
+      autoPublish: shouldAutoPublish
+    })
+
+    if (shouldAutoPublish) {
+      const wasPublished = isPublished.value
+      isPublished.value = true
+      if (!wasPublished) {
+        emit('publish', draft.value)
+      }
+    }
+
     emit('save', draft.value)
+    toast.add({
+      title: t('builder.toast.saveSuccess'),
+      color: 'success'
+    })
   } catch (caughtError) {
     const message = caughtError instanceof Error ? caughtError.message : t('builder.error.save')
     emit('error', message)
@@ -709,7 +742,12 @@ async function save(): Promise<void> {
 async function publish(): Promise<void> {
   try {
     await builder.publish()
+    isPublished.value = true
     emit('publish', draft.value)
+    toast.add({
+      title: t('builder.toast.publishSuccess'),
+      color: 'success'
+    })
   } catch (caughtError) {
     const message = caughtError instanceof Error ? caughtError.message : t('builder.error.publish')
     emit('error', message)
@@ -719,11 +757,77 @@ async function publish(): Promise<void> {
 async function unpublish(): Promise<void> {
   try {
     await builder.unpublish()
+    isPublished.value = false
     emit('unpublish', draft.value)
+    toast.add({
+      title: t('builder.toast.unpublishSuccess'),
+      color: 'success'
+    })
   } catch (caughtError) {
     const message = caughtError instanceof Error ? caughtError.message : t('builder.error.unpublish')
     emit('error', message)
   }
+}
+
+const publishButtonLabel = computed<string>(() => {
+  if (props.defaultPublished) {
+    return t('builder.publish')
+  }
+
+  return isPublished.value ? t('builder.unpublish') : t('builder.publish')
+})
+
+const publishButtonColor = computed<'primary' | 'neutral'>(() => {
+  if (props.defaultPublished) {
+    return 'primary'
+  }
+
+  return isPublished.value ? 'neutral' : 'primary'
+})
+
+const publishButtonVariant = computed<'solid' | 'soft'>(() => {
+  if (props.defaultPublished) {
+    return 'solid'
+  }
+
+  return isPublished.value ? 'soft' : 'solid'
+})
+
+const canTogglePublish = computed<boolean>(() => {
+  if (props.readonly) {
+    return false
+  }
+
+  if (props.defaultPublished && isPublished.value) {
+    return false
+  }
+
+  if (draftMutationIdentifier.value === null) {
+    return false
+  }
+
+  if (!isPublished.value && !publishable.value) {
+    return false
+  }
+
+  return true
+})
+
+const toolbarActionsClass = computed<string[]>(() => {
+  if (showTopControls.value) {
+    return ['builder-toolbar-actions']
+  }
+
+  return ['builder-toolbar-actions', 'builder-toolbar-actions--compact']
+})
+
+async function togglePublishState(): Promise<void> {
+  if (!props.defaultPublished && isPublished.value) {
+    await unpublish()
+    return
+  }
+
+  await publish()
 }
 
 function removeField(page: FormForgePageSchema, fieldKey: string): void {
@@ -790,6 +894,37 @@ function duplicateField(page: FormForgePageSchema, fieldKey: string): void {
   builder.normalizeFieldLocations()
 }
 
+watch(() => props.modelValue, (value) => {
+  if (value === null || value === undefined || typeof value !== 'object') {
+    isPublished.value = props.defaultPublished
+    return
+  }
+
+  const candidate = value as Record<string, unknown>
+  if (candidate.is_published === true) {
+    isPublished.value = true
+    return
+  }
+
+  if (candidate.is_published === false) {
+    isPublished.value = false
+    return
+  }
+
+  isPublished.value = props.defaultPublished
+}, {
+  immediate: true,
+  deep: false
+})
+
+watch(() => props.defaultPublished, (value) => {
+  if (typeof props.modelValue === 'object' && props.modelValue !== null && 'is_published' in props.modelValue) {
+    return
+  }
+
+  isPublished.value = value
+})
+
 watch(() => draft.value, (value) => {
   emit('update:modelValue', value)
 }, {
@@ -854,13 +989,20 @@ watch(() => selectedFieldKey.value, () => {
           class="builder-card"
         >
           <div class="builder-toolbar">
-            <div class="builder-toolbar-grid">
+            <div
+              v-if="showTopControls"
+              class="builder-toolbar-grid"
+            >
               <UInput
+                v-if="!disableTitleInput"
                 v-model="draftTitle"
                 :disabled="readonly"
                 :placeholder="t('builder.formTitlePlaceholder')"
               />
-              <div class="builder-category-control">
+              <div
+                v-if="!disableCategoryControl"
+                class="builder-category-control"
+              >
                 <USelect
                   v-model="draftCategorySelectValue"
                   :items="categorySelectItems"
@@ -879,7 +1021,7 @@ watch(() => selectedFieldKey.value, () => {
               </div>
             </div>
 
-            <div class="builder-toolbar-actions">
+            <div :class="toolbarActionsClass">
               <div class="builder-status">
                 <span v-if="loadingRemoteForm">{{ t('builder.loadingForm') }}</span>
                 <span v-if="formattedLastSavedAt !== null">{{ t('builder.lastSave', { value: formattedLastSavedAt }) }}</span>
@@ -898,21 +1040,14 @@ watch(() => selectedFieldKey.value, () => {
                   {{ t('builder.save') }}
                 </UButton>
                 <UButton
-                  color="primary"
+                  v-if="!disablePublishAction && !defaultPublished"
+                  :color="publishButtonColor"
+                  :variant="publishButtonVariant"
                   :loading="publishing"
-                  :disabled="readonly || !publishable"
-                  @click="publish"
+                  :disabled="!canTogglePublish"
+                  @click="togglePublishState"
                 >
-                  {{ t('builder.publish') }}
-                </UButton>
-                <UButton
-                  color="neutral"
-                  variant="soft"
-                  :loading="publishing"
-                  :disabled="readonly || draftMutationIdentifier === null"
-                  @click="unpublish"
-                >
-                  {{ t('builder.unpublish') }}
+                  {{ publishButtonLabel }}
                 </UButton>
               </div>
             </div>
@@ -1387,6 +1522,11 @@ watch(() => selectedFieldKey.value, () => {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+}
+
+.builder-toolbar-actions--compact {
+  border-top: none;
+  padding-top: 0;
 }
 
 .builder-status {
