@@ -73,8 +73,8 @@ export interface FormForgeSubmitInput {
 }
 
 export interface FormForgeSubmissionResponse {
-  data: FormForgeJsonObject
-  meta?: FormForgeJsonObject
+  data: Record<string, any>
+  meta?: Record<string, any>
 }
 
 export interface FormForgeResponsesListResponse {
