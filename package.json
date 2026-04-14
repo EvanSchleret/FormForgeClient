@@ -4,6 +4,10 @@
   "description": "Nuxt module and runtime client for FormForge",
   "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EvanSchleret/formforgeclient.git"
+  },
   "main": "./dist/module.cjs",
   "module": "./dist/module.mjs",
   "types": "./dist/module.d.ts",
