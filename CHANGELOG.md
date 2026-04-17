@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## v1.1.2 - 2026-04-17
+
+### FormForge Client v1.1.2 🚀
+
+The **v1.1.2** is focused on a targeted standalone renderer fix to prevent stale external fields from leaking into submission payloads.
+
+Since **v1.1.0**, package-level runtime changes are intentionally minimal and centered on this bug fix.
+
+#### ✨ Highlights
+
+- Safer standalone `v-model` payload handling in `FormForgeRenderer`
+- Automatic cleanup of unknown keys when form schema fields no longer exist
+
+#### ➕ Added
+
+- Runtime payload sanitization in standalone/external-model mode:
+  - keeps only keys present in current schema field names
+  - emits cleaned `update:modelValue` when stale keys are detected
+  
+
+#### ⚡ Improved
+
+- Better resilience when forms evolve (e.g. fields removed after initial model hydration)
+- Cleaner parent state synchronization in standalone usage
+
+#### 🐛 Fixed
+
+- Unknown field submission errors caused by outdated keys in external `v-model` payloads (e.g. `Payload contains unknown fields: short_text`)
+
+
+---
+
+**📘 Full Changelog**: [v1.1.0...v1.1.2](https://github.com/EvanSchleret/FormForgeClient/compare/v1.1.0...v1.1.2)
+
 ## v1.1.0 - 2026-04-14
 
 ### FormForge Client v1.1.0 🚀
@@ -23,16 +57,19 @@ This release improves how FormForge works when integrated into external parent f
 #### ➕ Added
 
 - Management payload support for:
+  
   - `auto_publish: true`
   - `autoPublish: true` (normalized to `auto_publish`)
   
 - `FormForgeRenderer` exposed methods for host apps:
+  
   - `validate(options?)`
   - `validateField(name)`
   - `clearErrors(path?)`
   - `getErrors(path?)`
   
 - New renderer props for validation triggers:
+  
   - `validateOn`
   - `validateOnBlur`
   
