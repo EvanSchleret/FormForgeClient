@@ -689,7 +689,7 @@ watch(
         class="space-y-4"
       >
         <div class="space-y-1">
-          <h3 class="text-base font-semibold text-neutral-900">
+          <h3 class="text-base font-semibold text-default">
             {{ page.title || t('response.page.fallback', { index: pageIndex + 1 }) }}
           </h3>
           <p
@@ -710,13 +710,13 @@ watch(
               v-if="isLineLayout"
               class="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] md:gap-6"
             >
-              <p class="whitespace-pre-wrap text-sm font-medium text-neutral-900">
+              <p class="whitespace-pre-wrap text-sm font-medium text-default">
                 {{ item.question }}
               </p>
 
               <div
                 v-if="item.answer.kind === 'text'"
-                class="whitespace-pre-wrap text-sm text-neutral-700"
+                class="whitespace-pre-wrap text-sm text-default"
               >
                 {{ item.answer.value }}
               </div>
@@ -750,7 +750,7 @@ watch(
                   />
 
                   <div class="min-w-0 flex-1">
-                    <p class="truncate text-sm text-neutral-700">
+                    <p class="truncate text-sm text-default">
                       {{ file.name }}
                     </p>
                     <p
@@ -807,13 +807,13 @@ watch(
               v-else
               class="space-y-1"
             >
-              <p class="whitespace-pre-wrap text-sm font-medium text-neutral-900">
+              <p class="whitespace-pre-wrap text-sm font-medium text-default">
                 {{ item.question }}
               </p>
 
               <p
                 v-if="item.answer.kind === 'text'"
-                class="whitespace-pre-wrap text-sm text-neutral-700"
+                class="whitespace-pre-wrap text-sm text-default"
               >
                 {{ item.answer.value }}
               </p>
@@ -847,7 +847,7 @@ watch(
                   />
 
                   <div class="min-w-0 flex-1">
-                    <p class="truncate text-sm text-neutral-700">
+                    <p class="truncate text-sm text-default">
                       {{ file.name }}
                     </p>
                     <p
