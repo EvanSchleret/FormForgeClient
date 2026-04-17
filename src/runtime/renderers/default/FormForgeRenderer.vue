@@ -278,6 +278,53 @@ function getResolvedZodSchema(): object | undefined {
   return internalForm.zodSchema.value as object | undefined
 }
 
+function resolveSchemaFieldNames(schema: FormForgeFormSchema): Set<string> {
+  const names = new Set<string>()
+
+  if (Array.isArray(schema.fields)) {
+    for (const field of schema.fields) {
+      if (typeof field.name === 'string' && field.name !== '') {
+        names.add(field.name)
+      }
+    }
+  }
+
+  if (Array.isArray(schema.pages)) {
+    for (const page of schema.pages) {
+      if (!Array.isArray(page.fields)) {
+        continue
+      }
+
+      for (const field of page.fields) {
+        if (typeof field.name === 'string' && field.name !== '') {
+          names.add(field.name)
+        }
+      }
+    }
+  }
+
+  return names
+}
+
+function sanitizePayloadWithSchema(value: FormForgeSubmissionPayload, schema: FormForgeFormSchema): FormForgeSubmissionPayload {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return {}
+  }
+
+  const allowedFieldNames = resolveSchemaFieldNames(schema)
+  const sanitizedPayload: FormForgeSubmissionPayload = {}
+
+  for (const [key, entryValue] of Object.entries(value)) {
+    if (!allowedFieldNames.has(key)) {
+      continue
+    }
+
+    sanitizedPayload[key] = entryValue
+  }
+
+  return sanitizedPayload
+}
+
 const formState = computed<FormForgeSubmissionPayload>({
   get: () => {
     const value = usesExternalModel.value
@@ -286,6 +333,13 @@ const formState = computed<FormForgeSubmissionPayload>({
 
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
       return {}
+    }
+
+    if (usesExternalModel.value) {
+      const schema = getResolvedSchema()
+      if (schema !== null) {
+        return sanitizePayloadWithSchema(value, schema)
+      }
     }
 
     return value
@@ -299,6 +353,26 @@ const formState = computed<FormForgeSubmissionPayload>({
     internalForm.replaceState(value)
   }
 })
+
+watch(
+  () => [usesExternalModel.value, getResolvedSchema(), unwrapModelValueProp(props.modelValue)] as const,
+  ([externalModel, schema, modelValue]) => {
+    if (!externalModel || schema === null) {
+      return
+    }
+
+    const sanitizedValue = sanitizePayloadWithSchema(modelValue, schema)
+    if (areValuesEqual(modelValue, sanitizedValue)) {
+      return
+    }
+
+    emit('update:modelValue', sanitizedValue)
+  },
+  {
+    immediate: true,
+    deep: true
+  }
+)
 
 const displayPages = computed<FormForgePageSchema[]>(() => {
   const schema = getResolvedSchema()
@@ -1234,6 +1308,24 @@ function getFieldMetaUi(field: FormForgeFieldSchema): { formField?: FormForgeDyn
   }
 }
 
+function mergeUiClass(defaultClass: string, value: unknown): string {
+  if (typeof value !== 'string' || value.trim() === '') {
+    return defaultClass
+  }
+
+  return `${defaultClass} ${value}`
+}
+
+function getResolvedFormFieldUi(field: FormForgeFieldSchema): FormForgeDynamicObject {
+  const metaUi = getFieldMetaUi(field).formField
+
+  return {
+    ...metaUi,
+    label: mergeUiClass('text-default', metaUi?.label),
+    help: mergeUiClass('text-muted', metaUi?.help)
+  }
+}
+
 function getFieldValue(field: FormForgeFieldSchema): FormForgeSubmissionPayload[string] {
   return formState.value[field.name]
 }
@@ -1514,7 +1606,7 @@ async function onSubmit(): Promise<void> {
         >
           <h3
             v-if="page.title !== ''"
-            class="text-base font-semibold"
+            class="text-base font-semibold text-default"
           >
             {{ page.title }}
           </h3>
@@ -1535,7 +1627,7 @@ async function onSubmit(): Promise<void> {
             :label="field.label"
             :help="field.help_text"
             :required="isFieldRequired(field)"
-            :ui="getFieldMetaUi(field).formField"
+            :ui="getResolvedFormFieldUi(field)"
             @focusout="() => onFieldBlur(field.name)"
           >
             <UInput

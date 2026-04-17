@@ -1,0 +1,59 @@
+name: Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: Release type
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+concurrency:
+  group: version-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Bump version and create tag
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22.14.0"
+          check-latest: true
+
+      - name: Update npm
+        run: npm install -g npm@^11.5.1
+
+      - name: Show versions
+        run: |
+          node --version
+          npm --version
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version
+        run: |
+          npm version ${{ inputs.release_type }} -m "chore(release): %s"
+
+      - name: Push commit and tag
+        run: |
+          git push origin HEAD
+          git push origin --tags
