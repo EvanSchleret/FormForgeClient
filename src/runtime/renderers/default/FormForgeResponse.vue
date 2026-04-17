@@ -653,7 +653,7 @@ watch(
   <div class="w-full">
     <p
       v-if="loading"
-      class="text-sm text-neutral-500"
+      class="text-sm text-default"
     >
       {{ t('response.loading') }}
     </p>
@@ -667,7 +667,7 @@ watch(
 
     <p
       v-else-if="responsePages.length === 0"
-      class="text-sm text-neutral-500"
+      class="text-sm text-default"
     >
       {{ t('response.empty') }}
     </p>
@@ -694,7 +694,7 @@ watch(
           </h3>
           <p
             v-if="typeof page.description === 'string' && page.description.trim() !== ''"
-            class="text-sm text-neutral-500"
+            class="text-sm text-default"
           >
             {{ page.description }}
           </p>
@@ -746,7 +746,7 @@ watch(
                   <UIcon
                     v-else
                     name="i-lucide-file"
-                    class="h-5 w-5 shrink-0 text-neutral-500"
+                    class="h-5 w-5 shrink-0 text-default"
                   />
 
                   <div class="min-w-0 flex-1">
@@ -755,7 +755,7 @@ watch(
                     </p>
                     <p
                       v-if="file.mimeType"
-                      class="text-xs text-neutral-500"
+                      class="text-xs text-default"
                     >
                       {{ file.mimeType }}
                     </p>
@@ -843,7 +843,7 @@ watch(
                   <UIcon
                     v-else
                     name="i-lucide-file"
-                    class="h-5 w-5 shrink-0 text-neutral-500"
+                    class="h-5 w-5 shrink-0 text-default"
                   />
 
                   <div class="min-w-0 flex-1">
@@ -852,7 +852,7 @@ watch(
                     </p>
                     <p
                       v-if="file.mimeType"
-                      class="text-xs text-neutral-500"
+                      class="text-xs text-default"
                     >
                       {{ file.mimeType }}
                     </p>
