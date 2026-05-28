@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## v1.2.1 - 2026-05-28
+
+### v1.2.1
+
+#### Changed
+
+- Refactored `useFormForgeManagement` list APIs to return contextual list results:
+  - `listForms(...)` now returns `{ data, refresh }`
+  - `listFormRoute(...)` now returns `{ data, refresh }`
+  
+- `refresh()` on the returned list result now reliably re-runs the same original request context (endpoint, scope, filters, and route key when applicable).
+
+#### Fixed
+
+- Fixed ambiguity where global `management.refresh()` could refresh a different list source than the one previously loaded (for example falling back to `/forms` after loading `/form-routes/{key}`).
+
+#### Compatibility
+
+- Existing reactive state (`management.forms`) remains available for current integrations.
+- Global `refreshForms()` / `refresh()` is kept as a fallback, while per-result `refresh()` is now the recommended pattern.
+
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v1.2.0...v1.2.1
+
 ## v1.2.0 - 2026-05-28
 
 ### v1.2.0
@@ -11,22 +34,28 @@ The format is based on Keep a Changelog.
 #### Added
 
 - Added client API methods:
+  
   - `listFormRoute(routeKey, options?)`
   - `listCategoryRoute(routeKey, query?, options?)`
   
 - Added management composable support:
+  
   - `useFormForgeManagement().listFormRoute(...)`
   
 - Added category composable support:
+  
   - `useFormForgeCategory().listCategoryRoute(...)`
   - `categoryRouteKey` option for initial loading behavior
   
 - Added UI integration props:
+  
   - `FormForgeBuilder`:
+    
     - `formRouteKey`
     - `categoryRouteKey`
     
   - `FormForgeCategoryCreateModal`:
+    
     - `categoryRouteKey`
     
   
