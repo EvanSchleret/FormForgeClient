@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## v1.2.3 - 2026-05-28
+
+### v1.2.3
+
+#### Fixed
+
+- `FormForgeRenderer` now accepts external `modelValue` payload keys indexed by `field_key` in addition to `field.name`
+- Hydration/sanitation now resolves field aliases (`name` + `field_key`) to one canonical field entry
+- When both `name` and `field_key` are provided for the same field, `name` takes precedence
+- Unknown payload keys continue to be removed during sanitation
+
+#### Tests
+
+- Added renderer payload tests for:
+  - `name`-only hydration
+  - `field_key`-only hydration
+  - mixed payload with `name` precedence
+  - unknown fields rejection
+  
+
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v1.2.2...v1.2.3
+
 ## v1.2.1 - 2026-05-28
 
 ### v1.2.1
@@ -11,10 +33,12 @@ The format is based on Keep a Changelog.
 #### Changed
 
 - Refactored `useFormForgeManagement` list APIs to return contextual list results:
+  
   - `listForms(...)` now returns `{ data, refresh }`
   - `listFormRoute(...)` now returns `{ data, refresh }`
   
 - `refresh()` on the returned list result now reliably re-runs the same original request context (endpoint, scope, filters, and route key when applicable).
+  
 
 #### Fixed
 
