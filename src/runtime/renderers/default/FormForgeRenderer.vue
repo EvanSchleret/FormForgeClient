@@ -28,6 +28,7 @@ import type {
   FormForgeUploadMode
 } from '../../types'
 import { isFormForgeJsonObject } from '../../utils/object'
+import { sanitizePayloadWithSchema } from '../../utils/renderer-payload'
 import { useFormForgeForm } from '../../composables/useFormForgeForm'
 import { useFormForgeI18n } from '../../composables/useFormForgeI18n'
 import { useFormForgeSubmit } from '../../composables/useFormForgeSubmit'
@@ -276,53 +277,6 @@ function getResolvedZodSchema(): object | undefined {
   }
 
   return internalForm.zodSchema.value as object | undefined
-}
-
-function resolveSchemaFieldNames(schema: FormForgeFormSchema): Set<string> {
-  const names = new Set<string>()
-
-  if (Array.isArray(schema.fields)) {
-    for (const field of schema.fields) {
-      if (typeof field.name === 'string' && field.name !== '') {
-        names.add(field.name)
-      }
-    }
-  }
-
-  if (Array.isArray(schema.pages)) {
-    for (const page of schema.pages) {
-      if (!Array.isArray(page.fields)) {
-        continue
-      }
-
-      for (const field of page.fields) {
-        if (typeof field.name === 'string' && field.name !== '') {
-          names.add(field.name)
-        }
-      }
-    }
-  }
-
-  return names
-}
-
-function sanitizePayloadWithSchema(value: FormForgeSubmissionPayload, schema: FormForgeFormSchema): FormForgeSubmissionPayload {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return {}
-  }
-
-  const allowedFieldNames = resolveSchemaFieldNames(schema)
-  const sanitizedPayload: FormForgeSubmissionPayload = {}
-
-  for (const [key, entryValue] of Object.entries(value)) {
-    if (!allowedFieldNames.has(key)) {
-      continue
-    }
-
-    sanitizedPayload[key] = entryValue
-  }
-
-  return sanitizedPayload
 }
 
 const formState = computed<FormForgeSubmissionPayload>({
