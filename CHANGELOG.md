@@ -4,6 +4,45 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## v1.2.0 - 2026-05-28
+
+### v1.2.0
+
+#### Added
+
+- Added client API methods:
+  - `listFormRoute(routeKey, options?)`
+  - `listCategoryRoute(routeKey, query?, options?)`
+  
+- Added management composable support:
+  - `useFormForgeManagement().listFormRoute(...)`
+  
+- Added category composable support:
+  - `useFormForgeCategory().listCategoryRoute(...)`
+  - `categoryRouteKey` option for initial loading behavior
+  
+- Added UI integration props:
+  - `FormForgeBuilder`:
+    - `formRouteKey`
+    - `categoryRouteKey`
+    
+  - `FormForgeCategoryCreateModal`:
+    - `categoryRouteKey`
+    
+  
+
+#### Changed
+
+- Builder can now preload a form from a configured form route when `loadFormKey` is not provided.
+- Category loading in builder/modal can be aligned with backend `category-routes` definitions.
+
+#### Documentation
+
+- Added dedicated backend documentation page for query routes.
+- Updated management/composables/component docs to include query route usage.
+
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v1.1.3...v1.2.0
+
 ## v1.1.2 - 2026-04-17
 
 ### FormForge Client v1.1.2 🚀
