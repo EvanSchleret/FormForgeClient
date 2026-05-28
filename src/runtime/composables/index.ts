@@ -37,7 +37,8 @@ export type {
 } from './useFormForgeCategory'
 export type {
   UseFormForgeManagementOptions,
-  UseFormForgeManagementMutationInputOptions
+  UseFormForgeManagementMutationInputOptions,
+  FormForgeManagementListResult
 } from './useFormForgeManagement'
 export type { UseFormForgeWizardOptions } from './useFormForgeWizard'
 export type {

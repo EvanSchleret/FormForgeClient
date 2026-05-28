@@ -27,6 +27,11 @@ export interface UseFormForgeManagementMutationInputOptions {
   scope?: FormForgeScope
 }
 
+export interface FormForgeManagementListResult {
+  data: FormForgeManagementForm[]
+  refresh: () => Promise<FormForgeManagementListResult>
+}
+
 type UseFormForgeManagementMutationOptions = string | UseFormForgeManagementMutationInputOptions | undefined
 
 function isFormForgeClientError(value: unknown): value is FormForgeClientError {
@@ -110,7 +115,7 @@ export function useFormForgeManagement(options: UseFormForgeManagementOptions = 
   async function listForms(
     includeDeleted: boolean = false,
     options: FormForgeManagementRequestOptions = {}
-  ): Promise<FormForgeManagementForm[]> {
+  ): Promise<FormForgeManagementListResult> {
     return withLoading(async () => {
       const endpoint = resolveRequestEndpoint(options.endpoint)
       const scope = resolveRequestScope(options.scope)
@@ -125,14 +130,21 @@ export function useFormForgeManagement(options: UseFormForgeManagementOptions = 
       lastListEndpoint.value = endpoint
       lastListScope.value = scope
       lastListFilters.value = filters
-      return response
+      return {
+        data: response,
+        refresh: () => listForms(includeDeleted, {
+          endpoint,
+          scope,
+          filters
+        })
+      }
     })
   }
 
   async function listFormRoute(
     routeKey: string,
     options: FormForgeManagementRequestOptions = {}
-  ): Promise<FormForgeManagementForm[]> {
+  ): Promise<FormForgeManagementListResult> {
     return withLoading(async () => {
       const endpoint = resolveRequestEndpoint(options.endpoint)
       const scope = resolveRequestScope(options.scope)
@@ -146,11 +158,18 @@ export function useFormForgeManagement(options: UseFormForgeManagementOptions = 
       lastListEndpoint.value = endpoint
       lastListScope.value = scope
       lastListFilters.value = filters
-      return response
+      return {
+        data: response,
+        refresh: () => listFormRoute(routeKey, {
+          endpoint,
+          scope,
+          filters
+        })
+      }
     })
   }
 
-  async function refreshForms(): Promise<FormForgeManagementForm[]> {
+  async function refreshForms(): Promise<FormForgeManagementListResult> {
     return listForms(lastListIncludeDeleted.value, {
       endpoint: lastListEndpoint.value,
       scope: lastListScope.value,
