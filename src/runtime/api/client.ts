@@ -29,8 +29,8 @@ import type {
 } from '../types'
 import { createFormForgeHttpAdapter } from './http'
 import { deleteCurrentFormForgeDraft, fetchCurrentFormForgeDraft, saveFormForgeDraft } from './drafts'
-import { fetchFormForgeDiff, fetchFormForgeForms, fetchFormForgeRevisions, createFormForgeForm, deleteFormForgeForm, patchFormForgeForm, publishFormForgeForm, type FormForgeManagementRequestOptions, type FormForgeMutationOptions, unpublishFormForgeForm } from './management'
-import { createFormForgeCategory, deleteFormForgeCategory, fetchFormForgeCategories, fetchFormForgeCategory, patchFormForgeCategory } from './categories'
+import { fetchFormForgeDiff, fetchFormForgeFormRoute, fetchFormForgeForms, fetchFormForgeRevisions, createFormForgeForm, deleteFormForgeForm, patchFormForgeForm, publishFormForgeForm, type FormForgeManagementRequestOptions, type FormForgeMutationOptions, unpublishFormForgeForm } from './management'
+import { createFormForgeCategory, deleteFormForgeCategory, fetchFormForgeCategories, fetchFormForgeCategory, fetchFormForgeCategoryRoute, patchFormForgeCategory } from './categories'
 import { fetchFormForgeSchema, fetchFormForgeSchemaVersion, fetchFormForgeSchemaVersions, resolveFormForgeSchema } from './schema'
 import { deleteFormForgeResponse, fetchFormForgeResponse, fetchFormForgeResponses } from './responses'
 import { submitFormForgeJson, submitFormForgeMultipart } from './submission'
@@ -71,6 +71,7 @@ export interface FormForgeClient {
   getResponse(key: string, submissionId: string, options?: FormForgeResponsesRequestOptions): Promise<FormForgeJsonObject>
   deleteResponse(key: string, submissionId: string, options?: FormForgeResponsesRequestOptions): Promise<FormForgeJsonObject>
   listForms(includeDeleted?: boolean, options?: FormForgeManagementRequestOptions): Promise<FormForgeManagementForm[]>
+  listFormRoute(routeKey: string, options?: FormForgeManagementRequestOptions): Promise<FormForgeManagementForm[]>
   createForm(input: FormForgeManagementCreateInput, options?: FormForgeMutationOptions): Promise<FormForgeManagementForm>
   patchForm(key: string, input: FormForgeManagementPatchInput, options?: FormForgeMutationOptions): Promise<FormForgeManagementForm>
   publishForm(key: string, options?: FormForgeMutationOptions): Promise<FormForgeManagementForm>
@@ -79,6 +80,7 @@ export interface FormForgeClient {
   getRevisions(key: string, includeDeleted?: boolean, options?: FormForgeManagementRequestOptions): Promise<FormForgeRevisionSummary[]>
   getDiff(key: string, fromVersion: number, toVersion: number, options?: FormForgeManagementRequestOptions): Promise<FormForgeDiffResponse>
   listCategories(query?: FormForgeCategoryListQuery, options?: FormForgeCategoryRequestOptions): Promise<FormForgeCategoryListResponse>
+  listCategoryRoute(routeKey: string, query?: FormForgeCategoryListQuery, options?: FormForgeCategoryRequestOptions): Promise<FormForgeCategoryListResponse>
   getCategory(categoryKey: string, options?: FormForgeCategoryRequestOptions): Promise<FormForgeCategory>
   createCategory(input: FormForgeCategoryCreateInput, options?: FormForgeMutationOptions): Promise<FormForgeCategory>
   patchCategory(categoryKey: string, input: FormForgeCategoryUpdateInput, options?: FormForgeMutationOptions): Promise<FormForgeCategory>
@@ -248,6 +250,10 @@ class FormForgeClientImpl implements FormForgeClient {
     return fetchFormForgeForms(this.http, includeDeleted, this.withRequestScope(options))
   }
 
+  async listFormRoute(routeKey: string, options: FormForgeManagementRequestOptions = {}): Promise<FormForgeManagementForm[]> {
+    return fetchFormForgeFormRoute(this.http, routeKey, this.withRequestScope(options))
+  }
+
   async createForm(input: FormForgeManagementCreateInput, options: FormForgeMutationOptions = {}): Promise<FormForgeManagementForm> {
     return createFormForgeForm(this.http, input, this.withRequestScope(options))
   }
@@ -290,6 +296,14 @@ class FormForgeClientImpl implements FormForgeClient {
     options: FormForgeCategoryRequestOptions = {}
   ): Promise<FormForgeCategoryListResponse> {
     return fetchFormForgeCategories(this.http, query, this.withRequestScope(options))
+  }
+
+  async listCategoryRoute(
+    routeKey: string,
+    query: FormForgeCategoryListQuery = {},
+    options: FormForgeCategoryRequestOptions = {}
+  ): Promise<FormForgeCategoryListResponse> {
+    return fetchFormForgeCategoryRoute(this.http, routeKey, query, this.withRequestScope(options))
   }
 
   async getCategory(categoryKey: string, options: FormForgeCategoryRequestOptions = {}): Promise<FormForgeCategory> {

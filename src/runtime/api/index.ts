@@ -2,8 +2,10 @@ export { createFormForgeClient } from './client'
 export { resolveFormForgeSchema, fetchFormForgeSchema, fetchFormForgeSchemaVersion, fetchFormForgeSchemaVersions } from './schema'
 export { saveFormForgeDraft, fetchCurrentFormForgeDraft, deleteCurrentFormForgeDraft } from './drafts'
 export { fetchFormForgeResponses, fetchFormForgeResponse, deleteFormForgeResponse } from './responses'
+export { fetchFormForgeFormRoute } from './management'
 export {
   fetchFormForgeCategories,
+  fetchFormForgeCategoryRoute,
   fetchFormForgeCategory,
   createFormForgeCategory,
   patchFormForgeCategory,

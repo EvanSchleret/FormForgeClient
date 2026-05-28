@@ -7,11 +7,13 @@ import type { FormForgeCategory } from '../../types'
 interface Props {
   locale?: string
   endpoint?: string
+  categoryRouteKey?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   locale: undefined,
-  endpoint: undefined
+  endpoint: undefined,
+  categoryRouteKey: undefined
 })
 
 const emit = defineEmits<{
@@ -23,7 +25,8 @@ const { t } = useFormForgeI18n({
 })
 const categoryManager = useFormForgeCategory({
   immediate: false,
-  endpoint: props.endpoint
+  endpoint: props.endpoint,
+  categoryRouteKey: props.categoryRouteKey
 })
 
 const name = ref<string>('')

@@ -66,6 +66,25 @@ export async function fetchFormForgeCategories(
   return normalizeFormForgeCategoryListResponse(response.data)
 }
 
+export async function fetchFormForgeCategoryRoute(
+  http: FormForgeHttpAdapter,
+  routeKey: string,
+  query: FormForgeCategoryListQuery = {},
+  options: FormForgeRequestOptions = {}
+): Promise<FormForgeCategoryListResponse> {
+  const resolvedQuery: Record<string, string | number | boolean | undefined> = {
+    per_page: query.per_page
+  }
+
+  const response = await http<FormForgeJsonObject>({
+    path: resolveEndpointPath(options.endpoint, `/category-routes/${routeKey}`, { routeKey }, options.scope),
+    method: 'GET',
+    query: resolvedQuery
+  })
+
+  return normalizeFormForgeCategoryListResponse(response.data)
+}
+
 export async function fetchFormForgeCategory(
   http: FormForgeHttpAdapter,
   categoryKey: string,

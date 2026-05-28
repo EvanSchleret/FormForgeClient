@@ -129,6 +129,27 @@ export function useFormForgeManagement(options: UseFormForgeManagementOptions = 
     })
   }
 
+  async function listFormRoute(
+    routeKey: string,
+    options: FormForgeManagementRequestOptions = {}
+  ): Promise<FormForgeManagementForm[]> {
+    return withLoading(async () => {
+      const endpoint = resolveRequestEndpoint(options.endpoint)
+      const scope = resolveRequestScope(options.scope)
+      const filters = options.filters ?? {}
+      const response = await client.listFormRoute(routeKey, {
+        endpoint,
+        scope,
+        filters
+      })
+      forms.value = response
+      lastListEndpoint.value = endpoint
+      lastListScope.value = scope
+      lastListFilters.value = filters
+      return response
+    })
+  }
+
   async function refreshForms(): Promise<FormForgeManagementForm[]> {
     return listForms(lastListIncludeDeleted.value, {
       endpoint: lastListEndpoint.value,
@@ -206,6 +227,7 @@ export function useFormForgeManagement(options: UseFormForgeManagementOptions = 
     lastListScope,
     lastListFilters,
     listForms,
+    listFormRoute,
     refreshForms,
     refresh: refreshForms,
     createForm,

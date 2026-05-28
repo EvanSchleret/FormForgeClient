@@ -156,6 +156,21 @@ export async function fetchFormForgeForms(
   return normalizeFormsList(response.data)
 }
 
+export async function fetchFormForgeFormRoute(
+  http: FormForgeHttpAdapter,
+  routeKey: string,
+  options: FormForgeManagementRequestOptions = {}
+): Promise<FormForgeManagementForm[]> {
+  const filters: FormForgeManagementFilters = options.filters ?? {}
+  const response = await http<FormForgeJsonObject>({
+    path: resolveEndpointPath(options.endpoint, `/form-routes/${routeKey}`, { routeKey }, options.scope),
+    method: 'GET',
+    query: filters
+  })
+
+  return normalizeFormsList(response.data)
+}
+
 export async function patchFormForgeForm(
   http: FormForgeHttpAdapter,
   key: string,

@@ -24,6 +24,7 @@ type FormForgeCategoryMode = 'list' | 'resource' | null
 export interface UseFormForgeCategoryOptions {
   immediate?: boolean
   initialQuery?: FormForgeCategoryListQuery
+  categoryRouteKey?: string
   endpoint?: string
   scope?: FormForgeScope
   client?: FormForgeClient
@@ -141,6 +142,33 @@ export function useFormForgeCategory(options: UseFormForgeCategoryOptions = {}) 
     })
   }
 
+  async function listCategoryRoute(
+    routeKey: string,
+    query: FormForgeCategoryListQuery = {},
+    requestOptions: FormForgeCategoryRequestOptions = {}
+  ): Promise<FormForgeCategoryListResponse> {
+    return withLoading(async () => {
+      const resolvedQuery = {
+        ...lastListQuery.value,
+        ...query
+      }
+      const endpoint = resolveEndpoint(requestOptions)
+      const scope = resolveScope(requestOptions)
+      const response = await client.listCategoryRoute(routeKey, resolvedQuery, {
+        endpoint,
+        scope
+      })
+      list.value = response.data
+      lastMeta.value = response.meta
+      lastLinks.value = response.links
+      lastListQuery.value = resolvedQuery
+      lastListEndpoint.value = endpoint
+      lastListScope.value = scope
+      lastMode.value = 'list'
+      return response
+    })
+  }
+
   async function getCategory(categoryKey: string, requestOptions: FormForgeCategoryRequestOptions = {}): Promise<FormForgeCategory> {
     return withLoading(async () => {
       const response = await client.getCategory(categoryKey, {
@@ -235,10 +263,16 @@ export function useFormForgeCategory(options: UseFormForgeCategoryOptions = {}) 
   }
 
   if (immediateLoad) {
-    listCategories(options.initialQuery, {
-      endpoint: options.endpoint,
-      scope: options.scope
-    }).catch(() => {})
+    const loader = typeof options.categoryRouteKey === 'string' && options.categoryRouteKey !== ''
+      ? listCategoryRoute(options.categoryRouteKey, options.initialQuery, {
+          endpoint: options.endpoint,
+          scope: options.scope
+        })
+      : listCategories(options.initialQuery, {
+          endpoint: options.endpoint,
+          scope: options.scope
+        })
+    loader.catch(() => {})
   }
 
   return {
@@ -258,6 +292,7 @@ export function useFormForgeCategory(options: UseFormForgeCategoryOptions = {}) 
     lastListScope,
     lastCategoryKey,
     listCategories,
+    listCategoryRoute,
     getCategory,
     createCategory,
     patchCategory,

@@ -26,6 +26,8 @@ interface Props {
   endpoint?: string
   loadFormKey?: string
   loadFormVersion?: string
+  formRouteKey?: string
+  categoryRouteKey?: string
   locale?: string
   modelValue?: Partial<FormForgeBuilderDraft>
   autosave?: boolean
@@ -43,6 +45,8 @@ const props = withDefaults(defineProps<Props>(), {
   endpoint: undefined,
   loadFormKey: undefined,
   loadFormVersion: undefined,
+  formRouteKey: undefined,
+  categoryRouteKey: undefined,
   locale: undefined,
   modelValue: undefined,
   autosave: true,
@@ -89,7 +93,8 @@ const categoryManager = useFormForgeCategory({
   initialQuery: {
     per_page: 200
   },
-  endpoint: props.endpoint
+  endpoint: props.endpoint,
+  categoryRouteKey: props.categoryRouteKey
 })
 const categoryOptions = useFormForgeCategoryOptions({
   source: categoryManager,
@@ -626,6 +631,18 @@ async function loadFormIntoBuilder(key: string, version?: string): Promise<void>
   }
 }
 
+async function loadFormRouteIntoBuilder(routeKey: string, version?: string): Promise<void> {
+  const forms = await builder.client.listFormRoute(routeKey, {
+    endpoint: props.endpoint
+  })
+  const first = forms[0]
+  const key = typeof first?.key === 'string' ? first.key : ''
+  if (key === '') {
+    return
+  }
+  await loadFormIntoBuilder(key, version)
+}
+
 function addField(page: FormForgePageSchema, type: FormForgeFieldType): void {
   builder.addField(page.page_key, type)
   builder.normalizeFieldLocations()
@@ -874,7 +891,8 @@ async function openCategoryCreateModal(): Promise<void> {
     })
     const result = await createCategoryModal.open({
       locale: props.locale,
-      endpoint: props.endpoint
+      endpoint: props.endpoint,
+      categoryRouteKey: props.categoryRouteKey
     })
 
     if (!isFormForgeCategory(result)) {
@@ -952,6 +970,18 @@ watch(() => [props.loadFormKey, props.loadFormVersion] as const, ([key, version]
   }
 
   loadFormIntoBuilder(key, version)
+}, {
+  immediate: true
+})
+
+watch(() => [props.formRouteKey, props.loadFormKey, props.loadFormVersion] as const, ([routeKey, loadKey, version]) => {
+  if (typeof loadKey === 'string' && loadKey !== '') {
+    return
+  }
+  if (typeof routeKey !== 'string' || routeKey === '') {
+    return
+  }
+  loadFormRouteIntoBuilder(routeKey, version)
 }, {
   immediate: true
 })
