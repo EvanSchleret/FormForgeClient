@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createFormForgeClient } from '../src/runtime/api/client'
 
 const mocks = vi.hoisted(() => {
-  const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+  const fetchMock = vi.fn(async () => {
     return new Response(JSON.stringify({
       data: []
     }), {
@@ -74,7 +74,8 @@ describe('useFormForgeClient', () => {
     expect(mocks.beforeRequest).toHaveBeenCalledTimes(1)
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1)
 
-    const requestInit = mocks.fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
+    const requestCalls = mocks.fetchMock.mock.calls as unknown as Array<[RequestInfo | URL, RequestInit?]>
+    const requestInit = requestCalls[0]?.[1]
     const headers = requestInit?.headers as Record<string, string> | undefined
 
     expect(headers?.Authorization).toBe('Bearer injected-token')
