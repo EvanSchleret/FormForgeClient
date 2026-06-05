@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createFormForgeClient } from '../src/runtime/api/client'
 
 const mocks = vi.hoisted(() => {
-  const fetchMock = vi.fn(async () => {
+  const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
     return new Response(JSON.stringify({
       data: []
     }), {
