@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## v1.2.4 - 2026-06-05
+
+### v1.2.4
+
+#### Fixed
+
+- `FormForgeRenderer` no longer drops the injected `beforeRequest` hook when `clientConfig` is provided
+- Bearer authentication now remains active when passing renderer-specific overrides such as `scopeParams`
+- `useFormForgeClient` now preserves the existing injected FormForge client when merging config overrides
+
+#### Tests
+
+- Added a regression test to verify that `beforeRequest` is still executed when `clientConfig` overrides are passed to `useFormForgeClient`
+
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v1.2.3...v1.2.4
+
 ## v1.2.3 - 2026-05-28
 
 ### v1.2.3
