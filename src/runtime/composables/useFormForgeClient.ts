@@ -1,6 +1,6 @@
 import { useNuxtApp, useRoute, useRuntimeConfig } from '#imports'
 import { createFormForgeClient } from '../api'
-import type { FormForgeClient, FormForgeClientConfig, FormForgeJsonObject, FormForgeScopedRouteMap } from '../types'
+import type { FormForgeClient, FormForgeClientConfig, FormForgeScopedRouteMap } from '../types'
 
 interface FormForgeNuxtRouteBridge {
   _route?: {
@@ -177,13 +177,11 @@ export function useFormForgeClient(config: FormForgeClientConfig = {}): FormForg
   const nuxtApp = useNuxtApp() as ReturnType<typeof useNuxtApp> & FormForgeNuxtRouteBridge
   const route = useRoute()
   const injectedClient = nuxtApp.$formforge as FormForgeClient | undefined
+  const baseConfig = injectedClient?.config ?? (useRuntimeConfig().public.formforge as FormForgeClientConfig | undefined)
 
   if (injectedClient !== undefined && !hasConfigOverrides(config)) {
     return injectedClient
   }
-
-  const runtimeConfig = useRuntimeConfig()
-  const runtimePublicConfig = runtimeConfig.public.formforge as FormForgeJsonObject | undefined
 
   const routeParamsResolver = (): Record<string, string | number | undefined> => {
     const appRouteQuery = nuxtApp._route?.value?.query
@@ -203,15 +201,14 @@ export function useFormForgeClient(config: FormForgeClientConfig = {}): FormForg
       }
     )
     const resolvedPath = composableRoutePath || appRoutePath
-    const resolvedBaseURL = config.baseURL ?? (runtimePublicConfig as FormForgeClientConfig | undefined)?.baseURL
-    const resolvedScopedRoutes = config.scopedRoutes ?? (runtimePublicConfig as FormForgeClientConfig | undefined)?.scopedRoutes
+    const resolvedBaseURL = config.baseURL ?? baseConfig?.baseURL
+    const resolvedScopedRoutes = config.scopedRoutes ?? baseConfig?.scopedRoutes
     const inferredFromBaseURL = inferParamsFromPath(resolvedBaseURL, resolvedPath)
     const withBaseURLValues = withInferredMissingValues(mergedRouteValues, inferredFromBaseURL)
     const inferredFromScopes = inferScopeSourcesFromPath(resolvedScopedRoutes, resolvedPath)
     return withInferredMissingValues(withBaseURLValues, inferredFromScopes)
   }
 
-  const baseConfig = runtimePublicConfig as FormForgeClientConfig | undefined
   const mergedConfig: FormForgeClientConfig = {
     ...(baseConfig),
     ...config
