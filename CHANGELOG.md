@@ -4,27 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
-## v2.0.0 - 2026-06-30
+## v1.2.4 - 2026-06-05
 
-### v2.0.0
+### v1.2.4
 
-#### Added
+#### Fixed
 
-- Rebuilt the default builder and renderer around normalized schema, page, and field primitives
-- Added richer schema normalization helpers for pages, fields, options, temporal values, and address defaults
-- Expanded public runtime and type exports for builder, renderer, management, and validation consumers
-
-#### Changed
-
-- External payload hydration and sanitation now flow through one schema-aware pipeline
-- Builder and renderer share the same normalized schema shape, validation rules, and default handling
-- Alias resolution remains stable for `name` and `field_key` when consumers provide external `modelValue` payloads
+- `FormForgeRenderer` no longer drops the injected `beforeRequest` hook when `clientConfig` is provided
+- Bearer authentication now remains active when passing renderer-specific overrides such as `scopeParams`
+- `useFormForgeClient` now preserves the existing injected FormForge client when merging config overrides
 
 #### Tests
 
-- Added coverage for schema normalization, page logic, rich text helpers, validation helpers, and Zod generation
+- Added a regression test to verify that `beforeRequest` is still executed when `clientConfig` overrides are passed to `useFormForgeClient`
 
-**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v1.2.3...v2.0.0
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v1.2.3...v1.2.4
 
 ## v1.2.3 - 2026-05-28
 
