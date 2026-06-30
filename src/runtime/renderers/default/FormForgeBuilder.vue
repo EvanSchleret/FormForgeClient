@@ -1,24 +1,32 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from '#imports'
+import { computed, nextTick, ref, watch } from '#imports'
+import { parseDate, parseTime } from '@internationalized/date'
+import type { DateValue, Time } from '@internationalized/date'
 import { useOverlay } from '@nuxt/ui/composables/useOverlay'
 import { useToast } from '@nuxt/ui/composables/useToast'
 import Draggable from 'vuedraggable'
 import {
-  FORM_FORGE_BUILDER_CONDITION_ACTIONS,
-  FORM_FORGE_BUILDER_CONDITION_MATCHES,
-  FORM_FORGE_BUILDER_CONDITION_OPERATORS,
   FORM_FORGE_BUILDER_FIELD_TYPES,
   useFormForgeBuilder
 } from '../../composables/useFormForgeBuilder'
 import { useFormForgeCategory, useFormForgeCategoryOptions } from '../../composables/useFormForgeCategory'
 import { useFormForgeI18n } from '../../composables/useFormForgeI18n'
+import {
+  createDefaultAddressFields,
+  resolveDefaultConsentLabel
+} from '../../utils/defaults'
 import type {
   FormForgeBuilderDraft,
+  FormForgeBuilderExpose,
   UseFormForgeBuilderOptions
 } from '../../composables/useFormForgeBuilder'
-import type { FormForgeCondition, FormForgeFieldOption, FormForgeFieldSchema, FormForgeFieldType, FormForgeFormSchema, FormForgePageSchema } from '../../types'
+import type { FormForgeFieldOption, FormForgeFieldSchema, FormForgeFieldType, FormForgeFormSchema, FormForgePageSchema } from '../../types'
 import type { FormForgeCategory, FormForgeCategorySelectOption } from '../../types'
+import {
+  ensurePageLogic,
+} from '../../utils/page-logic'
 import FormForgeCategoryCreateModal from './FormForgeCategoryCreateModal.vue'
+import FormForgeBuilderBlockCard from './builder/FormForgeBuilderBlockCard.vue'
 
 interface Props {
   formUuid?: string
@@ -36,7 +44,11 @@ interface Props {
   disableTitleInput?: boolean
   disableCategoryControl?: boolean
   disablePublishAction?: boolean
+  disableSettingsTab?: boolean
+  hideSettings?: boolean
+  autoPublishOnSave?: boolean
   defaultPublished?: boolean
+  standalone?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -55,7 +67,11 @@ const props = withDefaults(defineProps<Props>(), {
   disableTitleInput: false,
   disableCategoryControl: false,
   disablePublishAction: false,
-  defaultPublished: false
+  disableSettingsTab: false,
+  hideSettings: false,
+  autoPublishOnSave: false,
+  defaultPublished: false,
+  standalone: false
 })
 
 const emit = defineEmits<{
@@ -64,24 +80,26 @@ const emit = defineEmits<{
   (event: 'publish', value: FormForgeBuilderDraft): void
   (event: 'unpublish', value: FormForgeBuilderDraft): void
   (event: 'error', value: string): void
+  (event: 'selection-change', pageKey: string | null, fieldKey: string | null): void
 }>()
 
 const builderOptions: UseFormForgeBuilderOptions = {
   formUuid: props.formUuid,
   formKey: props.formKey,
   endpoint: props.endpoint,
+  locale: props.locale,
   initial: props.modelValue,
   autosave: props.autosave,
-  autosaveDelay: props.autosaveDelay
+  autosaveDelay: props.autosaveDelay,
+  autoPublishOnSave: props.autoPublishOnSave
 }
 
 const builder = useFormForgeBuilder(builderOptions)
-const { t } = useFormForgeI18n({
+const { t, locale } = useFormForgeI18n({
   locale: () => props.locale
 })
 const toast = useToast()
 const draft = builder.draft
-const isClientReady = ref<boolean>(false)
 const saving = builder.saving
 const publishing = builder.publishing
 const publishable = builder.publishable
@@ -102,14 +120,10 @@ const categoryOptions = useFormForgeCategoryOptions({
 })
 const CATEGORY_NONE_VALUE = '__formforge_no_category__'
 
-const fieldElements = new Map<string, HTMLElement>()
-const builderRootElement = ref<HTMLElement | null>(null)
-const builderColumnElement = ref<HTMLElement | null>(null)
-const railTop = ref<number>(120)
-const railLeft = ref<number>(0)
 const loadingRemoteForm = ref<boolean>(false)
 const isPublished = ref<boolean>(props.defaultPublished)
 let loadRequestId = 0
+const settingsHidden = computed<boolean>(() => props.hideSettings || props.disableSettingsTab)
 
 const safePages = computed<FormForgePageSchema[]>(() => {
   const pages = draft.value?.pages
@@ -118,15 +132,6 @@ const safePages = computed<FormForgePageSchema[]>(() => {
   }
 
   return pages.filter((page): page is FormForgePageSchema => page !== undefined && page !== null)
-})
-
-const safeConditions = computed<FormForgeCondition[]>(() => {
-  const conditions = draft.value?.conditions
-  if (!Array.isArray(conditions)) {
-    return []
-  }
-
-  return conditions.filter((condition): condition is FormForgeCondition => condition !== undefined && condition !== null)
 })
 
 const draftTitle = computed<string>({
@@ -210,8 +215,10 @@ const draftMutationIdentifier = computed<string | null>(() => {
   return null
 })
 
-const showTopControls = computed<boolean>(() => {
-  return !props.disableTitleInput || !props.disableCategoryControl
+const builderLayoutClass = computed<string>(() => {
+  return props.standalone
+    ? 'grid gap-4'
+    : 'grid gap-4 lg:grid-cols-[minmax(0,1fr)_4rem]'
 })
 
 function twoDigits(value: number): string {
@@ -247,6 +254,293 @@ const formattedLastSavedAt = computed<string | null>(() => {
   return `${day}.${month}.${year} à ${hours}:${minutes}`
 })
 
+interface DateTimeParts {
+  date: DateValue | null
+  time: Time | null
+}
+
+function parseDateTimeValue(value: string | null | undefined): DateTimeParts {
+  if (typeof value !== 'string' || value.trim() === '') {
+    return {
+      date: null,
+      time: null
+    }
+  }
+
+  const parsed = new Date(value)
+
+  if (Number.isNaN(parsed.getTime())) {
+    return {
+      date: null,
+      time: null
+    }
+  }
+
+  return {
+    date: parseDate([
+      parsed.getFullYear(),
+      twoDigits(parsed.getMonth() + 1),
+      twoDigits(parsed.getDate())
+    ].join('-')),
+    time: parseTime([
+      twoDigits(parsed.getHours()),
+      twoDigits(parsed.getMinutes()),
+      twoDigits(parsed.getSeconds())
+    ].join(':'))
+  }
+}
+
+function serializeDateTimeValue(date: DateValue | null, time: Time | null): string | null {
+  if (date === null) {
+    return null
+  }
+
+  const year = date.year
+  const month = twoDigits(date.month)
+  const day = twoDigits(date.day)
+  const hours = time !== null ? twoDigits(time.hour) : '00'
+  const minutes = time !== null ? twoDigits(time.minute) : '00'
+  const seconds = time !== null ? twoDigits(time.second) : '00'
+
+  return new Date(`${year}-${month}-${day}T${hours}:${minutes}:${seconds}`).toISOString()
+}
+
+function currentDateTimeValue(): string {
+  return new Date().toISOString()
+}
+
+const selectedTab = ref<string>('builder')
+const publishAtParts = computed<DateTimeParts>(() => parseDateTimeValue(draft.value?.publish_at))
+const pauseAtParts = computed<DateTimeParts>(() => parseDateTimeValue(draft.value?.pause_at))
+
+const publishAtDate = computed<DateValue | null>({
+  get() {
+    return publishAtParts.value.date
+  },
+  set(value: DateValue | null) {
+    if (draft.value === undefined || draft.value === null) {
+      return
+    }
+
+    draft.value.publish_at = serializeDateTimeValue(value, publishAtParts.value.time)
+  }
+})
+
+const publishAtTime = computed<Time | null>({
+  get() {
+    return publishAtParts.value.time
+  },
+  set(value: Time | null) {
+    if (draft.value === undefined || draft.value === null) {
+      return
+    }
+
+    draft.value.publish_at = serializeDateTimeValue(publishAtParts.value.date, value)
+  }
+})
+
+const pauseAtDate = computed<DateValue | null>({
+  get() {
+    return pauseAtParts.value.date
+  },
+  set(value: DateValue | null) {
+    if (draft.value === undefined || draft.value === null) {
+      return
+    }
+
+    draft.value.pause_at = serializeDateTimeValue(value, pauseAtParts.value.time)
+  }
+})
+
+const pauseAtTime = computed<Time | null>({
+  get() {
+    return pauseAtParts.value.time
+  },
+  set(value: Time | null) {
+    if (draft.value === undefined || draft.value === null) {
+      return
+    }
+
+    draft.value.pause_at = serializeDateTimeValue(pauseAtParts.value.date, value)
+  }
+})
+
+const responseLimitValue = computed<number | null>({
+  get() {
+    return typeof draft.value?.response_limit === 'number' ? draft.value.response_limit : null
+  },
+  set(value: number | null) {
+    if (draft.value === undefined || draft.value === null) {
+      return
+    }
+
+    draft.value.response_limit = typeof value === 'number' && Number.isFinite(value) ? value : null
+  }
+})
+
+const openingEnabled = computed<boolean>({
+  get() {
+    return draft.value?.publish_at !== null && draft.value?.publish_at !== undefined
+  },
+  set(value: boolean) {
+    if (draft.value === undefined || draft.value === null) {
+      return
+    }
+
+    if (value && (draft.value.publish_at === null || draft.value.publish_at === undefined)) {
+      draft.value.publish_at = currentDateTimeValue()
+      return
+    }
+
+    if (!value) {
+      draft.value.publish_at = null
+    }
+  }
+})
+
+const closingEnabled = computed<boolean>({
+  get() {
+    return draft.value?.pause_at !== null && draft.value?.pause_at !== undefined
+  },
+  set(value: boolean) {
+    if (draft.value === undefined || draft.value === null) {
+      return
+    }
+
+    if (value && (draft.value.pause_at === null || draft.value.pause_at === undefined)) {
+      draft.value.pause_at = currentDateTimeValue()
+      return
+    }
+
+    if (!value) {
+      draft.value.pause_at = null
+    }
+  }
+})
+
+const responseLimitEnabled = computed<boolean>({
+  get() {
+    return draft.value?.response_limit !== null && draft.value?.response_limit !== undefined
+  },
+  set(value: boolean) {
+    if (draft.value === undefined || draft.value === null) {
+      return
+    }
+
+    if (value && (draft.value.response_limit === null || draft.value.response_limit === undefined)) {
+      draft.value.response_limit = 1
+      return
+    }
+
+    if (!value) {
+      draft.value.response_limit = null
+    }
+  }
+})
+
+const submissionPinEnabled = computed<boolean>({
+  get() {
+    return draft.value?.submission_code_required === true
+  },
+  set(value: boolean) {
+    if (draft.value === undefined || draft.value === null) {
+      return
+    }
+
+    draft.value.submission_code_required = value
+
+    if (!value) {
+      draft.value.submission_code = null
+    }
+  }
+})
+
+const submissionPinValue = computed<string>({
+  get() {
+    return typeof draft.value?.submission_code === 'string' ? draft.value.submission_code : ''
+  },
+  set(value: string) {
+    if (draft.value === undefined || draft.value === null) {
+      return
+    }
+
+    draft.value.submission_code = value
+  }
+})
+
+const publicUrlValue = computed<string>(() => {
+  return typeof draft.value?.public_url === 'string' ? draft.value.public_url : ''
+})
+
+function ensureSubmissionApi(): Record<string, unknown> {
+  if (draft.value === undefined || draft.value === null) {
+    return {}
+  }
+
+  if (typeof draft.value.api !== 'object' || draft.value.api === null || Array.isArray(draft.value.api)) {
+    draft.value.api = {}
+  }
+
+  const api = draft.value.api as Record<string, unknown>
+
+  if (typeof api.submission !== 'object' || api.submission === null || Array.isArray(api.submission)) {
+    api.submission = {}
+  }
+
+  return api.submission as Record<string, unknown>
+}
+
+const submissionIsPublic = computed<boolean>({
+  get() {
+    const api = draft.value?.api
+
+    if (typeof api !== 'object' || api === null || Array.isArray(api)) {
+      return true
+    }
+
+    const submission = api.submission
+
+    if (typeof submission !== 'object' || submission === null || Array.isArray(submission)) {
+      return true
+    }
+
+    if (typeof submission.public === 'boolean') {
+      return submission.public
+    }
+
+    if (typeof submission.auth === 'string') {
+      return submission.auth === 'public'
+    }
+
+    return true
+  },
+  set(value: boolean) {
+    const submission = ensureSubmissionApi()
+    submission.public = value
+    submission.auth = value ? 'public' : 'required'
+  }
+})
+
+const builderTabs = computed<Array<{ label: string, icon: string, slot: 'builder' | 'settings' }>>(() => {
+  const items: Array<{ label: string, icon: string, slot: 'builder' | 'settings' }> = [
+    {
+      label: 'Builder',
+      icon: 'i-lucide-layout-grid',
+      slot: 'builder'
+    }
+  ]
+
+  if (!settingsHidden.value) {
+    items.push({
+      label: 'Settings',
+      icon: 'i-lucide-settings-2',
+      slot: 'settings'
+    })
+  }
+
+  return items
+})
+
 const selectedPageKey = ref<string | null>(safePages.value[0]?.page_key ?? null)
 const selectedFieldKey = ref<string | null>(safePages.value[0]?.fields[0]?.field_key ?? null)
 
@@ -259,13 +553,13 @@ const fieldTypeMeta = computed<Record<FormForgeFieldType, { label: string, icon:
   select_menu: { label: t('builder.fieldType.select_menu'), icon: 'i-lucide-list-filter' },
   radio: { label: t('builder.fieldType.radio'), icon: 'i-lucide-circle-dot' },
   checkbox: { label: t('builder.fieldType.checkbox'), icon: 'i-lucide-check-square' },
+  consent: { label: t('builder.fieldType.consent'), icon: 'i-lucide-badge-check' },
   checkbox_group: { label: t('builder.fieldType.checkbox_group'), icon: 'i-lucide-list-checks' },
+  address: { label: t('builder.fieldType.address'), icon: 'i-lucide-house' },
   switch: { label: t('builder.fieldType.switch'), icon: 'i-lucide-toggle-left' },
+  temporal: { label: t('builder.fieldType.temporal'), icon: 'i-lucide-calendar-clock' },
   date: { label: t('builder.fieldType.date'), icon: 'i-lucide-calendar' },
   time: { label: t('builder.fieldType.time'), icon: 'i-lucide-clock-3' },
-  datetime: { label: t('builder.fieldType.datetime'), icon: 'i-lucide-calendar-clock' },
-  date_range: { label: t('builder.fieldType.date_range'), icon: 'i-lucide-calendar-range' },
-  datetime_range: { label: t('builder.fieldType.datetime_range'), icon: 'i-lucide-calendar-range' },
   file: { label: t('builder.fieldType.file'), icon: 'i-lucide-paperclip' }
 }))
 
@@ -275,106 +569,29 @@ const fieldTypeItems = computed(() => FORM_FORGE_BUILDER_FIELD_TYPES.map((type) 
   icon: fieldTypeMeta.value[type].icon
 })))
 
-function conditionActionLabel(action: typeof FORM_FORGE_BUILDER_CONDITION_ACTIONS[number]): string {
-  const labels: Record<typeof FORM_FORGE_BUILDER_CONDITION_ACTIONS[number], string> = {
-    show: t('builder.condition.action.show'),
-    hide: t('builder.condition.action.hide'),
-    skip: t('builder.condition.action.skip'),
-    require: t('builder.condition.action.require'),
-    disable: t('builder.condition.action.disable')
-  }
-
-  return labels[action]
+function isChoiceFieldType(type: FormForgeFieldType): boolean {
+  return type === 'radio' || type === 'checkbox_group'
 }
 
-function conditionMatchLabel(match: typeof FORM_FORGE_BUILDER_CONDITION_MATCHES[number]): string {
-  const labels: Record<typeof FORM_FORGE_BUILDER_CONDITION_MATCHES[number], string> = {
-    all: t('builder.condition.match.all'),
-    any: t('builder.condition.match.any')
+function createChoiceOption(index: number): FormForgeFieldOption {
+  return {
+    label: '',
+    value: `option_${index + 1}`
   }
-
-  return labels[match]
 }
 
-function conditionOperatorLabel(operator: typeof FORM_FORGE_BUILDER_CONDITION_OPERATORS[number]): string {
-  const labels: Record<typeof FORM_FORGE_BUILDER_CONDITION_OPERATORS[number], string> = {
-    eq: t('builder.condition.operator.eq'),
-    neq: t('builder.condition.operator.neq'),
-    in: t('builder.condition.operator.in'),
-    not_in: t('builder.condition.operator.not_in'),
-    gt: t('builder.condition.operator.gt'),
-    gte: t('builder.condition.operator.gte'),
-    lt: t('builder.condition.operator.lt'),
-    lte: t('builder.condition.operator.lte'),
-    contains: t('builder.condition.operator.contains'),
-    not_contains: t('builder.condition.operator.not_contains'),
-    is_empty: t('builder.condition.operator.is_empty'),
-    not_empty: t('builder.condition.operator.not_empty')
+function normalizeLoadedPageLogic(pages: FormForgePageSchema[]): void {
+  if (!Array.isArray(pages)) {
+    return
   }
 
-  return labels[operator]
-}
-
-const conditionActionItems = computed(() => FORM_FORGE_BUILDER_CONDITION_ACTIONS.map((action) => ({
-  label: conditionActionLabel(action),
-  value: action
-})))
-
-const conditionMatchItems = computed(() => FORM_FORGE_BUILDER_CONDITION_MATCHES.map((match) => ({
-  label: conditionMatchLabel(match),
-  value: match
-})))
-
-const conditionOperatorItems = computed(() => FORM_FORGE_BUILDER_CONDITION_OPERATORS.map((operator) => ({
-  label: conditionOperatorLabel(operator),
-  value: operator
-})))
-
-const targetTypeItems = computed(() => [
-  { label: t('builder.targetType.page'), value: 'page' },
-  { label: t('builder.targetType.field'), value: 'field' }
-])
-
-const pageTargetItems = computed(() => {
-  const items: Array<{ label: string, value: string }> = []
-
-  for (const maybePage of safePages.value) {
-    const title = typeof maybePage.title === 'string' ? maybePage.title : ''
-    items.push({
-      label: title === '' ? maybePage.page_key : `${title} (${maybePage.page_key})`,
-      value: maybePage.page_key
-    })
-  }
-
-  return items
-})
-
-const fieldTargetItems = computed(() => {
-  const items: Array<{ label: string, value: string }> = []
-
-  for (const maybePage of safePages.value) {
-    if (!Array.isArray(maybePage.fields)) {
+  for (const page of pages) {
+    if (page === undefined || page === null) {
       continue
     }
 
-    for (const maybeField of maybePage.fields) {
-      const label = maybeField.label === undefined || maybeField.label === '' ? maybeField.field_key : `${maybeField.label} (${maybeField.field_key})`
-      items.push({
-        label,
-        value: maybeField.field_key
-      })
-    }
+    ensurePageLogic(page)
   }
-
-  return items
-})
-
-function selectedPage(): FormForgePageSchema | undefined {
-  if (selectedPageKey.value === null) {
-    return safePages.value[0]
-  }
-
-  return safePages.value.find((page) => page.page_key === selectedPageKey.value) ?? safePages.value[0]
 }
 
 function syncSelectionWithDraft(pages: FormForgePageSchema[]): void {
@@ -399,162 +616,38 @@ function syncSelectionWithDraft(pages: FormForgePageSchema[]): void {
     return
   }
 
-  const nextField = selectedFieldKey.value === null
-    ? fields[0]
-    : fields.find((field) => field.field_key === selectedFieldKey.value) ?? fields[0]
+  if (selectedFieldKey.value === null) {
+    return
+  }
+
+  const nextField = fields.find((field) => field.field_key === selectedFieldKey.value) ?? fields[0]
 
   selectedFieldKey.value = nextField.field_key
 }
 
-function resolveHTMLElement(element: unknown): HTMLElement | null {
-  if (element instanceof HTMLElement) {
-    return element
-  }
-
-  if (typeof element !== 'object' || element === null || !('$el' in element)) {
-    return null
-  }
-
-  const componentElement = (element as { $el?: unknown }).$el
-  return componentElement instanceof HTMLElement ? componentElement : null
-}
-
-function registerFieldElement(fieldKey: string, element: unknown): void {
-  const htmlElement = resolveHTMLElement(element)
-
-  if (htmlElement !== null) {
-    fieldElements.set(fieldKey, htmlElement)
-    if (fieldKey === selectedFieldKey.value) {
-      nextTick(() => {
-        updateRailPosition()
-      })
-    }
-    return
-  }
-
-  fieldElements.delete(fieldKey)
-}
-
-function updateRailPosition(): void {
-  if (!isClientReady.value || typeof window === 'undefined') {
-    return
-  }
-
-  const rootElement = builderRootElement.value
-
-  if (rootElement === null) {
-    return
-  }
-
-  const rootRect = rootElement.getBoundingClientRect()
-  const columnRect = builderColumnElement.value?.getBoundingClientRect() ?? rootRect
-  const selectedElement = selectedFieldKey.value === null
-    ? undefined
-    : fieldElements.get(selectedFieldKey.value)
-  const selectedRect = selectedElement?.getBoundingClientRect()
-
-  if (window.innerWidth <= 1024) {
-    railLeft.value = 0
-    return
-  }
-
-  const railWidth = 68
-  const horizontalGap = 14
-  const minLeft = 8
-  const maxLeft = window.innerWidth - railWidth - 8
-  const horizontalAnchor = selectedRect?.right ?? columnRect.right
-  const desiredLeft = horizontalAnchor + horizontalGap
-
-  railLeft.value = Math.min(Math.max(desiredLeft, minLeft), maxLeft)
-
-  const railHeight = 122
-  const minTop = Math.max(88, columnRect.top + 8)
-  const maxTop = Math.max(minTop, Math.min(window.innerHeight - railHeight - 12, columnRect.bottom - railHeight - 8))
-
-  if (selectedRect === undefined) {
-    railTop.value = minTop
-    return
-  }
-
-  const desiredTop = selectedRect.top + (selectedRect.height / 2) - (railHeight / 2)
-
-  railTop.value = Math.min(Math.max(desiredTop, minTop), maxTop)
-}
-
-onMounted(() => {
-  isClientReady.value = true
-  window.addEventListener('scroll', updateRailPosition, { passive: true })
-  window.addEventListener('resize', updateRailPosition)
-
-  nextTick(() => {
-    syncSelectionWithDraft(safePages.value)
-    updateRailPosition()
-  })
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('scroll', updateRailPosition)
-  window.removeEventListener('resize', updateRailPosition)
-  fieldElements.clear()
-})
-
 function selectField(page: FormForgePageSchema, fieldKey: string): void {
   selectedPageKey.value = page.page_key
   selectedFieldKey.value = fieldKey
-
-  nextTick(() => {
-    updateRailPosition()
-  })
 }
 
-function updatePageTitle(page: FormForgePageSchema | undefined, value: string): void {
+function findPage(pageKey: string): FormForgePageSchema | undefined {
+  return safePages.value.find((page) => page.page_key === pageKey)
+}
+
+function selectFieldByKey(pageKey: string, fieldKey: string): void {
+  const page = findPage(pageKey)
+
   if (page === undefined) {
     return
   }
 
-  page.title = value
-}
+  if (selectedPageKey.value === pageKey && selectedFieldKey.value === fieldKey) {
+    selectedFieldKey.value = null
 
-function readPageTitle(page: FormForgePageSchema | undefined): string {
-  if (page === undefined || page === null) {
-    return ''
+    return
   }
 
-  return typeof page.title === 'string' ? page.title : ''
-}
-
-function pageOrder(page: FormForgePageSchema): number {
-  const index = safePages.value.findIndex((item) => item.page_key === page.page_key)
-  return index < 0 ? 1 : index + 1
-}
-
-function canMergeWithPreviousPage(page: FormForgePageSchema): boolean {
-  return safePages.value.length > 1 && pageOrder(page) > 1
-}
-
-function mergePageWithPrevious(page: FormForgePageSchema): void {
-  builder.mergePageWithPrevious(page.page_key)
-
-  nextTick(() => {
-    syncSelectionWithDraft(safePages.value)
-    updateRailPosition()
-  })
-}
-
-function isFieldSelected(fieldKey: string): boolean {
-  return selectedFieldKey.value === fieldKey
-}
-
-function showInlinePreview(field: FormForgeFieldSchema): boolean {
-  return field.type === 'text' || field.type === 'textarea' || field.type === 'email'
-}
-
-function fieldTypeLabel(type: FormForgeFieldType): string {
-  return fieldTypeMeta.value[type]?.label ?? type
-}
-
-function fieldTypeIcon(type: FormForgeFieldType): string {
-  return fieldTypeMeta.value[type]?.icon ?? 'i-lucide-square'
+  selectField(page, fieldKey)
 }
 
 function isUuidLike(value: string): boolean {
@@ -592,12 +685,22 @@ function applyLoadedForm(schema: FormForgeFormSchema): void {
   draft.value = {
     uuid: nextUuid,
     key: schema.key,
+    schema_version: schema.schema_version ?? 1,
     title: schema.title,
+    publish_at: schema.publish_at ?? null,
+    pause_at: schema.pause_at ?? null,
+    response_limit: schema.response_limit ?? null,
+    submission_code_required: schema.submission_code_required === true,
+    submission_code: null,
+    public_url: schema.public_url ?? null,
     category: schema.category ?? null,
     pages: cloneValue(schema.pages),
     conditions: cloneValue(schema.conditions),
-    drafts: cloneValue(schema.drafts)
+    drafts: cloneValue(schema.drafts),
+    api: cloneValue(schema.api ?? {})
   }
+
+  normalizeLoadedPageLogic(draft.value.pages)
 
   isPublished.value = schema.is_published === true
 }
@@ -619,7 +722,6 @@ async function loadFormIntoBuilder(key: string, version?: string): Promise<void>
 
     nextTick(() => {
       syncSelectionWithDraft(safePages.value)
-      updateRailPosition()
     })
   } catch (caughtError) {
     const message = caughtError instanceof Error ? caughtError.message : t('builder.error.loadForm')
@@ -643,13 +745,14 @@ async function loadFormRouteIntoBuilder(routeKey: string, version?: string): Pro
   await loadFormIntoBuilder(key, version)
 }
 
-function addField(page: FormForgePageSchema, type: FormForgeFieldType): void {
-  builder.addField(page.page_key, type)
+function addField(pageKey: string, type: FormForgeFieldType): void {
+  builder.addField(pageKey, type)
   builder.normalizeFieldLocations()
 
-  const nextField = page.fields.at(-1)
+  const page = safePages.value.find((candidate) => candidate.page_key === pageKey)
+  const nextField = page?.fields.at(-1)
 
-  if (nextField !== undefined) {
+  if (page !== undefined && nextField !== undefined) {
     selectField(page, nextField.field_key)
   }
 }
@@ -657,12 +760,28 @@ function addField(page: FormForgePageSchema, type: FormForgeFieldType): void {
 function onFieldTypeChange(field: FormForgeFieldSchema, nextType: FormForgeFieldType): void {
   field.type = nextType
 
-  if (nextType === 'select' || nextType === 'select_menu' || nextType === 'radio' || nextType === 'checkbox_group') {
-    if (field.options === undefined) {
-      field.options = []
+  if (isChoiceFieldType(nextType)) {
+    if (!Array.isArray(field.options) || field.options.length === 0) {
+      field.options = nextType === 'checkbox_group'
+        ? [createChoiceOption(0), createChoiceOption(1), createChoiceOption(2)]
+        : [createChoiceOption(0), createChoiceOption(1)]
+    } else if (field.options.length < (nextType === 'checkbox_group' ? 2 : 1)) {
+      const minimumOptionCount = nextType === 'checkbox_group' ? 2 : 1
+      const nextOptions = [...field.options]
+
+      for (let index = nextOptions.length; index < minimumOptionCount; index += 1) {
+        nextOptions.push(createChoiceOption(index))
+      }
+
+      field.options = nextOptions
     }
+
+    field.display = nextType === 'radio' || nextType === 'checkbox_group'
+      ? 'list'
+      : 'menu'
   } else {
     field.options = undefined
+    field.display = undefined
   }
 
   if (nextType === 'file') {
@@ -673,66 +792,30 @@ function onFieldTypeChange(field: FormForgeFieldSchema, nextType: FormForgeField
       })
     }
   }
-}
 
-function addOption(field: FormForgeFieldSchema): void {
-  if (field.options === undefined) {
-    field.options = []
+  if (nextType === 'consent' && typeof field.consent_label !== 'string') {
+    field.consent_label = resolveDefaultConsentLabel(locale.value)
   }
 
-  field.options.push({
-    label: t('builder.optionDefaultLabel'),
-    value: `option_${field.options.length + 1}`
-  })
-}
-
-function removeOption(field: FormForgeFieldSchema, index: number): void {
-  if (field.options === undefined) {
-    return
-  }
-
-  field.options.splice(index, 1)
-}
-
-function optionLabel(option: FormForgeFieldOption | undefined): string {
-  if (option === undefined || option === null) {
-    return ''
-  }
-
-  if (typeof option === 'object' && 'label' in option) {
-    return typeof option.label === 'string' ? option.label : ''
-  }
-
-  return String(option)
-}
-
-function setOptionLabel(field: FormForgeFieldSchema, optionIndex: number, value: string): void {
-  if (field.options === undefined) {
-    return
-  }
-
-  const option = field.options[optionIndex]
-  if (option === undefined || option === null) {
-    return
-  }
-
-  if (typeof option === 'object' && 'value' in option) {
-    field.options[optionIndex] = {
-      ...option,
-      label: value
+  if (nextType === 'address') {
+    if (!Array.isArray(field.address_fields) || field.address_fields.length === 0) {
+      field.address_fields = createDefaultAddressFields(locale.value)
     }
-    return
-  }
 
-  field.options[optionIndex] = {
-    label: value,
-    value: option
+    field.default = {
+      line1: null,
+      line2: null,
+      city: null,
+      state: null,
+      zip: null,
+      country: null
+    }
   }
 }
 
 async function save(): Promise<void> {
   try {
-    const shouldAutoPublish = props.defaultPublished
+    const shouldAutoPublish = props.defaultPublished || props.autoPublishOnSave
     await builder.save({
       autoPublish: shouldAutoPublish
     })
@@ -830,14 +913,6 @@ const canTogglePublish = computed<boolean>(() => {
   return true
 })
 
-const toolbarActionsClass = computed<string[]>(() => {
-  if (showTopControls.value) {
-    return ['builder-toolbar-actions']
-  }
-
-  return ['builder-toolbar-actions', 'builder-toolbar-actions--compact']
-})
-
 async function togglePublishState(): Promise<void> {
   if (!props.defaultPublished && isPublished.value) {
     await unpublish()
@@ -854,30 +929,50 @@ function removeField(page: FormForgePageSchema, fieldKey: string): void {
   }
 }
 
-function addQuestionFromRail(): void {
-  const page = selectedPage()
-
+function removeFieldByKey(pageKey: string, fieldKey: string): void {
+  const page = findPage(pageKey)
   if (page === undefined) {
-    builder.addPage()
-
-    nextTick(() => {
-      syncSelectionWithDraft(safePages.value)
-      updateRailPosition()
-    })
-
     return
   }
 
-  addField(page, 'text')
+  removeField(page, fieldKey)
 }
 
-function addPageFromRail(): void {
-  builder.addPage()
+function duplicateFieldByKey(pageKey: string, fieldKey: string): void {
+  const page = findPage(pageKey)
+  if (page === undefined) {
+    return
+  }
 
-  nextTick(() => {
-    syncSelectionWithDraft(safePages.value)
-    updateRailPosition()
-  })
+  duplicateField(page, fieldKey)
+}
+
+function moveFieldByKey(pageKey: string, fieldKey: string, direction: -1 | 1): void {
+  builder.moveField(pageKey, fieldKey, direction)
+}
+
+function changeFieldTypeByKey(pageKey: string, fieldKey: string, nextType: FormForgeFieldType): void {
+  const page = findPage(pageKey)
+  if (page === undefined) {
+    return
+  }
+
+  const field = page.fields.find((item) => item.field_key === fieldKey)
+  if (field === undefined) {
+    return
+  }
+
+  onFieldTypeChange(field, nextType)
+}
+
+function addFieldBelowByKey(pageKey: string, fieldKey: string, type: FormForgeFieldType): void {
+  builder.insertFieldAfter(pageKey, fieldKey, type)
+  builder.normalizeFieldLocations()
+}
+
+function moveFieldToBlockByKey(pageKey: string, fieldKey: string, targetPageKey: string): void {
+  builder.moveFieldToPage(pageKey, fieldKey, targetPageKey)
+  builder.normalizeFieldLocations()
 }
 
 async function openCategoryCreateModal(): Promise<void> {
@@ -964,6 +1059,12 @@ watch(() => props.autosaveDelay, (value) => {
   immediate: true
 })
 
+watch(() => props.autoPublishOnSave, (value) => {
+  builder.autoPublishOnSave.value = value
+}, {
+  immediate: true
+})
+
 watch(() => [props.loadFormKey, props.loadFormVersion] as const, ([key, version]) => {
   if (typeof key !== 'string' || key === '') {
     return
@@ -988,882 +1089,396 @@ watch(() => [props.formRouteKey, props.loadFormKey, props.loadFormVersion] as co
 
 watch(() => safePages.value, (pages) => {
   syncSelectionWithDraft(pages)
-  nextTick(() => {
-    updateRailPosition()
-  })
 }, {
   deep: true,
   immediate: true
 })
 
-watch(() => selectedFieldKey.value, () => {
-  nextTick(() => {
-    updateRailPosition()
-  })
+watch(
+  () => [selectedPageKey.value, selectedFieldKey.value] as const,
+  ([pageKey, fieldKey]) => {
+    emit('selection-change', pageKey, fieldKey)
+  },
+  {
+    immediate: true
+  }
+)
+
+watch(settingsHidden, (value) => {
+  if (value) {
+    selectedTab.value = 'builder'
+  }
+}, {
+  immediate: true
 })
+
+const builderExpose = {
+  save,
+  publish,
+  unpublish,
+  togglePublishState
+} satisfies FormForgeBuilderExpose
+
+defineExpose(builderExpose)
 </script>
 
 <template>
   <div
-    v-if="isClientReady"
-    ref="builderRootElement"
-    class="builder-root"
+    class="w-full"
   >
-    <div class="builder-layout">
+    <div :class="builderLayoutClass">
       <div
-        ref="builderColumnElement"
-        class="builder-column"
+        class="grid min-w-0 gap-6"
       >
-        <UCard
-          variant="subtle"
-          class="builder-card"
-        >
-          <div class="builder-toolbar">
-            <div
-              v-if="showTopControls"
-              class="builder-toolbar-grid"
-            >
-              <UInput
-                v-if="!disableTitleInput"
-                v-model="draftTitle"
-                :disabled="readonly"
-                :placeholder="t('builder.formTitlePlaceholder')"
-              />
-              <div
-                v-if="!disableCategoryControl"
-                class="builder-category-control"
-              >
-                <USelect
-                  v-model="draftCategorySelectValue"
-                  :items="categorySelectItems"
-                  :disabled="readonly"
-                  :placeholder="t('builder.categoryPlaceholder')"
-                />
-                <UTooltip :text="t('builder.tooltip.addCategory')">
-                  <UButton
-                    color="neutral"
-                    variant="soft"
-                    icon="i-lucide-folder-plus"
-                    :disabled="readonly"
-                    @click="openCategoryCreateModal"
-                  />
-                </UTooltip>
-              </div>
-            </div>
-
-            <div :class="toolbarActionsClass">
-              <div class="builder-status">
-                <span v-if="loadingRemoteForm">{{ t('builder.loadingForm') }}</span>
-                <span v-if="formattedLastSavedAt !== null">{{ t('builder.lastSave', { value: formattedLastSavedAt }) }}</span>
-                <span
-                  v-if="builderError !== null"
-                  class="builder-error"
-                >{{ builderError }}</span>
-              </div>
-
-              <div class="builder-actions">
-                <UButton
-                  :loading="saving"
-                  :disabled="readonly"
-                  @click="save"
+        <template v-if="!settingsHidden">
+          <UTabs
+            v-model="selectedTab"
+            :items="builderTabs"
+            value-key="slot"
+            class="w-full"
+            :ui="{
+              list: 'w-full',
+              trigger: 'flex-1 justify-center'
+            }"
+          >
+            <template #builder>
+              <div class="grid gap-6">
+                <Draggable
+                  v-model="draftPages"
+                  item-key="page_key"
+                  handle=".page-drag-handle"
+                  group="formforge-pages"
+                  class="grid gap-6"
                 >
-                  {{ t('builder.save') }}
-                </UButton>
-                <UButton
-                  v-if="!disablePublishAction && !defaultPublished"
-                  :color="publishButtonColor"
-                  :variant="publishButtonVariant"
-                  :loading="publishing"
-                  :disabled="!canTogglePublish"
-                  @click="togglePublishState"
-                >
-                  {{ publishButtonLabel }}
-                </UButton>
+                  <template #item="{ element: page, index }">
+                    <FormForgeBuilderBlockCard
+                      :page="page"
+                      :pages="safePages"
+                      :page-index="index"
+                      :total-pages="safePages.length"
+                      :selected-field-key="selectedFieldKey"
+                      :readonly="readonly"
+                      :field-type-items="fieldTypeItems"
+                      @select-field="selectFieldByKey"
+                      @move-page="builder.movePage"
+                      @duplicate-page="builder.duplicatePage"
+                      @remove-page="builder.removePage"
+                      @add-question="addField"
+                      @move-field="moveFieldByKey"
+                      @duplicate-field="duplicateFieldByKey"
+                      @remove-field="removeFieldByKey"
+                      @change-field-type="changeFieldTypeByKey"
+                      @add-field-below="addFieldBelowByKey"
+                      @move-field-to-block="moveFieldToBlockByKey"
+                    />
+                  </template>
+                </Draggable>
               </div>
-            </div>
-          </div>
-        </UCard>
+            </template>
 
-        <Draggable
-          v-model="draftPages"
-          item-key="page_key"
-          handle=".page-drag-handle"
-          group="formforge-pages"
-          class="builder-stack pages-stack"
-        >
-          <template #item="{ element: page }">
-            <div
-              v-if="page !== undefined && page !== null"
-              class="page-block"
-            >
-              <UCard
-                variant="soft"
-                class="builder-card page-meta-card"
-              >
-                <div class="page-chip-row">
-                  <UBadge
-                    color="primary"
-                    variant="subtle"
+            <template #settings>
+              <UCard variant="subtle">
+                <template #header>
+                  <div class="space-y-1">
+                    <p class="text-sm font-semibold text-default">
+                      Settings
+                    </p>
+                    <p class="text-sm text-muted">
+                      Configure the lifecycle, access, and publication settings for this form.
+                    </p>
+                  </div>
+                </template>
+
+                <div class="space-y-6">
+                  <div
+                    v-if="!disableTitleInput || !disableCategoryControl"
+                    class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]"
                   >
-                    {{ t('builder.pageCounter', { current: pageOrder(page), total: safePages.length }) }}
-                  </UBadge>
-                </div>
-
-                <div class="page-header">
-                  <span class="page-drag-handle drag-handle">⋮⋮</span>
-                  <div class="page-header-main">
                     <UInput
-                      :model-value="readPageTitle(page)"
+                      v-if="!disableTitleInput"
+                      v-model="draftTitle"
                       :disabled="readonly"
-                      class="grow"
-                      :placeholder="t('builder.pageTitlePlaceholder')"
-                      @update:model-value="(value: string) => updatePageTitle(page, value)"
+                      placeholder="Form title"
+                      :ui="{ base: 'w-full' }"
                     />
-                    <UTextarea
-                      v-model="page.description"
-                      :rows="2"
-                      :disabled="readonly"
-                      :placeholder="t('builder.pageDescriptionPlaceholder')"
-                    />
-                  </div>
-                  <div class="page-actions">
-                    <UTooltip :text="t('builder.tooltip.mergePage')">
-                      <UButton
-                        color="neutral"
-                        variant="ghost"
-                        icon="i-lucide-arrow-up-to-line"
-                        :disabled="readonly || !canMergeWithPreviousPage(page)"
-                        @click="mergePageWithPrevious(page)"
+                    <div
+                      v-if="!disableCategoryControl"
+                      class="flex flex-row items-center gap-2"
+                    >
+                      <USelect
+                        v-model="draftCategorySelectValue"
+                        :items="categorySelectItems"
+                        :disabled="readonly"
+                        placeholder="Category"
+                        :ui="{
+                          base: 'w-full'
+                        }"
                       />
-                    </UTooltip>
-                    <UTooltip :text="t('builder.tooltip.deletePage')">
-                      <UButton
-                        color="neutral"
-                        variant="ghost"
-                        icon="i-lucide-trash-2"
-                        :disabled="readonly || safePages.length <= 1"
-                        @click="builder.removePage(page.page_key)"
-                      />
-                    </UTooltip>
-                  </div>
-                </div>
-              </UCard>
-
-              <Draggable
-                v-model="page.fields"
-                item-key="field_key"
-                handle=".field-drag-handle"
-                :group="{ name: 'formforge-fields', pull: true, put: true }"
-                class="builder-stack page-questions-stack"
-              >
-                <template #item="{ element: field }">
-                  <UCard
-                    v-if="field !== undefined && field !== null"
-                    :ref="(element: unknown) => registerFieldElement(field.field_key, element)"
-                    variant="subtle"
-                    :class="[
-                      'field-card',
-                      isFieldSelected(field.field_key) ? 'field-card--active' : ''
-                    ]"
-                    @click="selectField(page, field.field_key)"
-                    @focusin="selectField(page, field.field_key)"
-                  >
-                    <div class="field-shell">
-                      <div class="field-head">
-                        <span class="field-drag-handle drag-handle">⋮⋮</span>
-                        <UInput
-                          v-model="field.label"
-                          :disabled="readonly"
-                          :placeholder="t('builder.questionPlaceholder')"
-                        />
-                        <USelectMenu
-                          :model-value="field.type"
-                          :items="fieldTypeItems"
-                          value-key="value"
-                          label-key="label"
-                          :search-input="false"
-                          :leading-icon="fieldTypeIcon(field.type)"
-                          :disabled="readonly"
-                          @update:model-value="(value: FormForgeFieldType) => onFieldTypeChange(field, value)"
-                        />
-                      </div>
-
-                      <div
-                        v-if="isFieldSelected(field.field_key)"
-                        class="field-controls"
-                      >
-                        <UTooltip :text="t('builder.tooltip.duplicateQuestion')">
-                          <UButton
-                            color="neutral"
-                            variant="ghost"
-                            icon="i-lucide-copy"
-                            :disabled="readonly"
-                            @click.stop="duplicateField(page, field.field_key)"
-                          />
-                        </UTooltip>
-                        <UTooltip :text="t('builder.tooltip.deleteQuestion')">
-                          <UButton
-                            color="error"
-                            variant="ghost"
-                            icon="i-lucide-trash-2"
-                            :disabled="readonly || page.fields.length <= 1"
-                            @click.stop="removeField(page, field.field_key)"
-                          />
-                        </UTooltip>
-                        <div class="field-required-switch">
-                          <span>{{ t('builder.required') }}</span>
-                          <USwitch
-                            v-model="field.required"
-                            :disabled="readonly"
-                          />
-                        </div>
-                      </div>
-
-                      <div
-                        v-if="isFieldSelected(field.field_key) && showInlinePreview(field)"
-                        class="field-inline-preview"
-                      >
-                        <p class="field-inline-preview-label">
-                          {{ fieldTypeLabel(field.type) }}
-                        </p>
-                        <div
-                          v-if="field.type === 'textarea'"
-                          class="field-inline-preview-textarea"
-                        >
-                          <span />
-                          <span />
-                        </div>
-                        <div
-                          v-else
-                          class="field-inline-preview-line"
-                        />
-                      </div>
-
-                      <div
-                        v-if="isFieldSelected(field.field_key) && (field.type === 'select' || field.type === 'select_menu' || field.type === 'radio' || field.type === 'checkbox_group')"
-                        class="field-options"
-                      >
-                        <div
-                          v-for="(option, optionIndex) in (field.options as FormForgeFieldOption[])"
-                          :key="optionIndex"
-                          class="field-option-row"
-                        >
-                          <UInput
-                            :model-value="optionLabel(option)"
-                            :disabled="readonly"
-                            :placeholder="t('builder.optionLabelPlaceholder')"
-                            @update:model-value="(value: string) => setOptionLabel(field, optionIndex, value)"
-                          />
-                          <UButton
-                            color="neutral"
-                            variant="ghost"
-                            icon="i-lucide-x"
-                            :disabled="readonly"
-                            @click="removeOption(field, optionIndex)"
-                          />
-                        </div>
+                      <UTooltip :text="t('builder.tooltip.addCategory')">
                         <UButton
                           color="neutral"
                           variant="soft"
-                          icon="i-lucide-plus"
+                          icon="i-lucide-folder-plus"
                           :disabled="readonly"
-                          @click="addOption(field)"
-                        >
-                          {{ t('builder.addOption') }}
-                        </UButton>
+                          @click="openCategoryCreateModal"
+                        />
+                      </UTooltip>
+                    </div>
+                  </div>
+
+                  <div class="grid gap-6">
+                    <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                      <div class="space-y-1">
+                        <p class="text-sm font-semibold text-default">
+                          Survey opening
+                        </p>
+                        <p class="text-sm text-muted">
+                          Choose when the form becomes available.
+                        </p>
+                      </div>
+                      <USwitch
+                        v-model="openingEnabled"
+                        :disabled="readonly"
+                      />
+                    </div>
+
+                    <div
+                      v-if="openingEnabled"
+                      class="grid gap-4 sm:grid-cols-2"
+                    >
+                      <UFormField label="Opening date">
+                        <UInputDate
+                          v-model="publishAtDate"
+                          :disabled="readonly"
+                          :ui="{ base: 'w-full' }"
+                        />
+                      </UFormField>
+                      <UFormField label="Opening time">
+                        <UInputTime
+                          v-model="publishAtTime"
+                          :disabled="readonly"
+                          :hour-cycle="24"
+                          :ui="{ base: 'w-full' }"
+                        />
+                      </UFormField>
+                    </div>
+                  </div>
+
+                  <div class="grid gap-6">
+                    <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                      <div class="space-y-1">
+                        <p class="text-sm font-semibold text-default">
+                          Survey closing
+                        </p>
+                        <p class="text-sm text-muted">
+                          Choose when the form stops accepting responses.
+                        </p>
+                      </div>
+                      <USwitch
+                        v-model="closingEnabled"
+                        :disabled="readonly"
+                      />
+                    </div>
+
+                    <div
+                      v-if="closingEnabled"
+                      class="grid gap-4 sm:grid-cols-2"
+                    >
+                      <UFormField label="Closing date">
+                        <UInputDate
+                          v-model="pauseAtDate"
+                          :disabled="readonly"
+                          :ui="{ base: 'w-full' }"
+                        />
+                      </UFormField>
+                      <UFormField label="Closing time">
+                        <UInputTime
+                          v-model="pauseAtTime"
+                          :disabled="readonly"
+                          :hour-cycle="24"
+                          :ui="{ base: 'w-full' }"
+                        />
+                      </UFormField>
+                    </div>
+                  </div>
+
+                  <div class="grid gap-6">
+                    <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                      <div class="space-y-1">
+                        <p class="text-sm font-semibold text-default">
+                          Submission limit
+                        </p>
+                        <p class="text-sm text-muted">
+                          The form closes automatically after this many responses.
+                        </p>
+                      </div>
+                      <USwitch
+                        v-model="responseLimitEnabled"
+                        :disabled="readonly"
+                      />
+                    </div>
+
+                    <UFormField
+                      v-if="responseLimitEnabled"
+                      label="Maximum responses"
+                    >
+                      <UInputNumber
+                        v-model="responseLimitValue"
+                        :disabled="readonly"
+                        :min="1"
+                        :ui="{ base: 'w-full' }"
+                      />
+                    </UFormField>
+                  </div>
+
+                  <div class="grid gap-6">
+                    <div class="space-y-1">
+                      <p class="text-sm font-semibold text-default">
+                        Access
+                      </p>
+                      <p class="text-sm text-muted">
+                        Control who can submit the form and whether a PIN is required.
+                      </p>
+                    </div>
+
+                    <div class="grid gap-4">
+                      <div class="flex items-start justify-between gap-4">
+                        <div class="space-y-1">
+                          <p class="text-sm font-medium text-default">
+                            Public form
+                          </p>
+                          <p class="text-sm text-muted">
+                            Allow anyone with the link to submit responses.
+                          </p>
+                        </div>
+                        <USwitch
+                          v-model="submissionIsPublic"
+                          :disabled="readonly"
+                        />
                       </div>
 
-                      <p
-                        v-if="!isFieldSelected(field.field_key)"
-                        class="field-preview"
-                      >
-                        {{ field.placeholder || field.help_text || (field.options?.length ? t('builder.optionsCount', { count: field.options.length }) : fieldTypeLabel(field.type)) }}
-                      </p>
+                      <div v-if="submissionIsPublic">
+                        <UFormField label="Public link">
+                          <UInput
+                            :model-value="publicUrlValue"
+                            disabled
+                            placeholder="Save the form to generate a link"
+                            :ui="{ base: 'w-full' }"
+                          />
+                        </UFormField>
+                      </div>
 
-                      <details
-                        v-if="isFieldSelected(field.field_key)"
-                        class="field-advanced"
-                      >
-                        <summary class="field-advanced-summary">
-                          {{ t('builder.advancedSettings') }}
-                        </summary>
-
-                        <div class="field-advanced-body">
-                          <div class="field-advanced-grid">
-                            <UInput
-                              v-model="field.placeholder"
-                              :disabled="readonly"
-                              :placeholder="t('builder.placeholderPlaceholder')"
-                            />
-                            <UTextarea
-                              v-model="field.help_text"
-                              :disabled="readonly"
-                              :rows="2"
-                              :placeholder="t('builder.helpTextPlaceholder')"
-                            />
-                          </div>
-
-                          <div
-                            v-if="field.type === 'number'"
-                            class="field-numbers"
-                          >
-                            <UInput
-                              v-model="field.min"
-                              :disabled="readonly"
-                              :placeholder="t('builder.minPlaceholder')"
-                            />
-                            <UInput
-                              v-model="field.max"
-                              :disabled="readonly"
-                              :placeholder="t('builder.maxPlaceholder')"
-                            />
-                            <UInput
-                              v-model="field.step"
-                              :disabled="readonly"
-                              :placeholder="t('builder.stepPlaceholder')"
-                            />
-                          </div>
-
-                          <div
-                            v-if="field.type === 'file'"
-                            class="field-file"
-                          >
-                            <UCheckbox
-                              v-model="field.multiple"
-                              :disabled="readonly"
-                              :label="t('builder.multiple')"
-                            />
-                            <UInput
-                              :model-value="field.accept?.join(',') ?? ''"
-                              :disabled="readonly"
-                              :placeholder="t('builder.acceptedExtensionsPlaceholder')"
-                              @update:model-value="(value: string) => { field.accept = value.split(',').map((item) => item.trim()).filter((item) => item !== '') }"
-                            />
-                          </div>
+                      <div class="flex items-start justify-between gap-4 border-t border-muted pt-4">
+                        <div class="space-y-1">
+                          <p class="text-sm font-medium text-default">
+                            PIN protection
+                          </p>
+                          <p class="text-sm text-muted">
+                            Require a PIN before the form can be submitted.
+                          </p>
                         </div>
-                      </details>
+                        <USwitch
+                          v-model="submissionPinEnabled"
+                          :disabled="readonly"
+                        />
+                      </div>
+
+                      <div v-if="submissionPinEnabled">
+                        <UFormField label="PIN">
+                          <UInput
+                            v-model="submissionPinValue"
+                            :disabled="readonly"
+                            type="password"
+                            placeholder="Enter PIN"
+                            :ui="{ base: 'w-full' }"
+                          />
+                        </UFormField>
+                      </div>
                     </div>
-                  </UCard>
-                </template>
-              </Draggable>
-            </div>
-          </template>
-        </Draggable>
+                  </div>
 
-        <UCard
-          variant="subtle"
-          class="builder-card conditions-card"
-        >
-          <div class="builder-row">
-            <h3 class="conditions-title">
-              {{ t('builder.conditions') }}
-            </h3>
-            <UButton
-              color="neutral"
-              variant="soft"
-              icon="i-lucide-plus"
-              :disabled="readonly"
-              @click="builder.addCondition()"
-            >
-              {{ t('builder.addCondition') }}
-            </UButton>
-          </div>
+                  <div class="flex flex-wrap items-center justify-between gap-3 border-t border-muted pt-4">
+                    <div class="flex flex-wrap gap-2 text-sm text-muted">
+                      <span v-if="loadingRemoteForm">{{ t('builder.loadingForm') }}</span>
+                      <span v-if="formattedLastSavedAt !== null">{{ t('builder.lastSave', { value: formattedLastSavedAt }) }}</span>
+                      <span
+                        v-if="builderError !== null"
+                        class="text-error"
+                      >{{ builderError }}</span>
+                    </div>
 
-          <div
-            v-for="condition in safeConditions"
-            :key="condition.condition_key"
-            class="condition-card"
-          >
-            <div class="grid grid-cols-1 gap-2 md:grid-cols-4">
-              <USelect
-                v-model="condition.target_type"
-                :items="targetTypeItems"
-                :disabled="readonly"
-              />
-              <USelect
-                v-if="condition.target_type === 'page'"
-                v-model="condition.target_key"
-                :items="pageTargetItems"
-                :disabled="readonly"
-              />
-              <USelect
-                v-else
-                v-model="condition.target_key"
-                :items="fieldTargetItems"
-                :disabled="readonly"
-              />
-              <USelect
-                v-model="condition.action"
-                :items="conditionActionItems"
-                :disabled="readonly"
-              />
-              <USelect
-                v-model="condition.match"
-                :items="conditionMatchItems"
-                :disabled="readonly"
-              />
-            </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <UButton
+                        :loading="saving"
+                        :disabled="readonly"
+                        @click="save"
+                      >
+                        {{ t('builder.save') }}
+                      </UButton>
+                      <UButton
+                        v-if="!disablePublishAction && !defaultPublished"
+                        :color="publishButtonColor"
+                        :variant="publishButtonVariant"
+                        :loading="publishing"
+                        :disabled="!canTogglePublish"
+                        @click="togglePublishState"
+                      >
+                        {{ publishButtonLabel }}
+                      </UButton>
+                    </div>
+                  </div>
+                </div>
+              </UCard>
+            </template>
+          </UTabs>
+        </template>
 
-            <div class="space-y-2">
-              <div
-                v-for="(clause, clauseIndex) in condition.when"
-                :key="`${condition.condition_key}-${clauseIndex}`"
-                class="grid grid-cols-1 gap-2 md:grid-cols-[1fr_180px_1fr_auto]"
-              >
-                <USelect
-                  v-model="clause.field_key"
-                  :items="fieldTargetItems"
-                  :disabled="readonly"
-                />
-                <USelect
-                  v-model="clause.operator"
-                  :items="conditionOperatorItems"
-                  :disabled="readonly"
-                />
-                <UInput
-                  v-if="clause.operator !== 'is_empty' && clause.operator !== 'not_empty'"
-                  :model-value="typeof clause.value === 'string' ? clause.value : String(clause.value ?? '')"
-                  :disabled="readonly"
-                  :placeholder="t('builder.valuePlaceholder')"
-                  @update:model-value="(value: string) => { clause.value = value }"
-                />
-                <div v-else />
-                <UButton
-                  color="neutral"
-                  variant="soft"
-                  :disabled="readonly || condition.when.length <= 1"
-                  @click="builder.removeConditionClause(condition.condition_key, clauseIndex)"
-                >
-                  {{ t('builder.remove') }}
-                </UButton>
-              </div>
-            </div>
-
-            <div class="condition-actions">
-              <UButton
-                color="neutral"
-                variant="soft"
-                :disabled="readonly"
-                @click="builder.addConditionClause(condition.condition_key)"
-              >
-                {{ t('builder.addClause') }}
-              </UButton>
-              <UButton
-                color="error"
-                variant="soft"
-                :disabled="readonly"
-                @click="builder.removeCondition(condition.condition_key)"
-              >
-                {{ t('builder.deleteCondition') }}
-              </UButton>
-            </div>
-          </div>
-        </UCard>
-      </div>
-
-      <aside class="builder-rail-column">
         <div
-          class="builder-rail"
-          :style="{ top: `${railTop}px`, left: `${railLeft}px` }"
+          v-else
+          class="grid gap-6"
         >
-          <UTooltip :text="t('builder.rail.addQuestion')">
-            <UButton
-              color="neutral"
-              variant="soft"
-              icon="i-lucide-circle-plus"
-              class="rail-action"
-              :disabled="readonly"
-              @click="addQuestionFromRail"
-            />
-          </UTooltip>
-          <UTooltip :text="t('builder.rail.addPage')">
-            <UButton
-              color="neutral"
-              variant="soft"
-              icon="i-lucide-file-plus-2"
-              class="rail-action"
-              :disabled="readonly"
-              @click="addPageFromRail"
-            />
-          </UTooltip>
+          <Draggable
+            v-model="draftPages"
+            item-key="page_key"
+            handle=".page-drag-handle"
+            group="formforge-pages"
+            class="grid gap-6"
+          >
+            <template #item="{ element: page, index }">
+              <FormForgeBuilderBlockCard
+                :page="page"
+                :pages="safePages"
+                :page-index="index"
+                :total-pages="safePages.length"
+                :selected-field-key="selectedFieldKey"
+                :readonly="readonly"
+                :field-type-items="fieldTypeItems"
+                @select-field="selectFieldByKey"
+                @move-page="builder.movePage"
+                @duplicate-page="builder.duplicatePage"
+                @remove-page="builder.removePage"
+                @add-question="addField"
+                @move-field="moveFieldByKey"
+                @duplicate-field="duplicateFieldByKey"
+                @remove-field="removeFieldByKey"
+                @change-field-type="changeFieldTypeByKey"
+                @add-field-below="addFieldBelowByKey"
+                @move-field-to-block="moveFieldToBlockByKey"
+              />
+            </template>
+          </Draggable>
         </div>
-      </aside>
+      </div>
     </div>
   </div>
   <div
-    v-else
+    v-if="loadingRemoteForm"
     class="space-y-6"
   >
     <UCard>
-      <div class="text-sm text-muted">
+      <div class="text-sm text-gray-500">
         {{ t('builder.loadingBuilder') }}
       </div>
     </UCard>
   </div>
 </template>
-
-<style scoped>
-.builder-root {
-  width: 100%;
-}
-
-.builder-layout {
-  width: 100%;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 1rem;
-}
-
-.builder-column {
-  min-width: 0;
-  width: 100%;
-  display: grid;
-  gap: 1.5rem;
-}
-
-.builder-card {
-  border-radius: 16px;
-}
-
-.builder-toolbar {
-  display: grid;
-  gap: 1rem;
-}
-
-.builder-toolbar-grid {
-  display: grid;
-  gap: 0.85rem;
-  grid-template-columns: 1fr;
-}
-
-.builder-category-control {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.builder-toolbar-actions {
-  border-top: 1px solid var(--ui-border-muted);
-  padding-top: 0.85rem;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.builder-toolbar-actions--compact {
-  border-top: none;
-  padding-top: 0;
-}
-
-.builder-status {
-  color: var(--ui-text-muted);
-  font-size: 0.82rem;
-}
-
-.builder-error {
-  color: var(--ui-error);
-  margin-left: 0.5rem;
-}
-
-.builder-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.builder-stack {
-  display: grid;
-  gap: 1rem;
-}
-
-.pages-stack {
-  gap: 2.25rem;
-}
-
-.drag-handle {
-  color: var(--ui-text-muted);
-  cursor: grab;
-  user-select: none;
-  padding-top: 0.4rem;
-}
-
-.page-block {
-  display: grid;
-  gap: 1rem;
-}
-
-.page-meta-card {
-  border-radius: 16px;
-}
-
-.page-chip-row {
-  margin-bottom: 0.65rem;
-}
-
-.page-header {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 0.75rem;
-}
-
-.page-header-main {
-  display: grid;
-  gap: 0.6rem;
-  min-width: 0;
-}
-
-.page-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.page-questions-stack {
-  gap: 1rem;
-}
-
-.field-card {
-  border-radius: 14px;
-  border-left: 4px solid transparent;
-  cursor: pointer;
-}
-
-.field-card--active {
-  border-left-color: var(--ui-primary);
-}
-
-.field-shell {
-  display: grid;
-  gap: 0.85rem;
-}
-
-.field-head {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(220px, 280px);
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.field-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.field-required-switch {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--ui-text-toned);
-  font-size: 0.82rem;
-}
-
-.field-preview {
-  margin: 0;
-  color: var(--ui-text-muted);
-  font-size: 0.84rem;
-}
-
-.field-inline-preview {
-  border-radius: 10px;
-  background: var(--ui-bg-muted);
-  padding: 0.75rem;
-  display: grid;
-  gap: 0.5rem;
-}
-
-.field-inline-preview-label {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--ui-text-muted);
-}
-
-.field-inline-preview-line {
-  width: min(32rem, 100%);
-  border-bottom: 1px dashed var(--ui-border-accented);
-  height: 1.4rem;
-}
-
-.field-inline-preview-textarea {
-  width: min(32rem, 100%);
-  display: grid;
-  gap: 0.5rem;
-}
-
-.field-inline-preview-textarea > span {
-  display: block;
-  border-bottom: 1px dashed var(--ui-border-accented);
-  height: 1.2rem;
-}
-
-.field-advanced {
-  border-top: 1px solid var(--ui-border-muted);
-  padding-top: 0.75rem;
-}
-
-.field-advanced-summary {
-  cursor: pointer;
-  color: var(--ui-text-toned);
-  font-size: 0.82rem;
-  font-weight: 500;
-}
-
-.field-advanced-body {
-  margin-top: 0.75rem;
-  display: grid;
-  gap: 0.75rem;
-  border-radius: 12px;
-  background: var(--ui-bg-elevated);
-  padding: 0.75rem;
-}
-
-.field-advanced-grid {
-  display: grid;
-  gap: 0.65rem;
-}
-
-.field-toggle-grid {
-  display: grid;
-  gap: 0.6rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.field-options {
-  display: grid;
-  gap: 0.6rem;
-}
-
-.field-option-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.45rem;
-  align-items: center;
-}
-
-.field-numbers {
-  display: grid;
-  gap: 0.55rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.field-file {
-  display: grid;
-  gap: 0.55rem;
-}
-
-.conditions-card {
-  border-radius: 16px;
-}
-
-.builder-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.conditions-title {
-  font-size: 0.95rem;
-  font-weight: 600;
-}
-
-.condition-card {
-  border: 1px solid var(--ui-border-muted);
-  border-radius: 12px;
-  padding: 0.75rem;
-  display: grid;
-  gap: 0.75rem;
-}
-
-.condition-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.builder-rail-column {
-  width: 4.25rem;
-  display: flex;
-  justify-content: center;
-}
-
-.builder-rail {
-  position: fixed;
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  border: 1px solid var(--ui-border-muted);
-  border-radius: 14px;
-  background: var(--ui-bg);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--ui-text) 8%, transparent);
-  transition: top 120ms ease, left 120ms ease;
-}
-
-.rail-action {
-  width: 2.75rem;
-  height: 2.75rem;
-  justify-content: center;
-}
-
-@media (min-width: 1024px) {
-  .builder-toolbar-grid {
-    grid-template-columns: 1.2fr 0.8fr;
-  }
-}
-
-@media (max-width: 1024px) {
-  .builder-layout {
-    display: block;
-  }
-
-  .builder-rail {
-    position: fixed;
-    top: auto !important;
-    left: auto !important;
-    right: 0.85rem;
-    bottom: 0.85rem;
-    flex-direction: row;
-  }
-}
-
-@media (max-width: 768px) {
-  .page-header {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .page-drag-handle {
-    display: none;
-  }
-
-  .field-head {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .field-drag-handle {
-    display: none;
-  }
-
-  .field-toggle-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .field-numbers {
-    grid-template-columns: 1fr;
-  }
-
-  .field-required-switch {
-    margin-left: 0;
-  }
-}
-</style>

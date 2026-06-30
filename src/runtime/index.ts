@@ -12,3 +12,4 @@ export {
   normalizeFormForgeCategoryListResponse,
   normalizeFormForgeCategoryOptions
 } from './utils/category'
+export type { FormForgeBuilderExpose } from './composables/useFormForgeBuilder'

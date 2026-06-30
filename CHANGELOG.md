@@ -69,10 +69,6 @@ The format is based on Keep a Changelog.
 
 ## Unreleased
 
-- `FormForgeRenderer` now sanitizes and hydrates external `modelValue` payloads using both field `name` and `field_key` aliases.
-- Mixed payloads now resolve to one canonical field entry with `name` priority over `field_key`.
-- Unknown payload keys are still removed during sanitation.
-
 ## v1.2.0 - 2026-05-28
 
 ### v1.2.0

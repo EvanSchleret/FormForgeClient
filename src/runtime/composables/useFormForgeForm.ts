@@ -1,6 +1,7 @@
 import { ref } from '#imports'
 import { createFormForgeZodSchema } from '../validation/zod'
 import { useFormForgeClient } from './useFormForgeClient'
+import { useFormForgeI18n } from './useFormForgeI18n'
 import type { FormForgeClient, FormForgeClientConfig, FormForgeFormSchema, FormForgeScope, FormForgeSubmissionPayload } from '../types'
 import type { FormForgeRequestOptions } from '../api/request'
 
@@ -41,7 +42,7 @@ function createInitialPayload(schema: FormForgeFormSchema): FormForgeSubmissionP
       continue
     }
 
-    if (field.type === 'checkbox' || field.type === 'switch') {
+    if (field.type === 'checkbox' || field.type === 'consent' || field.type === 'switch') {
       payload[field.name] = false
       continue
     }
@@ -51,10 +52,14 @@ function createInitialPayload(schema: FormForgeFormSchema): FormForgeSubmissionP
       continue
     }
 
-    if (field.type === 'date_range' || field.type === 'datetime_range') {
+    if (field.type === 'address') {
       payload[field.name] = {
-        start: null,
-        end: null
+        line1: null,
+        line2: null,
+        city: null,
+        state: null,
+        zip: null,
+        country: null
       }
       continue
     }
@@ -67,6 +72,9 @@ function createInitialPayload(schema: FormForgeFormSchema): FormForgeSubmissionP
 
 export function useFormForgeForm(options: UseFormForgeFormOptions) {
   const client = options.client ?? useFormForgeClient(options.clientConfig)
+  const { locale } = useFormForgeI18n({
+    locale: () => options.clientConfig?.locale
+  })
   const schema = ref<FormForgeFormSchema | null>(null)
   const state = ref<FormForgeSubmissionPayload>({})
   const initialState = ref<FormForgeSubmissionPayload>({})
@@ -100,7 +108,9 @@ export function useFormForgeForm(options: UseFormForgeFormOptions) {
       schema.value = nextSchema
       initialState.value = nextState
       state.value = clonePayload(nextState)
-      zodSchema.value = createFormForgeZodSchema(nextSchema) as object
+      zodSchema.value = createFormForgeZodSchema(nextSchema, {
+        locale: locale.value
+      }) as object
       initialized.value = true
 
       return nextSchema

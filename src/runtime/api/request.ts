@@ -3,6 +3,7 @@ import type { FormForgeResolvedScope, FormForgeScope } from '../types'
 export interface FormForgeRequestOptions {
   endpoint?: string
   scope?: FormForgeScope
+  locale?: string
 }
 
 const TEMPLATE_PARAM_PATTERN: RegExp = /\{([a-zA-Z0-9_]+)(?::[^}]+)?\}/g

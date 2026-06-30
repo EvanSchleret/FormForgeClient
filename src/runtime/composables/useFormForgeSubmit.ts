@@ -1,8 +1,10 @@
 import { ref } from '#imports'
 import { buildManagedFormData, type FormForgeManagedPayload } from '../utils/form-data'
+import { createDefaultAddressFields } from '../utils/defaults'
 import { toFormForgeJsonSubmissionPayload } from '../utils/submission'
 import { createFormForgeZodSchema, validateFormForgePayload } from '../validation/zod'
 import { useFormForgeClient } from './useFormForgeClient'
+import { useFormForgeI18n } from './useFormForgeI18n'
 import type { FormForgeRequestOptions } from '../api/request'
 import type {
   FormForgeClient,
@@ -152,13 +154,32 @@ function isOptionalFieldValueAbsent(field: FormForgeFieldSchema, value: FormForg
     return true
   }
 
-  if ((field.type === 'date_range' || field.type === 'datetime_range') && isPlainObject(value)) {
-    const start = value.start
-    const end = value.end
-    const startEmpty = start === undefined || start === null || start === ''
-    const endEmpty = end === undefined || end === null || end === ''
+  if (field.type === 'address' && isPlainObject(value)) {
+    const addressValue = value as Record<string, unknown>
+    const addressFields = Array.isArray(field.address_fields) && field.address_fields.length > 0
+      ? field.address_fields
+      : createDefaultAddressFields().map((addressField) => ({
+          ...addressField,
+          required: false
+        }))
 
-    return startEmpty && endEmpty
+    const hasRequiredAddressField = addressFields.some((candidate) => candidate.visible !== false && (field.required || candidate.required))
+
+    if (hasRequiredAddressField) {
+      return false
+    }
+
+    return Object.values(addressValue).every((item) => {
+      if (item === undefined || item === null) {
+        return true
+      }
+
+      if (typeof item === 'string') {
+        return item.trim() === ''
+      }
+
+      return false
+    })
   }
 
   if (Array.isArray(value) && value.length === 0) {
@@ -281,6 +302,9 @@ function pruneOptionalEmptyFields(payload: FormForgeSubmissionPayload, fields: F
 
 export function useFormForgeSubmit(options: UseFormForgeSubmitOptions) {
   const client = options.client ?? useFormForgeClient(options.clientConfig)
+  const { locale } = useFormForgeI18n({
+    locale: () => options.clientConfig?.locale
+  })
   const submitting = ref<boolean>(false)
   const fieldErrors = ref<Record<string, string[]>>({})
   const error = ref<FormForgeClientError | null>(null)
@@ -313,14 +337,18 @@ export function useFormForgeSubmit(options: UseFormForgeSubmitOptions) {
       const shouldValidateLocal = submitOptions.validateLocal ?? options.validateLocal ?? true
 
       if (shouldValidateLocal) {
-        const localSchema = createFormForgeZodSchema(submittableSchema)
-        const localErrors = validateFormForgePayload(localSchema, payload)
+        const localSchema = createFormForgeZodSchema(submittableSchema, {
+          locale: locale.value
+        })
+        const localErrors = validateFormForgePayload(localSchema, payload, {
+          locale: locale.value
+        })
         if (Object.keys(localErrors).length > 0) {
           fieldErrors.value = localErrors
           throw {
             status: 422,
             code: 'validation',
-            message: 'Validation failed',
+            message: locale.value.startsWith('fr') ? 'La validation a échoué' : 'Validation failed',
             fieldErrors: localErrors
           } as FormForgeClientError
         }

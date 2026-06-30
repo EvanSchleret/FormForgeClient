@@ -167,14 +167,16 @@ class FormForgeClientImpl implements FormForgeClient {
 
   private withRequestScope<TOptions extends FormForgeRequestOptions>(options: TOptions): TOptions {
     const resolvedScope = this.resolveRequestScope(options.scope)
+    const resolvedLocale = options.locale ?? this.config.locale
 
-    if (resolvedScope === undefined) {
+    if (resolvedScope === undefined && resolvedLocale === undefined) {
       return options
     }
 
     return {
       ...options,
-      scope: resolvedScope
+      ...(resolvedScope === undefined ? {} : { scope: resolvedScope }),
+      ...(resolvedLocale === undefined ? {} : { locale: resolvedLocale })
     }
   }
 

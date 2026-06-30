@@ -6,6 +6,7 @@ import type {
   FormForgeScopeParams,
   FormForgeUploadMode
 } from './runtime/types'
+export type { FormForgeBuilderExpose } from './runtime/composables/useFormForgeBuilder'
 
 export interface ModuleOptions {
   baseURL?: string
@@ -59,6 +60,8 @@ export default defineNuxtModule<ModuleOptions>({
       datetimeMode: options.datetimeMode,
       locale: options.locale
     }
+
+    nuxt.options.css.push(resolver.resolve('./runtime/assets/formforge.css'))
 
     addPlugin(resolver.resolve('./runtime/plugin'))
 
