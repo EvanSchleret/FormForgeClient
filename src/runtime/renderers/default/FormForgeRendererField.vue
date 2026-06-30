@@ -31,6 +31,7 @@ const temporalMode = computed(() => resolveTemporalMode(props.field))
 const temporalHourCycle = computed(() => props.field.hour_cycle === 12 ? 12 : 24)
 const temporalInputProps = computed(() => {
   const { placeholder, ...rest } = props.componentProps
+  void placeholder
   return rest
 })
 
@@ -96,6 +97,14 @@ function labelHtml(): string {
   }
 
   return sanitizeFormForgeInlineRichText(props.field.label)
+}
+
+function helpTextHtml(): string {
+  if (typeof props.field.help_text !== 'string' || props.field.help_text.trim() === '') {
+    return ''
+  }
+
+  return sanitizeFormForgeRichText(props.field.help_text)
 }
 </script>
 
@@ -257,7 +266,7 @@ function labelHtml(): string {
       <div
         v-if="typeof field.help_text === 'string' && field.help_text.trim() !== ''"
         class="formforge-rich-text mt-2 text-sm text-muted"
-        v-html="sanitizeFormForgeRichText(field.help_text)"
+        v-html="helpTextHtml()"
       />
     </UFormField>
   </div>

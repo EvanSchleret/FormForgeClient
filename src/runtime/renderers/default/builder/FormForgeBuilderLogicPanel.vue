@@ -40,13 +40,6 @@ function logicMatchItems(): Array<{ label: string, value: 'all' | 'any' }> {
   ]
 }
 
-function logicThenActionItems(): Array<{ label: string, value: 'require' | 'goto_block' }> {
-  return [
-    { label: t('builder.logic.then.require'), value: 'require' },
-    { label: t('builder.logic.then.goto'), value: 'goto_block' }
-  ]
-}
-
 function logicFallbackActionItems(): Array<{ label: string, value: 'next' | 'goto_block' }> {
   return [
     { label: t('builder.logic.fallback.next'), value: 'next' },

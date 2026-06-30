@@ -4,7 +4,7 @@ import { useFormForgeGetForm } from '../../composables/useFormForgeGetForm'
 import { useFormForgeI18n } from '../../composables/useFormForgeI18n'
 import { useFormForgeResponses } from '../../composables/useFormForgeResponses'
 import type { FormForgeClientConfig, FormForgeJsonObject } from '../../types'
-import { sanitizeFormForgeInlineRichText, sanitizeFormForgeRichText } from '../../utils/rich-text'
+import { sanitizeFormForgeInlineRichText } from '../../utils/rich-text'
 
 type FormForgeResponseLayout = 'line' | 'column'
 

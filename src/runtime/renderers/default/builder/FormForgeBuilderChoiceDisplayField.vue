@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { toRef } from '#imports'
 import type { FormForgeFieldSchema } from '../../../types'
 import { useFormForgeI18n } from '../../../composables/useFormForgeI18n'
 
@@ -11,14 +12,15 @@ const props = withDefaults(defineProps<Props>(), {
   readonly: false
 })
 
+const field = toRef(props, 'field')
 const { t } = useFormForgeI18n()
 
 function choiceDisplayValue(): 'list' | 'menu' {
-  if (props.field.display === 'list' || props.field.display === 'menu') {
-    return props.field.display
+  if (field.value.display === 'list' || field.value.display === 'menu') {
+    return field.value.display
   }
 
-  if (props.field.type === 'radio' || props.field.type === 'checkbox_group') {
+  if (field.value.type === 'radio' || field.value.type === 'checkbox_group') {
     return 'list'
   }
 
@@ -26,7 +28,7 @@ function choiceDisplayValue(): 'list' | 'menu' {
 }
 
 function setChoiceDisplay(display: 'list' | 'menu'): void {
-  props.field.display = display
+  field.value.display = display
 }
 </script>
 

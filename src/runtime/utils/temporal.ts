@@ -1,4 +1,4 @@
-import type { FormForgeFieldSchema, FormForgeFieldType, FormForgeTemporalMode } from '../types'
+import type { FormForgeFieldSchema, FormForgeTemporalMode } from '../types'
 
 const LEGACY_TEMPORAL_TYPES: Record<'date' | 'time', FormForgeTemporalMode> = {
   date: 'date',

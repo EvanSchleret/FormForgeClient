@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from '#imports'
+import { computed, toRef } from '#imports'
 import { useFormForgeI18n } from '../../../composables/useFormForgeI18n'
 import type { FormForgeFieldSchema, FormForgeTemporalMode } from '../../../types'
 import { isTemporalMode, resolveTemporalMode } from '../../../utils/temporal'
@@ -13,6 +13,7 @@ const props = withDefaults(defineProps<Props>(), {
   readonly: false
 })
 
+const field = toRef(props, 'field')
 const { t } = useFormForgeI18n()
 
 const items = computed(() => [
@@ -21,17 +22,17 @@ const items = computed(() => [
 ])
 
 function temporalModeValue(): FormForgeTemporalMode {
-  return resolveTemporalMode(props.field)
+  return resolveTemporalMode(field.value)
 }
 
 function setTemporalMode(mode: FormForgeTemporalMode): void {
-  props.field.temporal_mode = mode
-  props.field.default = null
+  field.value.temporal_mode = mode
+  field.value.default = null
 
-  if (mode === 'time' && props.field.hour_cycle !== 12 && props.field.hour_cycle !== 24) {
-    props.field.hour_cycle = 24
+  if (mode === 'time' && field.value.hour_cycle !== 12 && field.value.hour_cycle !== 24) {
+    field.value.hour_cycle = 24
   } else if (mode !== 'time') {
-    props.field.hour_cycle = undefined
+    field.value.hour_cycle = undefined
   }
 }
 </script>

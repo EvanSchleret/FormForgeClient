@@ -20,7 +20,7 @@ import type {
 import { getFormForgeStringArray, isFormForgeJsonObject, pickFormForgeDataEnvelope } from './object'
 import { normalizeFormForgeCategory } from './category'
 import { createDefaultAddressFields, resolveDefaultFieldLabel } from './defaults'
-import { isTemporalFieldType, isTemporalMode, resolveTemporalMode, temporalModeFromFieldType } from './temporal'
+import { isTemporalFieldType, isTemporalMode, temporalModeFromFieldType } from './temporal'
 
 const FIELD_TYPES: FormForgeFieldType[] = [
   'text',

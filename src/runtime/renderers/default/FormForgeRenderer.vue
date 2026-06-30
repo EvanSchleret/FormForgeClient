@@ -2,19 +2,8 @@
 import { computed, ref, useTemplateRef, watch } from '#imports'
 import { parseDate, parseTime } from '@internationalized/date'
 import type { DateValue, Time } from '@internationalized/date'
-import UCheckbox from '@nuxt/ui/components/Checkbox.vue'
-import UCheckboxGroup from '@nuxt/ui/components/CheckboxGroup.vue'
-import UFileUpload from '@nuxt/ui/components/FileUpload.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import UInputDate from '@nuxt/ui/components/InputDate.vue'
-import UInputNumber from '@nuxt/ui/components/InputNumber.vue'
-import UInputTime from '@nuxt/ui/components/InputTime.vue'
 import UProgress from '@nuxt/ui/components/Progress.vue'
-import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
-import USelect from '@nuxt/ui/components/Select.vue'
-import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
-import USwitch from '@nuxt/ui/components/Switch.vue'
-import UTextarea from '@nuxt/ui/components/Textarea.vue'
 import type {
   FormForgeAddressFieldSchema,
   FormForgeClientConfig,
@@ -32,7 +21,6 @@ import { isFormForgeJsonObject } from '../../utils/object'
 import { createDefaultAddressFields } from '../../utils/defaults'
 import { resolveTemporalMode } from '../../utils/temporal'
 import { sanitizePayloadWithSchema } from '../../utils/renderer-payload'
-import { sanitizeFormForgeRichText } from '../../utils/rich-text'
 import { useFormForgeForm } from '../../composables/useFormForgeForm'
 import { useFormForgeI18n } from '../../composables/useFormForgeI18n'
 import { useFormForgeSubmit } from '../../composables/useFormForgeSubmit'
@@ -1309,14 +1297,6 @@ defineExpose({
   getErrors
 })
 
-function hasDateMethod(value: FormForgeDynamicValue): value is DateValue & { toDate: (timeZone: string) => Date } {
-  if (value === null || Array.isArray(value) || typeof value !== 'object') {
-    return false
-  }
-
-  return typeof (value as { toDate?: (timeZone: string) => Date }).toDate === 'function'
-}
-
 function hasToStringMethod(value: FormForgeDynamicValue): value is FormForgeTemporalValue {
   if (value === null || Array.isArray(value) || typeof value !== 'object') {
     return false
@@ -1325,58 +1305,12 @@ function hasToStringMethod(value: FormForgeDynamicValue): value is FormForgeTemp
   return typeof (value as { toString?: () => string }).toString === 'function'
 }
 
-function isRangeInput(value: FormForgeDynamicValue): value is FormForgeRangeInput {
-  if (value === null || Array.isArray(value) || typeof value !== 'object') {
-    return false
-  }
-
-  return 'start' in value && 'end' in value
-}
-
 function isFileValue(value: FormForgeDynamicValue): value is File {
   if (typeof File === 'undefined') {
     return false
   }
 
   return value instanceof File
-}
-
-function stripDatetimeOffset(value: string): string {
-  if (value.endsWith('Z')) {
-    return value.slice(0, -1)
-  }
-
-  const match = value.match(/^(.*)([+-]\d{2}:\d{2})$/)
-  if (match === null) {
-    return value
-  }
-
-  return match[1]
-}
-
-function formatTwoDigits(value: number): string {
-  return String(value).padStart(2, '0')
-}
-
-function serializeDateWithOffset(date: Date): string {
-  const year = date.getFullYear()
-  const month = formatTwoDigits(date.getMonth() + 1)
-  const day = formatTwoDigits(date.getDate())
-  const hours = formatTwoDigits(date.getHours())
-  const minutes = formatTwoDigits(date.getMinutes())
-  const seconds = formatTwoDigits(date.getSeconds())
-
-  const offsetMinutes = -date.getTimezoneOffset()
-  const sign = offsetMinutes >= 0 ? '+' : '-'
-  const absoluteOffset = Math.abs(offsetMinutes)
-  const offsetHours = formatTwoDigits(Math.floor(absoluteOffset / 60))
-  const offsetRemainder = formatTwoDigits(absoluteOffset % 60)
-
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${sign}${offsetHours}:${offsetRemainder}`
-}
-
-function serializeDateAsUtc(date: Date): string {
-  return date.toISOString().replace('.000Z', 'Z')
 }
 
 function parseSingleDateValue(mode: FormForgeTemporalMode, value: string): FormForgeTemporalValue | null {
@@ -1397,8 +1331,7 @@ function parseSingleDateValue(mode: FormForgeTemporalMode, value: string): FormF
 
 function serializeSingleDateValue(
   mode: FormForgeTemporalMode,
-  value: FormForgeDynamicValue,
-  datetimeMode: FormForgeDatetimeMode
+  value: FormForgeDynamicValue
 ): string | null {
   if (mode === 'date' || mode === 'time') {
     if (hasToStringMethod(value)) {
@@ -1413,45 +1346,6 @@ function serializeSingleDateValue(
   }
 
   return null
-}
-
-function parseRangeValue(mode: FormForgeTemporalMode, value: FormForgeSubmissionPayload[string]): FormForgeRangeInput | null {
-  if (value === null || Array.isArray(value) || typeof value !== 'object') {
-    return null
-  }
-
-  const rangeValue = value as { start?: FormForgeSubmissionPayload[string]; end?: FormForgeSubmissionPayload[string] }
-  const startValue = rangeValue.start
-  const endValue = rangeValue.end
-
-  const parsedStart = typeof startValue === 'string'
-    ? parseSingleDateValue(mode, startValue) as DateValue | null
-    : null
-  const parsedEnd = typeof endValue === 'string'
-    ? parseSingleDateValue(mode, endValue) as DateValue | null
-    : null
-
-  return {
-    start: parsedStart,
-    end: parsedEnd
-  }
-}
-
-function serializeRangeValue(mode: FormForgeTemporalMode, value: FormForgeDynamicValue): FormForgeSubmissionPayload[string] {
-  if (!isRangeInput(value)) {
-    return {
-      start: null,
-      end: null
-    }
-  }
-
-  const startValue = serializeSingleDateValue(mode, value.start, props.datetimeMode)
-  const endValue = serializeSingleDateValue(mode, value.end, props.datetimeMode)
-
-  return {
-    start: startValue,
-    end: endValue
-  }
 }
 
 function choiceDisplayValue(field: FormForgeFieldSchema): 'list' | 'menu' {
@@ -1545,28 +1439,6 @@ function addressFieldDefinitions(field: FormForgeFieldSchema): FormForgeAddressF
   }
 
   return field.address_fields
-}
-
-function addressFieldValue(field: FormForgeFieldSchema, key: string): string {
-  const value = getFieldValue(field)
-
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return ''
-  }
-
-  const candidate = (value as Record<string, unknown>)[key]
-  return typeof candidate === 'string' ? candidate : ''
-}
-
-function updateAddressFieldValue(field: FormForgeFieldSchema, key: string, value: string): void {
-  const currentValue = getFieldValue(field)
-  const nextValue: Record<string, FormForgeSubmissionPayload[string]> =
-    typeof currentValue === 'object' && currentValue !== null && !Array.isArray(currentValue)
-      ? { ...(currentValue as Record<string, FormForgeSubmissionPayload[string]>) }
-      : {}
-
-  nextValue[key] = value
-  onFieldUpdate(field, nextValue as FormForgeDynamicValue)
 }
 
 function setFieldValue(fieldName: string, value: FormForgeSubmissionPayload[string]): void {
@@ -1677,8 +1549,6 @@ function getComponentProps(field: FormForgeFieldSchema, page: FormForgePageSchem
     }
   }
 
-  const temporalMode = resolveTemporalMode(field)
-
   if (field.type === 'file') {
     componentProps.multiple = field.multiple === true
     componentProps.accept = field.accept?.join(',')
@@ -1698,7 +1568,7 @@ function onFieldUpdate(field: FormForgeFieldSchema, value: FormForgeDynamicValue
   const temporalMode = resolveTemporalMode(field)
 
   if (field.type === 'temporal' || field.type === 'date' || field.type === 'time') {
-    setFieldValue(field.name, serializeSingleDateValue(temporalMode, value, props.datetimeMode))
+    setFieldValue(field.name, serializeSingleDateValue(temporalMode, value))
     return
   }
 

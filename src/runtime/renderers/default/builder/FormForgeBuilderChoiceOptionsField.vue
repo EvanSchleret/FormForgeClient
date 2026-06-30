@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { toRef } from '#imports'
 import { useFormForgeI18n } from '../../../composables/useFormForgeI18n'
 import type { FormForgeFieldOption, FormForgeFieldSchema } from '../../../types'
 
@@ -11,14 +12,15 @@ const props = withDefaults(defineProps<Props>(), {
   readonly: false
 })
 
+const field = toRef(props, 'field')
 const { t } = useFormForgeI18n()
 
 function minimumChoiceOptionCount(): number {
-  return props.field.type === 'checkbox_group' ? 2 : 1
+  return field.value.type === 'checkbox_group' ? 2 : 1
 }
 
 function choiceOptions(): FormForgeFieldOption[] {
-  return Array.isArray(props.field.options) ? props.field.options : []
+  return Array.isArray(field.value.options) ? field.value.options : []
 }
 
 function optionLabel(option: FormForgeFieldOption | undefined): string {
@@ -34,8 +36,7 @@ function optionLabel(option: FormForgeFieldOption | undefined): string {
 }
 
 function setOptionLabel(optionIndex: number, value: string): void {
-  const options = Array.isArray(props.field.options) ? props.field.options : []
-  props.field.options = options
+  const options = [...choiceOptions()]
   const option = options[optionIndex]
 
   if (option === undefined || option === null) {
@@ -47,38 +48,40 @@ function setOptionLabel(optionIndex: number, value: string): void {
       ...option,
       label: value
     }
-    return
+  } else {
+    options[optionIndex] = {
+      label: value,
+      value: option
+    }
   }
 
-  options[optionIndex] = {
-    label: value,
-    value: option
-  }
+  field.value.options = options
 }
 
 function addChoiceOption(): void {
-  const options = Array.isArray(props.field.options) ? props.field.options : []
-  props.field.options = options
+  const options = [...choiceOptions()]
 
   options.push({
     label: '',
     value: `option_${options.length + 1}`
   })
+
+  field.value.options = options
 }
 
 function removeChoiceOption(optionIndex: number): void {
-  const options = Array.isArray(props.field.options) ? props.field.options : []
+  const options = [...choiceOptions()]
 
   if (options.length <= minimumChoiceOptionCount()) {
     return
   }
 
   options.splice(optionIndex, 1)
+  field.value.options = options
 }
 
 function addSpecialChoiceOption(type: 'other' | 'none'): void {
-  const options = Array.isArray(props.field.options) ? props.field.options : []
-  props.field.options = options
+  const options = [...choiceOptions()]
 
   const value = type === 'other' ? 'other' : 'none_of_the_above'
 
@@ -90,22 +93,7 @@ function addSpecialChoiceOption(type: 'other' | 'none'): void {
     label: type === 'other' ? t('builder.optionOther') : t('builder.optionNone'),
     value
   })
-}
-
-function specialChoiceValue(type: 'other' | 'none'): string {
-  return type === 'other' ? 'other' : 'none_of_the_above'
-}
-
-function isSpecialChoiceOption(option: FormForgeFieldOption): boolean {
-  if (typeof option !== 'object' || option === null || !('value' in option)) {
-    return option === specialChoiceValue('other') || option === specialChoiceValue('none')
-  }
-
-  return option.value === specialChoiceValue('other') || option.value === specialChoiceValue('none')
-}
-
-function userChoiceOptions(): FormForgeFieldOption[] {
-  return choiceOptions().filter((option) => !isSpecialChoiceOption(option))
+  field.value.options = options
 }
 
 function specialChoiceOptions(): Array<{ type: 'other' | 'none', option: FormForgeFieldOption }> {
@@ -131,36 +119,33 @@ function specialChoiceOptions(): Array<{ type: 'other' | 'none', option: FormFor
   ]
 }
 
+function specialChoiceValue(type: 'other' | 'none'): string {
+  return type === 'other' ? 'other' : 'none_of_the_above'
+}
+
 function hasSpecialChoiceOption(type: 'other' | 'none'): boolean {
-  return specialChoiceOptionIndex(type) !== -1
-}
-
-function specialChoiceOptionIndex(type: 'other' | 'none'): number {
-  return choiceOptions().findIndex((candidate) => {
-    if (typeof candidate === 'object' && candidate !== null && 'value' in candidate) {
-      return candidate.value === specialChoiceValue(type)
-    }
-
-    return candidate === specialChoiceValue(type)
-  })
-}
-
-function updateSpecialChoiceOptionLabel(type: 'other' | 'none', value: string): void {
-  const optionIndex = specialChoiceOptionIndex(type)
-  if (optionIndex === -1) {
-    return
-  }
-
-  setOptionLabel(optionIndex, value)
+  return specialChoiceOptions().some((option) => option.type === type)
 }
 
 function removeSpecialChoiceOption(type: 'other' | 'none'): void {
-  const optionIndex = specialChoiceOptionIndex(type)
-  if (optionIndex === -1) {
+  const value = type === 'other' ? 'other' : 'none_of_the_above'
+  const options = choiceOptions().filter((option) => {
+    if (typeof option === 'object' && option !== null && 'value' in option) {
+      return option.value !== value
+    }
+
+    return option !== value
+  })
+
+  if (options.length === choiceOptions().length) {
     return
   }
 
-  removeChoiceOption(optionIndex)
+  field.value.options = options
+}
+
+function userChoiceOptions(): FormForgeFieldOption[] {
+  return choiceOptions().filter((option) => !specialChoiceOptions().some((candidate) => candidate.option === option))
 }
 </script>
 
