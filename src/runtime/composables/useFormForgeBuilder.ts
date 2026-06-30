@@ -1,5 +1,6 @@
-import { computed, ref, watch } from '#imports'
+import { computed, ref, toRaw, watch } from '#imports'
 import { useFormForgeClient } from './useFormForgeClient'
+import { isLegacyTemporalFieldType, isTemporalMode, temporalModeFromFieldType } from '../utils/temporal'
 import type {
   FormForgeClient,
   FormForgeClientConfig,
@@ -10,22 +11,40 @@ import type {
   FormForgeConditionTargetType,
   FormForgeDraftSettings,
   FormForgeFieldSchema,
+  FormForgeFieldOption,
   FormForgeFieldType,
+  FormForgeTemporalMode,
   FormForgeJsonObject,
+  FormForgeJsonValue,
   FormForgeManagementCreateInput,
   FormForgeManagementPatchInput,
   FormForgeScope,
   FormForgePageSchema
 } from '../types'
+import { createPageLogic, ensurePageLogic } from '../utils/page-logic'
+import {
+  createDefaultAddressFields,
+  resolveDefaultAnswerPlaceholder,
+  resolveDefaultConsentLabel,
+  resolveDefaultFieldLabel
+} from '../utils/defaults'
 
 export interface FormForgeBuilderDraft {
   uuid: string | null
   key: string | null
+  schema_version: number
   title: string
+  publish_at?: string | null
+  pause_at?: string | null
+  response_limit?: number | null
+  submission_code_required?: boolean
+  submission_code?: string | null
+  public_url?: string | null
   category: string | null
   pages: FormForgePageSchema[]
   conditions: FormForgeCondition[]
   drafts: FormForgeDraftSettings
+  api: FormForgeJsonObject
 }
 
 export interface UseFormForgeBuilderOptions {
@@ -36,6 +55,8 @@ export interface UseFormForgeBuilderOptions {
   initial?: Partial<FormForgeBuilderDraft>
   autosave?: boolean
   autosaveDelay?: number
+  autoPublishOnSave?: boolean
+  locale?: string
   client?: FormForgeClient
   clientConfig?: FormForgeClientConfig
 }
@@ -45,22 +66,21 @@ export interface FormForgeBuilderSaveOptions {
   autoPublish?: boolean
 }
 
+export interface FormForgeBuilderExpose {
+  save: () => Promise<void>
+  publish: () => Promise<void>
+  unpublish: () => Promise<void>
+  togglePublishState: () => Promise<void>
+}
+
 export const FORM_FORGE_BUILDER_FIELD_TYPES: FormForgeFieldType[] = [
   'text',
-  'textarea',
-  'email',
   'number',
-  'select',
-  'select_menu',
   'radio',
-  'checkbox',
+  'consent',
   'checkbox_group',
-  'switch',
-  'date',
-  'time',
-  'datetime',
-  'date_range',
-  'datetime_range',
+  'address',
+  'temporal',
   'file'
 ]
 
@@ -86,46 +106,150 @@ function shortKey(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 8)}`
 }
 
-function fieldLabelFromType(type: FormForgeFieldType): string {
-  if (type === 'checkbox_group') {
-    return 'Checkbox Group'
+function cloneJsonObject(value: FormForgeJsonObject): FormForgeJsonObject {
+  const rawValue = toRaw(value)
+
+  if (typeof structuredClone === 'function') {
+    return structuredClone(rawValue)
   }
 
-  if (type === 'select_menu') {
-    return 'Select Menu'
-  }
-
-  if (type === 'date_range') {
-    return 'Date Range'
-  }
-
-  if (type === 'datetime_range') {
-    return 'Datetime Range'
-  }
-
-  return type.charAt(0).toUpperCase() + type.slice(1)
+  return JSON.parse(JSON.stringify(rawValue)) as FormForgeJsonObject
 }
 
-function createField(type: FormForgeFieldType, pageKey: string): FormForgeFieldSchema {
+function cloneJsonValue<T>(value: T): T {
+  const rawValue = toRaw(value)
+
+  if (typeof structuredClone === 'function') {
+    return structuredClone(rawValue)
+  }
+
+  return JSON.parse(JSON.stringify(rawValue)) as T
+}
+
+function isChoiceFieldType(type: FormForgeFieldType): boolean {
+  return type === 'radio' || type === 'checkbox_group'
+}
+
+function choiceOptionCount(type: FormForgeFieldType): number {
+  return type === 'checkbox_group' ? 3 : 2
+}
+
+function minimumChoiceOptionCount(type: FormForgeFieldType): number {
+  return type === 'checkbox_group' ? 2 : 1
+}
+
+function createChoiceOptions(type: FormForgeFieldType): FormForgeFieldOption[] {
+  const options: FormForgeFieldOption[] = []
+  const count = choiceOptionCount(type)
+
+  for (let index = 0; index < count; index += 1) {
+    options.push({
+      label: '',
+      value: `option_${index + 1}`
+    })
+  }
+
+  return options
+}
+
+function defaultChoiceDisplay(type: FormForgeFieldType): 'list' | 'menu' {
+  return type === 'radio' || type === 'checkbox_group' ? 'list' : 'menu'
+}
+
+function temporalFieldDefaultMode(type: FormForgeFieldType): FormForgeTemporalMode {
+  if (isLegacyTemporalFieldType(type)) {
+    return temporalModeFromFieldType(type)
+  }
+
+  return 'date'
+}
+
+function createTemporalDefault(): FormForgeJsonValue {
+  return null
+}
+
+function normalizeTemporalField(field: FormForgeFieldSchema): void {
+  const rawType = field.type
+
+  if (isLegacyTemporalFieldType(field.type)) {
+    field.type = 'temporal'
+  }
+
+  if (field.type !== 'temporal') {
+    return
+  }
+
+  const resolvedMode = isTemporalMode(field.temporal_mode) ? field.temporal_mode : temporalModeFromFieldType(rawType)
+  field.temporal_mode = resolvedMode
+  field.hour_cycle = resolvedMode === 'time'
+    ? (field.hour_cycle === 12 ? 12 : 24)
+    : undefined
+
+  field.default = null
+}
+
+function createAddressValue(): Record<string, string | null> {
+  return {
+    line1: null,
+    line2: null,
+    city: null,
+    state: null,
+    zip: null,
+    country: null
+  }
+}
+
+function createField(type: FormForgeFieldType, pageKey: string, locale?: string): FormForgeFieldSchema {
   const fieldKey = shortKey('fk')
   const name = fieldKey.replace('fk_', '')
+  const temporalMode = temporalFieldDefaultMode(type)
+  const resolvedType: FormForgeFieldType = isLegacyTemporalFieldType(type) ? 'temporal' : type
 
   const baseField: FormForgeFieldSchema = {
     field_key: fieldKey,
-    type,
+    type: resolvedType,
     name,
     page_key: pageKey,
-    label: fieldLabelFromType(type),
+    label: resolveDefaultFieldLabel(resolvedType, locale, temporalMode),
     required: false,
     nullable: false,
     disabled: false,
     readonly: false,
-    default: null,
+    default: resolvedType === 'temporal' ? createTemporalDefault() : null,
     rules: [],
     meta: {},
-    options: type === 'select' || type === 'select_menu' || type === 'radio' || type === 'checkbox_group'
+    placeholder: type === 'text' || type === 'number'
+      ? resolveDefaultAnswerPlaceholder(locale)
+      : undefined,
+    options: type === 'radio' || type === 'checkbox_group'
       ? []
       : undefined
+  }
+
+  if (isChoiceFieldType(type)) {
+    return {
+      ...baseField,
+      options: createChoiceOptions(type),
+      display: defaultChoiceDisplay(type)
+    }
+  }
+
+  if (type === 'consent') {
+    return {
+      ...baseField,
+      type: 'consent',
+      consent_label: resolveDefaultConsentLabel(locale)
+    }
+  }
+
+  if (resolvedType === 'temporal') {
+    return {
+      ...baseField,
+      type: 'temporal',
+      temporal_mode: temporalMode,
+      hour_cycle: temporalMode === 'time' ? 24 : undefined,
+      default: createTemporalDefault()
+    }
   }
 
   if (type === 'file') {
@@ -137,18 +261,29 @@ function createField(type: FormForgeFieldType, pageKey: string): FormForgeFieldS
     }
   }
 
+  if (type === 'address') {
+    return {
+      ...baseField,
+      type: 'address',
+      default: createAddressValue(),
+      address_fields: createDefaultAddressFields(locale)
+    }
+  }
+
   return baseField
 }
 
-function createPage(): FormForgePageSchema {
+function createPage(type: FormForgeFieldType = 'text', locale?: string): FormForgePageSchema {
   const pageKey = shortKey('pg')
 
   return {
     page_key: pageKey,
-    title: 'Page',
+    title: '',
     description: null,
-    meta: {},
-    fields: [createField('text', pageKey)]
+    meta: {
+      logic: createPageLogic() as unknown as FormForgeJsonValue
+    },
+    fields: [createField(type, pageKey, locale)]
   }
 }
 
@@ -173,7 +308,11 @@ function cloneField(field: FormForgeFieldSchema): FormForgeFieldSchema {
   return {
     ...field,
     field_key: shortKey('fk'),
-    name: shortKey('field')
+    name: shortKey('field'),
+    default: cloneJsonValue(field.default),
+    meta: cloneJsonObject(field.meta),
+    options: Array.isArray(field.options) ? cloneJsonValue(field.options) : field.options,
+    address_fields: Array.isArray(field.address_fields) ? cloneJsonValue(field.address_fields) : field.address_fields
   }
 }
 
@@ -217,13 +356,33 @@ function resolveMutationIdentifier(draft: FormForgeBuilderDraft): string | null 
   return null
 }
 
-function sanitizeDraftShape(value: FormForgeBuilderDraft): void {
+function sanitizeDraftShape(value: FormForgeBuilderDraft, locale?: string): void {
   if (typeof value.uuid !== 'string' || value.uuid === '') {
     value.uuid = null
   }
 
   if (typeof value.key !== 'string' || value.key === '') {
     value.key = null
+  }
+
+  if (!Number.isInteger(value.schema_version) || value.schema_version <= 0) {
+    value.schema_version = 2
+  }
+
+  if (typeof value.api !== 'object' || value.api === null || Array.isArray(value.api)) {
+    value.api = {}
+  }
+
+  if (typeof value.public_url !== 'string') {
+    value.public_url = null
+  }
+
+  if (typeof value.submission_code_required !== 'boolean') {
+    value.submission_code_required = false
+  }
+
+  if (typeof value.submission_code !== 'string') {
+    value.submission_code = null
   }
 
   if (value.uuid === null && typeof value.key === 'string' && isUuidLike(value.key)) {
@@ -244,8 +403,14 @@ function sanitizeDraftShape(value: FormForgeBuilderDraft): void {
     }
 
     if (typeof page.title !== 'string') {
-      page.title = 'Page'
+      page.title = ''
     }
+
+    if (typeof page.meta !== 'object' || page.meta === null || Array.isArray(page.meta)) {
+      page.meta = {}
+    }
+
+    ensurePageLogic(page)
 
     const fields = (Array.isArray(page.fields) ? page.fields : []).filter((field) => field !== undefined && field !== null) as FormForgeFieldSchema[]
 
@@ -276,22 +441,65 @@ function sanitizeDraftShape(value: FormForgeBuilderDraft): void {
       if (typeof field.meta !== 'object' || field.meta === null || Array.isArray(field.meta)) {
         field.meta = {}
       }
+
+      normalizeTemporalField(field)
+
+      if (isChoiceFieldType(field.type)) {
+        if (!Array.isArray(field.options) || field.options.length === 0) {
+          field.options = createChoiceOptions(field.type)
+        }
+
+        const minimumOptionCount = minimumChoiceOptionCount(field.type)
+
+        if (field.options.length < minimumOptionCount) {
+          const nextOptions = [...field.options]
+
+          for (let index = nextOptions.length; index < minimumOptionCount; index += 1) {
+            nextOptions.push({
+              label: '',
+              value: `option_${index + 1}`
+            })
+          }
+
+          field.options = nextOptions
+        }
+
+        if (field.display !== 'list' && field.display !== 'menu') {
+          field.display = defaultChoiceDisplay(field.type)
+        }
+      }
+
+      if (field.type === 'consent' && typeof field.consent_label !== 'string') {
+        field.consent_label = resolveDefaultConsentLabel(locale)
+      }
+
+      if (field.type === 'address') {
+        if (!Array.isArray(field.address_fields) || field.address_fields.length === 0) {
+          field.address_fields = createDefaultAddressFields(locale)
+        }
+
+        if (typeof field.default !== 'object' || field.default === null || Array.isArray(field.default)) {
+          field.default = createAddressValue()
+        }
+      }
     }
   }
 }
 
 export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
   const client = options.client ?? useFormForgeClient(options.clientConfig)
+  const locale = options.locale ?? options.clientConfig?.locale
 
   const autosaveEnabled = ref<boolean>(options.autosave ?? true)
   const autosaveDelay = ref<number>(options.autosaveDelay ?? 5000)
+  const autoPublishOnSave = ref<boolean>(options.autoPublishOnSave ?? false)
   const loading = ref<boolean>(false)
   const saving = ref<boolean>(false)
   const publishing = ref<boolean>(false)
   const error = ref<string | null>(null)
   const lastSavedAt = ref<string | null>(null)
 
-  const defaultPage = createPage()
+  const defaultPage = createPage('text', locale)
 
   const keyFromOptions = options.formKey ?? options.initial?.key ?? null
   const uuidFromOptions = options.formUuid ?? options.initial?.uuid ?? null
@@ -299,16 +507,24 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
   const initialDraft: FormForgeBuilderDraft = {
     uuid: uuidFromOptions ?? (typeof keyFromOptions === 'string' && isUuidLike(keyFromOptions) ? keyFromOptions : null),
     key: typeof keyFromOptions === 'string' && !isUuidLike(keyFromOptions) ? keyFromOptions : options.initial?.key ?? null,
+    schema_version: options.initial?.schema_version ?? 2,
     title: options.initial?.title ?? '',
+    publish_at: options.initial?.publish_at ?? null,
+    pause_at: options.initial?.pause_at ?? null,
+    response_limit: options.initial?.response_limit ?? null,
+    submission_code_required: options.initial?.submission_code_required ?? false,
+    submission_code: options.initial?.submission_code ?? null,
+    public_url: options.initial?.public_url ?? null,
     category: options.initial?.category ?? null,
     pages: options.initial?.pages ?? [defaultPage],
     conditions: options.initial?.conditions ?? [],
     drafts: options.initial?.drafts ?? {
       enabled: true
-    }
+    },
+    api: options.initial?.api ?? {}
   }
 
-  sanitizeDraftShape(initialDraft)
+  sanitizeDraftShape(initialDraft, locale)
 
   const draft = ref(initialDraft as unknown) as { value: FormForgeBuilderDraft }
 
@@ -350,11 +566,21 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
 
     const input: FormForgeManagementCreateInput = {
       title: draft.value.title,
+      schema_version: draft.value.schema_version,
+      publish_at: draft.value.publish_at ?? null,
+      pause_at: draft.value.pause_at ?? null,
+      response_limit: draft.value.response_limit ?? null,
+      submission_code_required: draft.value.submission_code_required ?? false,
       category: draft.value.category,
       pages,
       fields: fields as FormForgeFieldSchema[],
       conditions: draft.value.conditions as FormForgeCondition[],
-      drafts: draft.value.drafts as FormForgeDraftSettings
+      drafts: draft.value.drafts as FormForgeDraftSettings,
+      api: draft.value.api
+    }
+
+    if (draft.value.submission_code_required === true && typeof draft.value.submission_code === 'string' && draft.value.submission_code.trim() !== '') {
+      input.submission_code = draft.value.submission_code
     }
 
     if (autoPublish) {
@@ -366,10 +592,10 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
 
   async function save(saveOptions: FormForgeBuilderSaveOptions | string = {}): Promise<void> {
     const resolvedSaveOptions = typeof saveOptions === 'string'
-      ? { idempotencyKey: saveOptions, autoPublish: false }
+      ? { idempotencyKey: saveOptions, autoPublish: autoPublishOnSave.value }
       : {
           idempotencyKey: saveOptions.idempotencyKey,
-          autoPublish: saveOptions.autoPublish === true
+          autoPublish: saveOptions.autoPublish === true || autoPublishOnSave.value === true
         }
 
     if (draft.value.title.trim() === '') {
@@ -407,6 +633,10 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
         if (nextKey !== null) {
           draft.value.key = nextKey
         }
+
+        if (typeof created.public_url === 'string') {
+          draft.value.public_url = created.public_url
+        }
       } else {
         const patchInput: FormForgeManagementPatchInput = input
         const patched = await client.patchForm(mutationIdentifier, patchInput, {
@@ -424,6 +654,10 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
 
         if (nextKey !== null) {
           draft.value.key = nextKey
+        }
+
+        if (typeof patched.public_url === 'string') {
+          draft.value.public_url = patched.public_url
         }
       }
 
@@ -488,9 +722,12 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
     }
   }
 
-  function addPage(): void {
+  function addPage(type: FormForgeFieldType = 'text'): FormForgePageSchema {
     const pages = draft.value.pages as FormForgePageSchema[]
-    pages.push(createPage())
+    const page = createPage(type, locale)
+    pages.push(page)
+
+    return page
   }
 
   function removePage(pageKey: string): void {
@@ -506,6 +743,48 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
     }
 
     pages.splice(pageIndex, 1)
+  }
+
+  function movePage(pageKey: string, direction: -1 | 1): void {
+    const pages = draft.value.pages as FormForgePageSchema[]
+    const pageIndex = pages.findIndex((page) => page.page_key === pageKey)
+
+    if (pageIndex < 0) {
+      return
+    }
+
+    const nextIndex = pageIndex + direction
+
+    if (nextIndex < 0 || nextIndex >= pages.length) {
+      return
+    }
+
+    const [page] = pages.splice(pageIndex, 1)
+    pages.splice(nextIndex, 0, page)
+  }
+
+  function duplicatePage(pageKey: string): void {
+    const pages = draft.value.pages as FormForgePageSchema[]
+    const pageIndex = pages.findIndex((page) => page.page_key === pageKey)
+
+    if (pageIndex < 0) {
+      return
+    }
+
+    const page = pages[pageIndex]
+    const nextPageKey = shortKey('pg')
+    const clonedPage: FormForgePageSchema = {
+      ...page,
+      page_key: nextPageKey,
+      meta: cloneJsonObject(page.meta),
+      fields: page.fields.map((field) => {
+        const clonedField = cloneField(field)
+        clonedField.page_key = nextPageKey
+        return clonedField
+      })
+    }
+
+    pages.splice(pageIndex + 1, 0, clonedPage)
   }
 
   function mergePageWithPrevious(pageKey: string): void {
@@ -538,7 +817,25 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
       return
     }
 
-    page.fields.push(createField(type, pageKey))
+    page.fields.push(createField(type, pageKey, locale))
+  }
+
+  function insertFieldAfter(pageKey: string, fieldKey: string, type: FormForgeFieldType): void {
+    const pages = draft.value.pages as FormForgePageSchema[]
+    const page = pages.find((item) => item.page_key === pageKey)
+    if (page === undefined) {
+      return
+    }
+
+    const fieldIndex = page.fields.findIndex((item) => item.field_key === fieldKey)
+    const nextField = createField(type, pageKey, locale)
+
+    if (fieldIndex < 0) {
+      page.fields.push(nextField)
+      return
+    }
+
+    page.fields.splice(fieldIndex + 1, 0, nextField)
   }
 
   function duplicateField(pageKey: string, fieldKey: string): void {
@@ -556,6 +853,46 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
     const clonedField = cloneField(field)
     clonedField.page_key = page.page_key
     page.fields.push(clonedField)
+  }
+
+  function moveField(pageKey: string, fieldKey: string, direction: -1 | 1): void {
+    const pages = draft.value.pages as FormForgePageSchema[]
+    const page = pages.find((item) => item.page_key === pageKey)
+    if (page === undefined) {
+      return
+    }
+
+    const fieldIndex = page.fields.findIndex((item) => item.field_key === fieldKey)
+    if (fieldIndex < 0) {
+      return
+    }
+
+    const nextIndex = fieldIndex + direction
+    if (nextIndex < 0 || nextIndex >= page.fields.length) {
+      return
+    }
+
+    const [field] = page.fields.splice(fieldIndex, 1)
+    page.fields.splice(nextIndex, 0, field)
+  }
+
+  function moveFieldToPage(pageKey: string, fieldKey: string, targetPageKey: string): void {
+    const pages = draft.value.pages as FormForgePageSchema[]
+    const sourcePage = pages.find((item) => item.page_key === pageKey)
+    const targetPage = pages.find((item) => item.page_key === targetPageKey)
+
+    if (sourcePage === undefined || targetPage === undefined) {
+      return
+    }
+
+    const fieldIndex = sourcePage.fields.findIndex((item) => item.field_key === fieldKey)
+    if (fieldIndex < 0) {
+      return
+    }
+
+    const [field] = sourcePage.fields.splice(fieldIndex, 1)
+    field.page_key = targetPage.page_key
+    targetPage.fields.push(field)
   }
 
   function removeField(pageKey: string, fieldKey: string): void {
@@ -669,13 +1006,19 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
     draft,
     autosaveEnabled,
     autosaveDelay,
+    autoPublishOnSave,
     lastSavedAt,
     publishable,
     addPage,
     removePage,
+    movePage,
+    duplicatePage,
     mergePageWithPrevious,
     addField,
+    insertFieldAfter,
     duplicateField,
+    moveField,
+    moveFieldToPage,
     removeField,
     addCondition,
     removeCondition,

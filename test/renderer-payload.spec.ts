@@ -6,6 +6,7 @@ function createSchema(): FormForgeFormSchema {
   return {
     key: 'contact',
     version: '1',
+    schema_version: 2,
     title: 'Contact',
     is_published: true,
     fields: [

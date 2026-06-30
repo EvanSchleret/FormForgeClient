@@ -4,6 +4,12 @@ import type { FormForgeCategory } from './category'
 
 export interface FormForgeManagementCreateInput {
   title: string
+  schema_version?: number
+  publish_at?: string | null
+  pause_at?: string | null
+  response_limit?: number | null
+  submission_code?: string | null
+  submission_code_required?: boolean
   fields?: FormForgeFieldSchema[]
   pages?: FormForgePageSchema[]
   conditions?: FormForgeCondition[]
@@ -17,6 +23,12 @@ export interface FormForgeManagementCreateInput {
 
 export interface FormForgeManagementPatchInput {
   title?: string
+  schema_version?: number
+  publish_at?: string | null
+  pause_at?: string | null
+  response_limit?: number | null
+  submission_code?: string | null
+  submission_code_required?: boolean
   fields?: FormForgeFieldSchema[]
   pages?: FormForgePageSchema[]
   conditions?: FormForgeCondition[]

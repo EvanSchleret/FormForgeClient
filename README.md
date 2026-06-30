@@ -60,6 +60,16 @@ const route = useRoute()
 </template>
 ```
 
+## Playground
+
+Run the local playground with:
+
+```bash
+bun run playground
+```
+
+It mounts `FormForgeBuilder` in `standalone` mode with sample data.
+
 ## Scoped routes quick example
 
 ```ts

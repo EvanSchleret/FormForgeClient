@@ -1,4 +1,6 @@
 import type {
+  FormForgeAddressFieldSchema,
+  FormForgeAddressFieldKey,
   FormForgeCondition,
   FormForgeConditionAction,
   FormForgeConditionClause,
@@ -17,6 +19,8 @@ import type {
 } from '../types'
 import { getFormForgeStringArray, isFormForgeJsonObject, pickFormForgeDataEnvelope } from './object'
 import { normalizeFormForgeCategory } from './category'
+import { createDefaultAddressFields, resolveDefaultFieldLabel } from './defaults'
+import { isTemporalFieldType, isTemporalMode, resolveTemporalMode, temporalModeFromFieldType } from './temporal'
 
 const FIELD_TYPES: FormForgeFieldType[] = [
   'text',
@@ -27,14 +31,14 @@ const FIELD_TYPES: FormForgeFieldType[] = [
   'select_menu',
   'radio',
   'checkbox',
+  'consent',
   'checkbox_group',
   'switch',
+  'temporal',
   'date',
   'time',
-  'datetime',
-  'date_range',
-  'datetime_range',
-  'file'
+  'file',
+  'address'
 ]
 
 const CONDITION_TARGET_TYPES: FormForgeConditionTargetType[] = ['page', 'field']
@@ -94,6 +98,21 @@ function toString(value: FormForgeJsonValue | undefined, fallback: string): stri
   return fallback
 }
 
+function toNumber(value: FormForgeJsonValue | undefined, fallback: number): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value, 10)
+    if (!Number.isNaN(parsed)) {
+      return parsed
+    }
+  }
+
+  return fallback
+}
+
 function toNullableString(value: FormForgeJsonValue | undefined): string | null | undefined {
   if (typeof value === 'string' || value === null) {
     return value
@@ -108,6 +127,12 @@ function toNumberOrStringOrNull(value: FormForgeJsonValue | undefined): number |
   }
 
   return undefined
+}
+
+function toPositiveNumber(value: FormForgeJsonValue | undefined): number | undefined {
+  const numericValue = toNumber(value, 0)
+
+  return numericValue > 0 ? numericValue : undefined
 }
 
 function normalizeOption(option: FormForgeJsonValue): FormForgeFieldOption | null {
@@ -146,9 +171,52 @@ function normalizeOptions(value: FormForgeJsonValue | undefined): FormForgeField
   return options
 }
 
-function normalizeField(field: FormForgeJsonObject, index: number, fallbackPageKey: string): FormForgeFieldSchema {
+function normalizeAddressFields(value: FormForgeJsonValue | undefined, locale?: string): FormForgeAddressFieldSchema[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined
+  }
+
+  const defaults: FormForgeAddressFieldSchema[] = createDefaultAddressFields(locale)
+
+  const normalized: FormForgeAddressFieldSchema[] = []
+
+  for (const [index, addressField] of value.entries()) {
+    if (!isFormForgeJsonObject(addressField)) {
+      continue
+    }
+
+    const hasLabel = Object.prototype.hasOwnProperty.call(addressField, 'label')
+      && (typeof addressField.label === 'string' || addressField.label === null)
+    const key = typeof addressField.key === 'string' && addressField.key.trim() !== ''
+      ? addressField.key as FormForgeAddressFieldKey
+      : (defaults[index]?.key ?? defaults[0].key)
+    const label = hasLabel
+      ? (typeof addressField.label === 'string' ? addressField.label.trim() : '')
+      : (defaults[index]?.label ?? key)
+
+    normalized.push({
+      key,
+      label,
+      visible: addressField.visible !== false,
+      required: addressField.required === true
+    })
+  }
+
+  return normalized.length > 0 ? normalized : undefined
+}
+
+function normalizeField(
+  field: FormForgeJsonObject,
+  index: number,
+  fallbackPageKey: string,
+  locale?: string
+): FormForgeFieldSchema {
   const rawType: string = toString(field.type, 'text')
-  const fieldType: FormForgeFieldType = isFieldType(rawType) ? rawType : 'text'
+  const fieldType: FormForgeFieldType = isTemporalFieldType(rawType)
+    ? 'temporal'
+    : isFieldType(rawType)
+      ? rawType
+      : 'text'
   const name: string = toString(field.name, `field_${index}`)
   const fieldKey: string = toString(field.field_key, `${name}_${index}`)
   const pageKey: string = toString(field.page_key, fallbackPageKey)
@@ -178,7 +246,20 @@ function normalizeField(field: FormForgeJsonObject, index: number, fallbackPageK
     multiple: toBoolean(field.multiple, false),
     disabled: toBoolean(field.disabled, false),
     readonly: toBoolean(field.readonly, false),
-    options: normalizeOptions(field.options)
+    options: normalizeOptions(field.options),
+    address_fields: normalizeAddressFields(field.address_fields, locale),
+    display: field.display === 'list' || field.display === 'menu' ? field.display : undefined,
+    temporal_mode: fieldType === 'temporal'
+      ? (isTemporalMode(field.temporal_mode) ? field.temporal_mode : temporalModeFromFieldType(rawType))
+      : undefined,
+    hour_cycle: fieldType === 'temporal' && (isTemporalMode(field.temporal_mode) ? field.temporal_mode : temporalModeFromFieldType(rawType)) === 'time'
+      ? (field.hour_cycle === 12 ? 12 : 24)
+      : undefined,
+    consent_label: typeof field.consent_label === 'string' ? field.consent_label : undefined
+  }
+
+  if (normalizedField.type === 'temporal' && (typeof normalizedField.label !== 'string' || normalizedField.label.trim() === '')) {
+    normalizedField.label = resolveDefaultFieldLabel('temporal', locale, normalizedField.temporal_mode)
   }
 
   if (fieldType === 'file') {
@@ -201,7 +282,12 @@ function normalizeField(field: FormForgeJsonObject, index: number, fallbackPageK
   return normalizedField
 }
 
-function normalizeFieldsList(value: FormForgeJsonValue | undefined, fallbackPageKey: string, indexOffset: number = 0): FormForgeFieldSchema[] {
+function normalizeFieldsList(
+  value: FormForgeJsonValue | undefined,
+  fallbackPageKey: string,
+  indexOffset: number = 0,
+  locale?: string
+): FormForgeFieldSchema[] {
   if (!Array.isArray(value)) {
     return []
   }
@@ -213,13 +299,18 @@ function normalizeFieldsList(value: FormForgeJsonValue | undefined, fallbackPage
       continue
     }
 
-    fields.push(normalizeField(item, indexOffset + index, fallbackPageKey))
+    fields.push(normalizeField(item, indexOffset + index, fallbackPageKey, locale))
   }
 
   return fields
 }
 
-function normalizePageFieldsFromSections(value: FormForgeJsonValue | undefined, pageKey: string, indexOffset: number): FormForgeFieldSchema[] {
+function normalizePageFieldsFromSections(
+  value: FormForgeJsonValue | undefined,
+  pageKey: string,
+  indexOffset: number,
+  locale?: string
+): FormForgeFieldSchema[] {
   if (!Array.isArray(value)) {
     return []
   }
@@ -231,14 +322,14 @@ function normalizePageFieldsFromSections(value: FormForgeJsonValue | undefined, 
       continue
     }
 
-    const sectionFields = normalizeFieldsList(sectionValue.fields, pageKey, indexOffset + fields.length)
+    const sectionFields = normalizeFieldsList(sectionValue.fields, pageKey, indexOffset + fields.length, locale)
     fields.push(...sectionFields)
   }
 
   return fields
 }
 
-function normalizePages(value: FormForgeJsonValue | undefined): { pages: FormForgePageSchema[]; fields: FormForgeFieldSchema[] } {
+function normalizePages(value: FormForgeJsonValue | undefined, locale?: string): { pages: FormForgePageSchema[]; fields: FormForgeFieldSchema[] } {
   if (!Array.isArray(value)) {
     return {
       pages: [],
@@ -259,8 +350,8 @@ function normalizePages(value: FormForgeJsonValue | undefined): { pages: FormFor
     const pageMeta: FormForgeJsonObject = isFormForgeJsonObject(pageMetaValue) ? pageMetaValue : {}
 
     const pageFields = Array.isArray(pageValue.fields)
-      ? normalizeFieldsList(pageValue.fields, pageKey, fields.length)
-      : normalizePageFieldsFromSections(pageValue.sections, pageKey, fields.length)
+      ? normalizeFieldsList(pageValue.fields, pageKey, fields.length, locale)
+      : normalizePageFieldsFromSections(pageValue.sections, pageKey, fields.length, locale)
 
     fields.push(...pageFields)
 
@@ -370,11 +461,11 @@ function normalizeDraftSettings(value: FormForgeJsonValue | undefined): FormForg
   }
 }
 
-export function normalizeFormForgeSchema(payload: FormForgeJsonObject): FormForgeFormSchema {
+export function normalizeFormForgeSchema(payload: FormForgeJsonObject, locale?: string): FormForgeFormSchema {
   const data: FormForgeJsonObject = pickFormForgeDataEnvelope(payload)
 
-  const rootFields: FormForgeFieldSchema[] = normalizeFieldsList(data.fields, 'page_1')
-  const normalizedPages = normalizePages(data.pages)
+  const rootFields: FormForgeFieldSchema[] = normalizeFieldsList(data.fields, 'page_1', 0, locale)
+  const normalizedPages = normalizePages(data.pages, locale)
 
   const fields: FormForgeFieldSchema[] = normalizedPages.fields.length > 0 ? normalizedPages.fields : rootFields
   const pages: FormForgePageSchema[] = normalizedPages.pages.length > 0 ? normalizedPages.pages : buildPagesFromFlatFields(fields)
@@ -391,10 +482,16 @@ export function normalizeFormForgeSchema(payload: FormForgeJsonObject): FormForg
   return {
     key: toString(data.key, ''),
     version: toString(data.version, ''),
+    schema_version: toNumber(data.schema_version, 1),
     title: toString(data.title, ''),
+    publish_at: toNullableString(data.publish_at),
+    pause_at: toNullableString(data.pause_at),
+    response_limit: toPositiveNumber(data.response_limit),
+    submission_code_required: typeof data.submission_code_required === 'boolean' ? data.submission_code_required : undefined,
     category: typeof data.category === 'string' || data.category === null ? data.category : undefined,
     category_item: categoryItem ?? undefined,
     is_published: toBoolean(data.is_published, false),
+    public_url: toNullableString(data.public_url),
     fields,
     pages,
     conditions: normalizeConditions(data.conditions),

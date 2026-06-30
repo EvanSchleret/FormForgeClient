@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef, watch } from '#imports'
-import { getLocalTimeZone, parseAbsoluteToLocal, parseDate, parseDateTime, parseTime } from '@internationalized/date'
+import { parseDate, parseTime } from '@internationalized/date'
 import type { DateValue, Time } from '@internationalized/date'
 import UCheckbox from '@nuxt/ui/components/Checkbox.vue'
 import UCheckboxGroup from '@nuxt/ui/components/CheckboxGroup.vue'
@@ -13,25 +13,37 @@ import UProgress from '@nuxt/ui/components/Progress.vue'
 import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
-import UStepper from '@nuxt/ui/components/Stepper.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 import UTextarea from '@nuxt/ui/components/Textarea.vue'
 import type {
+  FormForgeAddressFieldSchema,
   FormForgeClientConfig,
   FormForgeDatetimeMode,
   FormForgeFieldOption,
   FormForgeFieldSchema,
   FormForgeFormSchema,
   FormForgePageSchema,
+  FormForgeTemporalMode,
   FormForgeSubmissionPayload,
   FormForgeSubmissionResponse,
   FormForgeUploadMode
 } from '../../types'
 import { isFormForgeJsonObject } from '../../utils/object'
+import { createDefaultAddressFields } from '../../utils/defaults'
+import { resolveTemporalMode } from '../../utils/temporal'
 import { sanitizePayloadWithSchema } from '../../utils/renderer-payload'
+import { sanitizeFormForgeRichText } from '../../utils/rich-text'
 import { useFormForgeForm } from '../../composables/useFormForgeForm'
 import { useFormForgeI18n } from '../../composables/useFormForgeI18n'
 import { useFormForgeSubmit } from '../../composables/useFormForgeSubmit'
+import { createFormForgeZodSchema } from '../../validation/zod'
+import {
+  evaluatePageLogicRule,
+  getPageLogic,
+  resolvePageLogicJumpTarget
+} from '../../utils/page-logic'
+import FormForgeRendererField from './FormForgeRendererField.vue'
+import FormForgeRendererPage from './FormForgeRendererPage.vue'
 
 interface FormForgeValidationError {
   name: string
@@ -89,14 +101,7 @@ type FormForgeDynamicValue =
 
 type FormForgeDynamicObject = { [key: string]: FormForgeDynamicValue }
 
-type FormForgeProgressVariant = 'stepper' | 'progress'
 type FormForgeValidateEvent = 'input' | 'change' | 'blur'
-
-interface FormForgeStepperItem {
-  title: string
-  description?: string
-  value: number
-}
 
 interface FormForgeExposedError {
   id?: string
@@ -121,10 +126,10 @@ interface Props {
   uploadMode?: FormForgeUploadMode
   clearAfterSubmit?: boolean
   showProgress?: boolean
-  progressVariant?: FormForgeProgressVariant
   showAlertOnError?: boolean
   validateOn?: FormForgeValidateEvent[]
   validateOnBlur?: boolean
+  previewPageKey?: string | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -144,13 +149,13 @@ const props = withDefaults(defineProps<Props>(), {
   uploadMode: undefined,
   clearAfterSubmit: false,
   showProgress: false,
-  progressVariant: 'stepper',
   showAlertOnError: false,
   validateOn: undefined,
-  validateOnBlur: undefined
+  validateOnBlur: undefined,
+  previewPageKey: null
 })
 
-const { t } = useFormForgeI18n({
+const { t, locale } = useFormForgeI18n({
   locale: () => props.clientConfig?.locale
 })
 
@@ -239,7 +244,7 @@ const internalSubmit = useFormForgeSubmit({
   key: internalFormKey.value === '' ? '__missing_form_key__' : internalFormKey.value,
   version: props.formVersion,
   endpoint: props.endpoint,
-  schema: (): FormForgeFormSchema | null => internalForm.schema.value as FormForgeFormSchema | null,
+  schema: (): FormForgeFormSchema | null => getResolvedSchema(),
   state: (): FormForgeSubmissionPayload => internalForm.state.value as FormForgeSubmissionPayload,
   clientConfig: props.clientConfig
 })
@@ -273,7 +278,14 @@ function getResolvedSchema(): FormForgeFormSchema | null {
 
 function getResolvedZodSchema(): object | undefined {
   if (usesExternalSchema.value) {
-    return unwrapZodSchemaProp(props.zodSchema)
+    const schema = unwrapSchemaProp(props.schema)
+    if (schema === null) {
+      return undefined
+    }
+
+    return unwrapZodSchemaProp(props.zodSchema) ?? createFormForgeZodSchema(schema, {
+      locale: locale.value
+    })
   }
 
   return internalForm.zodSchema.value as object | undefined
@@ -306,6 +318,41 @@ const formState = computed<FormForgeSubmissionPayload>({
 
     internalForm.replaceState(value)
   }
+})
+
+const submissionCode = ref<string>('')
+const isPreviewMode = computed<boolean>(() => {
+  return typeof props.previewPageKey === 'string' && props.previewPageKey.trim() !== ''
+})
+
+const requiresSubmissionCode = computed<boolean>(() => {
+  const schema = getResolvedSchema()
+
+  if (schema === null) {
+    return false
+  }
+
+  return schema.submission_code_required === true
+})
+
+const availabilityAlert = computed<string | null>(() => {
+  const schema = getResolvedSchema()
+
+  if (schema === null) {
+    return null
+  }
+
+  const publishAt = typeof schema.publish_at === 'string' ? Date.parse(schema.publish_at) : Number.NaN
+  if (!Number.isNaN(publishAt) && publishAt > Date.now()) {
+    return t('renderer.formNotAvailableYet')
+  }
+
+  const pauseAt = typeof schema.pause_at === 'string' ? Date.parse(schema.pause_at) : Number.NaN
+  if (!Number.isNaN(pauseAt) && pauseAt <= Date.now()) {
+    return t('renderer.formPaused')
+  }
+
+  return null
 })
 
 watch(
@@ -356,6 +403,34 @@ const displayPages = computed<FormForgePageSchema[]>(() => {
   ]
 })
 
+const previewPage = computed<FormForgePageSchema | null>(() => {
+  if (!isPreviewMode.value) {
+    return null
+  }
+
+  const pageKey = props.previewPageKey?.trim()
+
+  if (typeof pageKey !== 'string' || pageKey === '') {
+    return displayPages.value[0] ?? null
+  }
+
+  return displayPages.value.find((page) => page.page_key === pageKey) ?? displayPages.value[0] ?? null
+})
+
+const pageLogicByKey = computed<Record<string, ReturnType<typeof getPageLogic>>>(() => {
+  const map: Record<string, ReturnType<typeof getPageLogic>> = {}
+
+  for (const page of displayPages.value) {
+    map[page.page_key] = getPageLogic(page)
+  }
+
+  return map
+})
+
+const hasPageLogicRules = computed<boolean>(() => {
+  return Object.values(pageLogicByKey.value).some((logic) => logic.rules.length > 0)
+})
+
 const fieldsByKey = computed<Record<string, FormForgeFieldSchema>>(() => {
   const map: Record<string, FormForgeFieldSchema> = {}
 
@@ -399,7 +474,7 @@ function isEmptyValue(value: unknown): boolean {
       return isEmptyValue(rangeValue.start) && isEmptyValue(rangeValue.end)
     }
 
-    return Object.keys(value).length === 0
+    return Object.values(value).every((entry) => isEmptyValue(entry))
   }
 
   return false
@@ -632,7 +707,35 @@ const runtimeConditions = computed<{
     }
   }
 
-  if (schema === null || !Array.isArray(schema.conditions)) {
+  const requiredByLogic = new Set<string>()
+
+  if (schema === null || hasPageLogicRules.value || !Array.isArray(schema.conditions)) {
+    for (const [pageKey, logic] of Object.entries(pageLogicByKey.value)) {
+      const page = displayPages.value.find((item) => item.page_key === pageKey)
+      if (page === undefined) {
+        continue
+      }
+
+      for (const rule of logic.rules) {
+        if (!evaluatePageLogicRule(rule, page, (field) => formState.value[field.name])) {
+          continue
+        }
+
+        for (const thenAction of rule.then) {
+          if (thenAction.action === 'require' && typeof thenAction.field_key === 'string' && thenAction.field_key !== '') {
+            requiredByLogic.add(thenAction.field_key)
+          }
+        }
+      }
+    }
+
+    for (const fieldKey of requiredByLogic) {
+      const fieldState = fieldsState[fieldKey]
+      if (fieldState !== undefined) {
+        fieldState.required = true
+      }
+    }
+
     return {
       pages: pagesState,
       fields: fieldsState
@@ -723,6 +826,32 @@ const runtimeConditions = computed<{
     }
   }
 
+  for (const [pageKey, logic] of Object.entries(pageLogicByKey.value)) {
+    const page = displayPages.value.find((item) => item.page_key === pageKey)
+    if (page === undefined) {
+      continue
+    }
+
+    for (const rule of logic.rules) {
+      if (!evaluatePageLogicRule(rule, page, (field) => formState.value[field.name])) {
+        continue
+      }
+
+      for (const thenAction of rule.then) {
+        if (thenAction.action === 'require' && typeof thenAction.field_key === 'string' && thenAction.field_key !== '') {
+          requiredByLogic.add(thenAction.field_key)
+        }
+      }
+    }
+  }
+
+  for (const fieldKey of requiredByLogic) {
+    const fieldState = fieldsState[fieldKey]
+    if (fieldState !== undefined) {
+      fieldState.required = true
+    }
+  }
+
   return {
     pages: pagesState,
     fields: fieldsState
@@ -746,6 +875,29 @@ const pageKeyByFieldName = computed<Record<string, string>>(() => {
 })
 
 const activePageKey = ref<string | null>(null)
+const isPageTransitioning = ref(false)
+
+watch(
+  () => [isPreviewMode.value, props.previewPageKey, displayPages.value.map((page) => page.page_key)] as const,
+  ([previewMode, previewPageKey, pageKeys]) => {
+    if (!previewMode) {
+      return
+    }
+
+    const pageKey = typeof previewPageKey === 'string' ? previewPageKey.trim() : ''
+    if (pageKey !== '' && pageKeys.includes(pageKey)) {
+      activePageKey.value = pageKey
+      return
+    }
+
+    if (pageKeys.length > 0 && (activePageKey.value === null || !pageKeys.includes(activePageKey.value))) {
+      activePageKey.value = pageKeys[0]
+    }
+  },
+  {
+    immediate: true
+  }
+)
 
 watch(
   () => visiblePages.value.map((page) => page.page_key),
@@ -783,21 +935,7 @@ const activePageIndex = computed<number>(() => {
 })
 
 const shouldShowProgress = computed<boolean>(() => {
-  return props.showProgress && visiblePages.value.length > 1
-})
-
-const stepperItems = computed<FormForgeStepperItem[]>(() => {
-  return visiblePages.value.map((page, index) => ({
-    title: page.title !== '' ? page.title : t('renderer.pageTitle', { index: index + 1 }),
-    description: typeof page.description === 'string' && page.description.trim() !== ''
-      ? page.description
-      : undefined,
-    value: index + 1
-  }))
-})
-
-const pagedMode = computed<boolean>(() => {
-  return shouldShowProgress.value
+  return props.showProgress && visiblePages.value.length > 1 && (!isPreviewMode.value || props.simulation)
 })
 
 const currentVisiblePage = computed<FormForgePageSchema | null>(() => {
@@ -809,9 +947,71 @@ const currentVisiblePage = computed<FormForgePageSchema | null>(() => {
   return page ?? null
 })
 
+const progressValue = computed<number>(() => {
+  if (visiblePages.value.length === 0) {
+    return 0
+  }
+
+  return ((activePageIndex.value + 1) / visiblePages.value.length) * 100
+})
+
+const shouldShowNavigation = computed<boolean>(() => {
+  return visiblePages.value.length > 1 && (!isPreviewMode.value || props.simulation)
+})
+
+function resolveNextPageKey(): string | null {
+  const currentKey = activePageKey.value
+
+  if (currentKey === null) {
+    return null
+  }
+
+  const currentDisplayIndex = displayPages.value.findIndex((page) => page.page_key === currentKey)
+
+  if (currentDisplayIndex < 0) {
+    return null
+  }
+
+  const currentPage = displayPages.value[currentDisplayIndex]
+  const logic = pageLogicByKey.value[currentPage.page_key]
+
+  if (logic !== undefined) {
+    for (const rule of logic.rules) {
+      if (!evaluatePageLogicRule(rule, currentPage, (field) => formState.value[field.name])) {
+        continue
+      }
+
+      const gotoTarget = resolvePageLogicJumpTarget(rule, currentDisplayIndex, displayPages.value.length)
+      if (gotoTarget !== null) {
+        const targetPage = displayPages.value[gotoTarget]
+        if (targetPage !== undefined && isPageVisible(targetPage)) {
+          return targetPage.page_key
+        }
+      }
+    }
+  }
+
+  for (let index = currentDisplayIndex + 1; index < displayPages.value.length; index += 1) {
+    const page = displayPages.value[index]
+    if (page !== undefined && isPageVisible(page)) {
+      return page.page_key
+    }
+  }
+
+  return null
+}
+
 const renderedPages = computed<FormForgePageSchema[]>(() => {
-  if (!pagedMode.value) {
-    return visiblePages.value
+  if (isPreviewMode.value && props.simulation) {
+    if (currentVisiblePage.value !== null) {
+      return [currentVisiblePage.value]
+    }
+
+    return []
+  }
+
+  if (previewPage.value !== null) {
+    return [previewPage.value]
   }
 
   if (currentVisiblePage.value === null) {
@@ -826,16 +1026,26 @@ const canGoPrev = computed<boolean>(() => {
 })
 
 const canGoNext = computed<boolean>(() => {
-  return activePageIndex.value < visiblePages.value.length - 1
+  return resolveNextPageKey() !== null
 })
 
 const isLastVisiblePage = computed<boolean>(() => {
-  return visiblePages.value.length > 0 && activePageIndex.value === visiblePages.value.length - 1
+  return resolveNextPageKey() === null
 })
 
 const shouldShowErrorAlert = computed<boolean>(() => {
   return props.showAlertOnError && rendererErrors.value.length > 0
 })
+
+function filterErrorsByFieldNames(errors: FormForgeExposedError[], fieldNames: string[]): FormForgeExposedError[] {
+  if (fieldNames.length === 0) {
+    return errors
+  }
+
+  const fieldNameSet = new Set(fieldNames)
+
+  return errors.filter((error) => typeof error.name === 'string' && fieldNameSet.has(error.name))
+}
 
 const resolvedSubmitLabel = computed<string>(() => {
   if (typeof props.submitLabel === 'string' && props.submitLabel.trim() !== '') {
@@ -873,6 +1083,10 @@ function isFieldVisible(field: FormForgeFieldSchema): boolean {
 }
 
 function isFieldRequired(field: FormForgeFieldSchema): boolean {
+  if (field.type === 'address') {
+    return addressFieldDefinitions(field).some((addressField) => addressField.visible && addressField.required)
+  }
+
   const runtimeField = runtimeConditions.value.fields[field.field_key]
   if (runtimeField === undefined) {
     return field.required === true
@@ -903,28 +1117,54 @@ function setActivePageIndex(index: number): void {
   activePageKey.value = page.page_key
 }
 
-function onStepperModelUpdate(value: string | number | undefined): void {
-  if (typeof value !== 'number') {
-    return
-  }
-
-  setActivePageIndex(value - 1)
-}
-
-function goToPrevPage(): void {
+async function goToPrevPage(): Promise<void> {
   if (!canGoPrev.value) {
     return
   }
 
-  setActivePageIndex(activePageIndex.value - 1)
+  isPageTransitioning.value = true
+
+  try {
+    setActivePageIndex(activePageIndex.value - 1)
+  } finally {
+    await Promise.resolve()
+    isPageTransitioning.value = false
+  }
 }
 
-function goToNextPage(): void {
-  if (!canGoNext.value) {
-    return
-  }
+async function goToNextPage(): Promise<void> {
+  isPageTransitioning.value = true
 
-  setActivePageIndex(activePageIndex.value + 1)
+  try {
+    const currentPage = currentVisiblePage.value
+    if (currentPage !== null) {
+      const fieldNames = currentPage.fields
+        .map((field) => field.name)
+        .filter((fieldName) => fieldName.trim() !== '')
+
+      if (fieldNames.length > 0) {
+        const isValid = await validateForm({
+          name: fieldNames,
+          nested: true
+        })
+
+        if (!isValid) {
+          return
+        }
+      }
+    }
+
+    const nextPageKey = resolveNextPageKey()
+
+    if (nextPageKey === null) {
+      return
+    }
+
+    setActivePage(nextPageKey)
+  } finally {
+    await Promise.resolve()
+    isPageTransitioning.value = false
+  }
 }
 
 function resolvePageIndexByFieldName(fieldName: string): number {
@@ -985,7 +1225,24 @@ async function validateForm(options: FormForgeValidateOptions = {}): Promise<boo
   }
 
   try {
-    await formInstance.validate(options)
+    const result = await formInstance.validate(options)
+    if (result === false) {
+      const requestedFieldNames = Array.isArray(options.name)
+        ? options.name
+        : typeof options.name === 'string'
+          ? [options.name]
+          : []
+
+      const errors = filterErrorsByFieldNames(formInstance.getErrors(), requestedFieldNames)
+      rendererErrors.value = errors.map((error) => ({
+        id: error.id,
+        name: error.name,
+        message: error.message
+      }))
+      navigateToFirstErrorPage(rendererErrors.value)
+      return false
+    }
+
     rendererErrors.value = []
     return true
   } catch {
@@ -1038,7 +1295,7 @@ const shouldValidateFieldOnBlur = computed<boolean>(() => {
 })
 
 function onFieldBlur(fieldName: string): void {
-  if (!shouldValidateFieldOnBlur.value) {
+  if (!shouldValidateFieldOnBlur.value || isPageTransitioning.value) {
     return
   }
 
@@ -1122,22 +1379,14 @@ function serializeDateAsUtc(date: Date): string {
   return date.toISOString().replace('.000Z', 'Z')
 }
 
-function parseSingleDateValue(type: FormForgeFieldSchema['type'], value: string): FormForgeTemporalValue | null {
+function parseSingleDateValue(mode: FormForgeTemporalMode, value: string): FormForgeTemporalValue | null {
   try {
-    if (type === 'date') {
+    if (mode === 'date') {
       return parseDate(value)
     }
 
-    if (type === 'time') {
+    if (mode === 'time') {
       return parseTime(value)
-    }
-
-    if (type === 'datetime') {
-      if (value.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(value)) {
-        return parseAbsoluteToLocal(value)
-      }
-
-      return parseDateTime(stripDatetimeOffset(value))
     }
   } catch {
     return null
@@ -1147,11 +1396,11 @@ function parseSingleDateValue(type: FormForgeFieldSchema['type'], value: string)
 }
 
 function serializeSingleDateValue(
-  type: FormForgeFieldSchema['type'],
+  mode: FormForgeTemporalMode,
   value: FormForgeDynamicValue,
-  mode: FormForgeDatetimeMode
+  datetimeMode: FormForgeDatetimeMode
 ): string | null {
-  if (type === 'date' || type === 'time') {
+  if (mode === 'date' || mode === 'time') {
     if (hasToStringMethod(value)) {
       return value.toString()
     }
@@ -1163,23 +1412,10 @@ function serializeSingleDateValue(
     return null
   }
 
-  if (type === 'datetime') {
-    if (hasDateMethod(value)) {
-      const date = value.toDate(getLocalTimeZone())
-      return mode === 'utc' ? serializeDateAsUtc(date) : serializeDateWithOffset(date)
-    }
-
-    if (typeof value === 'string') {
-      return value
-    }
-
-    return null
-  }
-
   return null
 }
 
-function parseRangeValue(type: FormForgeFieldSchema['type'], value: FormForgeSubmissionPayload[string]): FormForgeRangeInput | null {
+function parseRangeValue(mode: FormForgeTemporalMode, value: FormForgeSubmissionPayload[string]): FormForgeRangeInput | null {
   if (value === null || Array.isArray(value) || typeof value !== 'object') {
     return null
   }
@@ -1189,10 +1425,10 @@ function parseRangeValue(type: FormForgeFieldSchema['type'], value: FormForgeSub
   const endValue = rangeValue.end
 
   const parsedStart = typeof startValue === 'string'
-    ? parseSingleDateValue(type === 'date_range' ? 'date' : 'datetime', startValue) as DateValue | null
+    ? parseSingleDateValue(mode, startValue) as DateValue | null
     : null
   const parsedEnd = typeof endValue === 'string'
-    ? parseSingleDateValue(type === 'date_range' ? 'date' : 'datetime', endValue) as DateValue | null
+    ? parseSingleDateValue(mode, endValue) as DateValue | null
     : null
 
   return {
@@ -1201,7 +1437,7 @@ function parseRangeValue(type: FormForgeFieldSchema['type'], value: FormForgeSub
   }
 }
 
-function serializeRangeValue(type: FormForgeFieldSchema['type'], value: FormForgeDynamicValue): FormForgeSubmissionPayload[string] {
+function serializeRangeValue(mode: FormForgeTemporalMode, value: FormForgeDynamicValue): FormForgeSubmissionPayload[string] {
   if (!isRangeInput(value)) {
     return {
       start: null,
@@ -1209,13 +1445,25 @@ function serializeRangeValue(type: FormForgeFieldSchema['type'], value: FormForg
     }
   }
 
-  const startValue = serializeSingleDateValue(type === 'date_range' ? 'date' : 'datetime', value.start, props.datetimeMode)
-  const endValue = serializeSingleDateValue(type === 'date_range' ? 'date' : 'datetime', value.end, props.datetimeMode)
+  const startValue = serializeSingleDateValue(mode, value.start, props.datetimeMode)
+  const endValue = serializeSingleDateValue(mode, value.end, props.datetimeMode)
 
   return {
     start: startValue,
     end: endValue
   }
+}
+
+function choiceDisplayValue(field: FormForgeFieldSchema): 'list' | 'menu' {
+  if (field.display === 'list' || field.display === 'menu') {
+    return field.display
+  }
+
+  if (field.type === 'radio' || field.type === 'checkbox_group') {
+    return 'list'
+  }
+
+  return 'menu'
 }
 
 function normalizeSelectOptions(options: FormForgeFieldOption[] | undefined): FormForgeSelectItem[] {
@@ -1225,16 +1473,19 @@ function normalizeSelectOptions(options: FormForgeFieldOption[] | undefined): Fo
 
   const items: FormForgeSelectItem[] = []
 
-  for (const option of options) {
+  for (const [index, option] of options.entries()) {
     if (typeof option === 'string' || typeof option === 'number' || typeof option === 'boolean' || option === null) {
+      const primitiveLabel = option === null ? '' : String(option)
       items.push({
-        label: String(option ?? ''),
+        label: primitiveLabel.trim() === '' ? `Option ${index + 1}` : primitiveLabel,
         value: option
       })
       continue
     }
 
-    const label = typeof option.label === 'string' ? option.label : String(option.value ?? '')
+    const label = typeof option.label === 'string' && option.label.trim() !== ''
+      ? option.label
+      : `Option ${index + 1}`
 
     items.push({
       label,
@@ -1284,6 +1535,40 @@ function getFieldValue(field: FormForgeFieldSchema): FormForgeSubmissionPayload[
   return formState.value[field.name]
 }
 
+function addressFieldDefinitions(field: FormForgeFieldSchema): FormForgeAddressFieldSchema[] {
+  if (field.type !== 'address') {
+    return []
+  }
+
+  if (!Array.isArray(field.address_fields) || field.address_fields.length === 0) {
+    return createDefaultAddressFields(locale.value)
+  }
+
+  return field.address_fields
+}
+
+function addressFieldValue(field: FormForgeFieldSchema, key: string): string {
+  const value = getFieldValue(field)
+
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return ''
+  }
+
+  const candidate = (value as Record<string, unknown>)[key]
+  return typeof candidate === 'string' ? candidate : ''
+}
+
+function updateAddressFieldValue(field: FormForgeFieldSchema, key: string, value: string): void {
+  const currentValue = getFieldValue(field)
+  const nextValue: Record<string, FormForgeSubmissionPayload[string]> =
+    typeof currentValue === 'object' && currentValue !== null && !Array.isArray(currentValue)
+      ? { ...(currentValue as Record<string, FormForgeSubmissionPayload[string]>) }
+      : {}
+
+  nextValue[key] = value
+  onFieldUpdate(field, nextValue as FormForgeDynamicValue)
+}
+
 function setFieldValue(fieldName: string, value: FormForgeSubmissionPayload[string]): void {
   formState.value = {
     ...formState.value,
@@ -1293,25 +1578,36 @@ function setFieldValue(fieldName: string, value: FormForgeSubmissionPayload[stri
 
 function getComponentModelValue(field: FormForgeFieldSchema): FormForgeDynamicValue {
   const value = getFieldValue(field)
+  const temporalMode = resolveTemporalMode(field)
 
-  if (field.type === 'date' || field.type === 'time' || field.type === 'datetime') {
+  if (field.type === 'temporal' || field.type === 'date' || field.type === 'time') {
     if (typeof value === 'string') {
-      return parseSingleDateValue(field.type, value)
+      return parseSingleDateValue(temporalMode, value)
     }
 
     return null
   }
 
-  if (field.type === 'date_range' || field.type === 'datetime_range') {
-    return parseRangeValue(field.type, value)
-  }
-
-  if (field.type === 'checkbox' || field.type === 'switch') {
+  if (field.type === 'checkbox' || field.type === 'consent' || field.type === 'switch') {
     return typeof value === 'boolean' ? value : false
   }
 
   if (field.type === 'checkbox_group') {
     return (Array.isArray(value) ? value : []) as FormForgeDynamicValue
+  }
+
+  if (field.type === 'address') {
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      return value as FormForgeDynamicValue
+    }
+
+    const nextValue: Record<string, string | null> = {}
+
+    for (const addressField of addressFieldDefinitions(field)) {
+      nextValue[addressField.key] = null
+    }
+
+    return nextValue as FormForgeDynamicValue
   }
 
   if (field.type === 'file') {
@@ -1369,17 +1665,19 @@ function getComponentProps(field: FormForgeFieldSchema, page: FormForgePageSchem
     componentProps.step = field.step ?? undefined
   }
 
+  if (field.type === 'consent') {
+    componentProps.label = field.consent_label ?? field.label ?? ''
+    componentProps.required = false
+  }
+
   if (field.type === 'select' || field.type === 'select_menu' || field.type === 'radio' || field.type === 'checkbox_group') {
     componentProps.items = normalizeSelectOptions(field.options)
+    if (field.type === 'checkbox_group' && choiceDisplayValue(field) === 'menu') {
+      componentProps.multiple = true
+    }
   }
 
-  if (field.type === 'date_range' || field.type === 'datetime_range') {
-    componentProps.range = true
-  }
-
-  if (field.type === 'datetime' || field.type === 'datetime_range') {
-    componentProps.granularity = 'second'
-  }
+  const temporalMode = resolveTemporalMode(field)
 
   if (field.type === 'file') {
     componentProps.multiple = field.multiple === true
@@ -1397,13 +1695,10 @@ function getComponentProps(field: FormForgeFieldSchema, page: FormForgePageSchem
 }
 
 function onFieldUpdate(field: FormForgeFieldSchema, value: FormForgeDynamicValue): void {
-  if (field.type === 'date' || field.type === 'time' || field.type === 'datetime') {
-    setFieldValue(field.name, serializeSingleDateValue(field.type, value, props.datetimeMode))
-    return
-  }
+  const temporalMode = resolveTemporalMode(field)
 
-  if (field.type === 'date_range' || field.type === 'datetime_range') {
-    setFieldValue(field.name, serializeRangeValue(field.type, value))
+  if (field.type === 'temporal' || field.type === 'date' || field.type === 'time') {
+    setFieldValue(field.name, serializeSingleDateValue(temporalMode, value, props.datetimeMode))
     return
   }
 
@@ -1435,7 +1730,10 @@ async function onSubmit(): Promise<void> {
     const response = await internalSubmit.submit({
       test: props.simulation,
       version: props.formVersion,
-      mode: props.uploadMode
+      mode: props.uploadMode,
+      meta: requiresSubmissionCode.value
+        ? { submission_code: submissionCode.value }
+        : (submissionCode.value.trim() !== '' ? { submission_code: submissionCode.value } : undefined)
     })
 
     submittedResponse.value = response
@@ -1482,20 +1780,10 @@ async function onSubmit(): Promise<void> {
     @error="onFormError"
   >
     <div class="space-y-6">
-      <UStepper
-        v-if="shouldShowProgress && progressVariant === 'stepper'"
-        class="w-full"
-        :items="stepperItems"
-        :model-value="activePageIndex + 1"
-        :linear="false"
-        @update:model-value="onStepperModelUpdate"
-      />
-
       <UProgress
-        v-if="shouldShowProgress && progressVariant === 'progress'"
-        :model-value="activePageIndex + 1"
-        :max="visiblePages.length"
-        status
+        v-if="shouldShowProgress"
+        :model-value="progressValue"
+        :max="100"
       />
 
       <UAlert
@@ -1547,132 +1835,54 @@ async function onSubmit(): Promise<void> {
         :title="t('renderer.alert.submitted')"
       />
 
-      <section
+      <UAlert
+        v-if="availabilityAlert !== null"
+        color="warning"
+        variant="soft"
+        :title="availabilityAlert"
+      />
+
+      <div
+        v-if="requiresSubmissionCode"
+        class="space-y-2 rounded-xl border border-muted bg-elevated/40 p-4"
+      >
+        <p class="text-sm font-medium text-default">
+          {{ t('renderer.submissionCodeLabel') }}
+        </p>
+        <UInput
+          v-model="submissionCode"
+          type="password"
+          autocomplete="one-time-code"
+          :placeholder="t('renderer.submissionCodePlaceholder')"
+        />
+      </div>
+
+      <FormForgeRendererPage
         v-for="page in renderedPages"
         :key="page.page_key"
+        :page="page"
         class="space-y-4"
         @focusin="setActivePage(page.page_key)"
         @pointerdown="setActivePage(page.page_key)"
       >
-        <div
-          v-if="page.title !== '' || (typeof page.description === 'string' && page.description !== '')"
-          class="space-y-1"
-        >
-          <h3
-            v-if="page.title !== ''"
-            class="text-base font-semibold text-default"
-          >
-            {{ page.title }}
-          </h3>
-          <p
-            v-if="typeof page.description === 'string' && page.description !== ''"
-            class="text-sm text-muted"
-          >
-            {{ page.description }}
-          </p>
-        </div>
-
-        <div class="space-y-4">
-          <UFormField
-            v-for="field in page.fields"
-            v-show="isFieldVisible(field)"
-            :key="field.field_key"
-            :name="field.name"
-            :label="field.label"
-            :help="field.help_text"
-            :required="isFieldRequired(field)"
-            :ui="getResolvedFormFieldUi(field)"
-            @focusout="() => onFieldBlur(field.name)"
-          >
-            <UInput
-              v-if="field.type === 'text' || field.type === 'email'"
-              :model-value="getLooseModelValue(field)"
-              v-bind="getComponentProps(field, page)"
-              @update:model-value="(nextValue) => onFieldModelUpdate(field, nextValue)"
-            />
-
-            <UTextarea
-              v-else-if="field.type === 'textarea'"
-              :model-value="getLooseModelValue(field)"
-              v-bind="getComponentProps(field, page)"
-              @update:model-value="(nextValue) => onFieldModelUpdate(field, nextValue)"
-            />
-
-            <UInputNumber
-              v-else-if="field.type === 'number'"
-              :model-value="getLooseModelValue(field)"
-              v-bind="getComponentProps(field, page)"
-              @update:model-value="(nextValue) => onFieldModelUpdate(field, nextValue)"
-            />
-
-            <USelect
-              v-else-if="field.type === 'select'"
-              :model-value="getLooseModelValue(field)"
-              v-bind="getComponentProps(field, page)"
-              @update:model-value="(nextValue) => onFieldModelUpdate(field, nextValue)"
-            />
-
-            <USelectMenu
-              v-else-if="field.type === 'select_menu'"
-              :model-value="getLooseModelValue(field)"
-              v-bind="getComponentProps(field, page)"
-              @update:model-value="(nextValue) => onFieldModelUpdate(field, nextValue)"
-            />
-
-            <URadioGroup
-              v-else-if="field.type === 'radio'"
-              :model-value="getLooseModelValue(field)"
-              v-bind="getComponentProps(field, page)"
-              @update:model-value="(nextValue) => onFieldModelUpdate(field, nextValue)"
-            />
-
-            <UCheckbox
-              v-else-if="field.type === 'checkbox'"
-              :model-value="getLooseModelValue(field)"
-              v-bind="getComponentProps(field, page)"
-              @update:model-value="(nextValue) => onFieldModelUpdate(field, nextValue)"
-            />
-
-            <UCheckboxGroup
-              v-else-if="field.type === 'checkbox_group'"
-              :model-value="getLooseModelValue(field)"
-              v-bind="getComponentProps(field, page)"
-              @update:model-value="(nextValue) => onFieldModelUpdate(field, nextValue)"
-            />
-
-            <USwitch
-              v-else-if="field.type === 'switch'"
-              :model-value="getLooseModelValue(field)"
-              v-bind="getComponentProps(field, page)"
-              @update:model-value="(nextValue) => onFieldModelUpdate(field, nextValue)"
-            />
-
-            <UInputDate
-              v-else-if="field.type === 'date' || field.type === 'datetime' || field.type === 'date_range' || field.type === 'datetime_range'"
-              :model-value="getLooseModelValue(field)"
-              v-bind="getComponentProps(field, page)"
-              @update:model-value="(nextValue) => onFieldModelUpdate(field, nextValue)"
-            />
-
-            <UInputTime
-              v-else-if="field.type === 'time'"
-              :model-value="getLooseModelValue(field)"
-              v-bind="getComponentProps(field, page)"
-              @update:model-value="(nextValue) => onFieldModelUpdate(field, nextValue)"
-            />
-
-            <UFileUpload
-              v-else
-              :model-value="getLooseModelValue(field)"
-              v-bind="getComponentProps(field, page)"
-              @update:model-value="(nextValue) => onFieldModelUpdate(field, nextValue)"
-            />
-          </UFormField>
-        </div>
-      </section>
+        <FormForgeRendererField
+          v-for="field in page.fields"
+          v-show="isFieldVisible(field)"
+          :key="field.field_key"
+          :field="field"
+          :model-value="getLooseModelValue(field)"
+          :component-props="getComponentProps(field, page)"
+          :field-ui="getResolvedFormFieldUi(field)"
+          :address-fields="addressFieldDefinitions(field)"
+          :required="isFieldRequired(field)"
+          :disabled="isFieldDisabled(field, page)"
+          @update:model-value="(nextValue) => onFieldModelUpdate(field, nextValue)"
+          @blur="() => onFieldBlur(field.name)"
+        />
+      </FormForgeRendererPage>
 
       <div
-        v-if="pagedMode"
+        v-if="shouldShowNavigation"
         class="flex items-center justify-between gap-2"
       >
         <UButton
@@ -1695,23 +1905,23 @@ async function onSubmit(): Promise<void> {
         </UButton>
 
         <UButton
-          v-else-if="!usesExternalModel && showSubmit"
+          v-else-if="showSubmit"
           type="submit"
           :loading="internalSubmit.submitting.value"
-          :disabled="internalForm.loading.value || getResolvedSchema() === null"
+          :disabled="internalForm.loading.value || getResolvedSchema() === null || availabilityAlert !== null || (requiresSubmissionCode && submissionCode.trim() === '')"
         >
           {{ resolvedSubmitLabel }}
         </UButton>
       </div>
 
       <div
-        v-else-if="!usesExternalModel && showSubmit"
+        v-else-if="showSubmit"
         class="flex justify-end"
       >
         <UButton
           type="submit"
           :loading="internalSubmit.submitting.value"
-          :disabled="internalForm.loading.value || getResolvedSchema() === null"
+          :disabled="internalForm.loading.value || getResolvedSchema() === null || availabilityAlert !== null"
         >
           {{ resolvedSubmitLabel }}
         </UButton>
@@ -1719,3 +1929,27 @@ async function onSubmit(): Promise<void> {
     </div>
   </UForm>
 </template>
+
+<style scoped>
+.formforge-rich-text :deep(p) {
+  margin: 0.25rem 0;
+}
+
+.formforge-rich-text :deep(p:first-child) {
+  margin-top: 0;
+}
+
+.formforge-rich-text :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.formforge-rich-text :deep(ul),
+.formforge-rich-text :deep(ol) {
+  margin: 0.25rem 0;
+  padding-left: 1.25rem;
+}
+
+.formforge-rich-text :deep(a) {
+  text-decoration: underline;
+}
+</style>

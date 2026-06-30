@@ -21,7 +21,7 @@ export async function fetchFormForgeSchema(
     method: 'GET'
   })
 
-  return normalizeFormForgeSchema(response.data)
+  return normalizeFormForgeSchema(response.data, options.locale)
 }
 
 export async function fetchFormForgeSchemaVersions(
@@ -56,7 +56,7 @@ export async function fetchFormForgeSchemaVersion(
     method: 'GET'
   })
 
-  return normalizeFormForgeSchema(response.data)
+  return normalizeFormForgeSchema(response.data, options.locale)
 }
 
 export async function resolveFormForgeSchema(
@@ -89,8 +89,8 @@ export async function resolveFormForgeSchema(
   const schemaValue = data.schema
 
   if (isFormForgeJsonObject(schemaValue)) {
-    return normalizeFormForgeSchema(schemaValue)
+    return normalizeFormForgeSchema(schemaValue, options.locale)
   }
 
-  return normalizeFormForgeSchema(data)
+  return normalizeFormForgeSchema(data, options.locale)
 }

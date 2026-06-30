@@ -4,6 +4,7 @@ import { useFormForgeGetForm } from '../../composables/useFormForgeGetForm'
 import { useFormForgeI18n } from '../../composables/useFormForgeI18n'
 import { useFormForgeResponses } from '../../composables/useFormForgeResponses'
 import type { FormForgeClientConfig, FormForgeJsonObject } from '../../types'
+import { sanitizeFormForgeInlineRichText, sanitizeFormForgeRichText } from '../../utils/rich-text'
 
 type FormForgeResponseLayout = 'line' | 'column'
 
@@ -519,7 +520,7 @@ function createPagesFromSchema(schemaValue: unknown): ResponsePage[] {
     items: page.fields.map((field, fieldIndex) => ({
       id: field.fieldKey,
       question: typeof field.label === 'string' && field.label.trim() !== ''
-        ? field.label
+        ? sanitizeFormForgeInlineRichText(field.label)
         : t('response.question.fallback', { index: fieldIndex + 1 }),
       answer: makeAnswer(
         mapFieldAnswerValue(field, payload.value[field.name]),
@@ -711,7 +712,7 @@ watch(
               class="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] md:gap-6"
             >
               <p class="whitespace-pre-wrap text-sm font-medium text-default">
-                {{ item.question }}
+                <span v-html="item.question" />
               </p>
 
               <div
@@ -808,7 +809,7 @@ watch(
               class="space-y-1"
             >
               <p class="whitespace-pre-wrap text-sm font-medium text-default">
-                {{ item.question }}
+                <span v-html="item.question" />
               </p>
 
               <p

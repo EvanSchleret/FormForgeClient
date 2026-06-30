@@ -43,5 +43,6 @@ export type {
 export type { UseFormForgeWizardOptions } from './useFormForgeWizard'
 export type {
   UseFormForgeBuilderOptions,
-  FormForgeBuilderDraft
+  FormForgeBuilderDraft,
+  FormForgeBuilderExpose
 } from './useFormForgeBuilder'

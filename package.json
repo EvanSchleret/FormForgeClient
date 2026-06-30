@@ -30,32 +30,36 @@
   "scripts": {
     "build": "nuxt-module-build build",
     "dev": "nuxt-module-build build --stub",
+    "playground": "nuxt dev playground",
     "lint": "eslint .",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
-    "@nuxt/ui": "^4.6.0",
-    "nuxt": "^4.0.0"
+    "@nuxt/ui": "^4.9.0",
+    "nuxt": "^4.4.8"
   },
   "dependencies": {
-    "@internationalized/date": "^3.10.0",
+    "@internationalized/date": "^3.12.2",
+    "tailwindcss": "^4.3.1",
     "vuedraggable": "^4.1.0",
-    "zod": "^4.0.0"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@nuxt/kit": "^4.0.0",
+    "@nuxt/kit": "^4.4.8",
     "@nuxt/module-builder": "^1.0.2",
-    "@types/node": "^25.5.2",
-    "eslint": "^10.2.0",
-    "eslint-plugin-vue": "^10.8.0",
-    "typescript": "^6.0.2",
-    "typescript-eslint": "^8.57.1",
-    "vitest": "^4.1.3",
-    "vue-eslint-parser": "^10.4.0",
-    "vue-tsc": "^3.0.0"
+    "@nuxt/ui": "^4.9.0",
+    "@types/node": "^25.9.3",
+    "eslint": "^10.5.0",
+    "eslint-plugin-vue": "^10.9.2",
+    "nuxt": "^4.4.8",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.1",
+    "vitest": "^4.1.9",
+    "vue-eslint-parser": "^10.4.1",
+    "vue-tsc": "^3.3.5"
   },
   "publishConfig": {
     "access": "public",

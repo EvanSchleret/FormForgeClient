@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## v2.0.0 - 2026-06-30
+
+### v2.0.0
+
+#### Added
+
+- Rebuilt the default builder and renderer around normalized schema, page, and field primitives
+- Added richer schema normalization helpers for pages, fields, options, temporal values, and address defaults
+- Expanded public runtime and type exports for builder, renderer, management, and validation consumers
+
+#### Changed
+
+- External payload hydration and sanitation now flow through one schema-aware pipeline
+- Builder and renderer share the same normalized schema shape, validation rules, and default handling
+- Alias resolution remains stable for `name` and `field_key` when consumers provide external `modelValue` payloads
+
+#### Tests
+
+- Added coverage for schema normalization, page logic, rich text helpers, validation helpers, and Zod generation
+
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v1.2.3...v2.0.0
+
 ## v1.2.3 - 2026-05-28
 
 ### v1.2.3
@@ -52,10 +74,6 @@ The format is based on Keep a Changelog.
 **Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v1.2.0...v1.2.1
 
 ## Unreleased
-
-- `FormForgeRenderer` now sanitizes and hydrates external `modelValue` payloads using both field `name` and `field_key` aliases.
-- Mixed payloads now resolve to one canonical field entry with `name` priority over `field_key`.
-- Unknown payload keys are still removed during sanitation.
 
 ## v1.2.0 - 2026-05-28
 

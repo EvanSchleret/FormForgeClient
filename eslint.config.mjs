@@ -5,7 +5,7 @@ import vueParser from 'vue-eslint-parser'
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'node_modules/**', '.nuxt/**', '.output/**', 'coverage/**']
+    ignores: ['dist/**', 'node_modules/**', '.nuxt/**', '.output/**', 'coverage/**', 'playground/.nuxt/**', 'playground/.output/**']
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
