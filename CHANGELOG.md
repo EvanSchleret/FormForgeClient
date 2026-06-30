@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## v2.0.0 - 2026-06-30
+
+### v2.0.0
+
+We are thrilled to announce FormForge v2.0.0, a major release that brings a more reliable, schema-driven foundation to exports, imports, and form resolution.
+
+##### Added
+
+- Introduced a schema-driven exportable field model for stable CSV template generation, import mapping, and column validation
+- Added explicit flattening for composite fields, with `address` expanded into exportable leaf fields
+- Added public form resolution by `form_uuid`, with deterministic latest-version selection across backend and scoped managers
+- Expanded runtime APIs and type exports to make the new schema and submission primitives reusable by downstream consumers
+
+##### Changed
+
+- Export, import, and validation now share one schema-aware source of truth instead of relying on field-to-column assumptions
+- Builder and renderer now operate on the same normalized schema shape, keeping defaults, validation, and payload hydration aligned
+- External payload alias resolution remains stable for both `name` and `field_key`
+
+##### Tests
+
+- Added coverage for simple fields, composite fields, `address` expansion, header validation, latest-by-uuid resolution, and Zod/schema normalization
+
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v1.2.4...v2.0.0
+
 ## v1.2.4 - 2026-06-05
 
 ### v1.2.4
