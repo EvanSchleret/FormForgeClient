@@ -69,17 +69,34 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+      - name: Resolve release version
+        id: release_version
+        run: |
+          VERSION=$(node -e "const fs = require('node:fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); const parts = pkg.version.split('.').map(Number); const releaseType = process.env.RELEASE_TYPE; const next = releaseType === 'major' ? [parts[0] + 1, 0, 0] : releaseType === 'minor' ? [parts[0], parts[1] + 1, 0] : [parts[0], parts[1], parts[2] + 1]; process.stdout.write(next.join('.'))")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            echo "already_released=true" >> "$GITHUB_OUTPUT"
+            echo "Tag v$VERSION already exists. Skipping release."
+          fi
+        env:
+          RELEASE_TYPE: ${{ inputs.release_type }}
+
       - name: Bump version
+        if: steps.release_version.outputs.already_released != 'true'
         run: |
           npm version ${{ inputs.release_type }} -m "chore(release): %s"
 
       - name: Push commit and tag
+        if: steps.release_version.outputs.already_released != 'true'
         run: |
           git push origin HEAD
           git push origin --tags
 
       - name: Build package
+        if: steps.release_version.outputs.already_released != 'true'
         run: bun run build
 
       - name: Publish package
+        if: steps.release_version.outputs.already_released != 'true'
         run: npm publish --provenance
