@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## v2.0.1 - 2026-07-01
+
+### What's Changed
+
+* fix(lang): add missing lang keys by @EvanSchleret in https://github.com/EvanSchleret/FormForgeClient/pull/16
+* chore: update deps by @EvanSchleret in https://github.com/EvanSchleret/FormForgeClient/pull/17
+
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v2.0.0...v2.0.1
+
 ## v2.0.0 - 2026-06-30
 
 ### v2.0.0
