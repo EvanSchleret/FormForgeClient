@@ -524,7 +524,7 @@ const submissionIsPublic = computed<boolean>({
 const builderTabs = computed<Array<{ label: string, icon: string, slot: 'builder' | 'settings' }>>(() => {
   const items: Array<{ label: string, icon: string, slot: 'builder' | 'settings' }> = [
     {
-      label: 'Builder',
+      label: t('builder.tabs.builder'),
       icon: 'i-lucide-layout-grid',
       slot: 'builder'
     }
@@ -532,7 +532,7 @@ const builderTabs = computed<Array<{ label: string, icon: string, slot: 'builder
 
   if (!settingsHidden.value) {
     items.push({
-      label: 'Settings',
+      label: t('builder.tabs.settings'),
       icon: 'i-lucide-settings-2',
       slot: 'settings'
     })
@@ -1181,10 +1181,10 @@ defineExpose(builderExpose)
                 <template #header>
                   <div class="space-y-1">
                     <p class="text-sm font-semibold text-default">
-                      Settings
+                      {{ t('builder.settings.title') }}
                     </p>
                     <p class="text-sm text-muted">
-                      Configure the lifecycle, access, and publication settings for this form.
+                      {{ t('builder.settings.description') }}
                     </p>
                   </div>
                 </template>
@@ -1198,7 +1198,7 @@ defineExpose(builderExpose)
                       v-if="!disableTitleInput"
                       v-model="draftTitle"
                       :disabled="readonly"
-                      placeholder="Form title"
+                      :placeholder="t('builder.settings.formTitlePlaceholder')"
                       :ui="{ base: 'w-full' }"
                     />
                     <div
@@ -1209,7 +1209,7 @@ defineExpose(builderExpose)
                         v-model="draftCategorySelectValue"
                         :items="categorySelectItems"
                         :disabled="readonly"
-                        placeholder="Category"
+                        :placeholder="t('builder.settings.categoryPlaceholder')"
                         :ui="{
                           base: 'w-full'
                         }"
@@ -1230,10 +1230,10 @@ defineExpose(builderExpose)
                     <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
                       <div class="space-y-1">
                         <p class="text-sm font-semibold text-default">
-                          Survey opening
+                          {{ t('builder.settings.opening.title') }}
                         </p>
                         <p class="text-sm text-muted">
-                          Choose when the form becomes available.
+                          {{ t('builder.settings.opening.description') }}
                         </p>
                       </div>
                       <USwitch
@@ -1246,14 +1246,14 @@ defineExpose(builderExpose)
                       v-if="openingEnabled"
                       class="grid gap-4 sm:grid-cols-2"
                     >
-                      <UFormField label="Opening date">
+                      <UFormField :label="t('builder.settings.opening.date')">
                         <UInputDate
                           v-model="publishAtDate"
                           :disabled="readonly"
                           :ui="{ base: 'w-full' }"
                         />
                       </UFormField>
-                      <UFormField label="Opening time">
+                      <UFormField :label="t('builder.settings.opening.time')">
                         <UInputTime
                           v-model="publishAtTime"
                           :disabled="readonly"
@@ -1268,10 +1268,10 @@ defineExpose(builderExpose)
                     <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
                       <div class="space-y-1">
                         <p class="text-sm font-semibold text-default">
-                          Survey closing
+                          {{ t('builder.settings.closing.title') }}
                         </p>
                         <p class="text-sm text-muted">
-                          Choose when the form stops accepting responses.
+                          {{ t('builder.settings.closing.description') }}
                         </p>
                       </div>
                       <USwitch
@@ -1284,14 +1284,14 @@ defineExpose(builderExpose)
                       v-if="closingEnabled"
                       class="grid gap-4 sm:grid-cols-2"
                     >
-                      <UFormField label="Closing date">
+                      <UFormField :label="t('builder.settings.closing.date')">
                         <UInputDate
                           v-model="pauseAtDate"
                           :disabled="readonly"
                           :ui="{ base: 'w-full' }"
                         />
                       </UFormField>
-                      <UFormField label="Closing time">
+                      <UFormField :label="t('builder.settings.closing.time')">
                         <UInputTime
                           v-model="pauseAtTime"
                           :disabled="readonly"
@@ -1306,10 +1306,10 @@ defineExpose(builderExpose)
                     <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
                       <div class="space-y-1">
                         <p class="text-sm font-semibold text-default">
-                          Submission limit
+                          {{ t('builder.settings.submissionLimit.title') }}
                         </p>
                         <p class="text-sm text-muted">
-                          The form closes automatically after this many responses.
+                          {{ t('builder.settings.submissionLimit.description') }}
                         </p>
                       </div>
                       <USwitch
@@ -1320,7 +1320,7 @@ defineExpose(builderExpose)
 
                     <UFormField
                       v-if="responseLimitEnabled"
-                      label="Maximum responses"
+                      :label="t('builder.settings.submissionLimit.maximumResponses')"
                     >
                       <UInputNumber
                         v-model="responseLimitValue"
@@ -1334,10 +1334,10 @@ defineExpose(builderExpose)
                   <div class="grid gap-6">
                     <div class="space-y-1">
                       <p class="text-sm font-semibold text-default">
-                        Access
+                        {{ t('builder.settings.access.title') }}
                       </p>
                       <p class="text-sm text-muted">
-                        Control who can submit the form and whether a PIN is required.
+                        {{ t('builder.settings.access.description') }}
                       </p>
                     </div>
 
@@ -1345,10 +1345,10 @@ defineExpose(builderExpose)
                       <div class="flex items-start justify-between gap-4">
                         <div class="space-y-1">
                           <p class="text-sm font-medium text-default">
-                            Public form
+                            {{ t('builder.settings.access.publicForm.title') }}
                           </p>
                           <p class="text-sm text-muted">
-                            Allow anyone with the link to submit responses.
+                            {{ t('builder.settings.access.publicForm.description') }}
                           </p>
                         </div>
                         <USwitch
@@ -1358,11 +1358,11 @@ defineExpose(builderExpose)
                       </div>
 
                       <div v-if="submissionIsPublic">
-                        <UFormField label="Public link">
+                        <UFormField :label="t('builder.settings.access.publicLink')">
                           <UInput
                             :model-value="publicUrlValue"
                             disabled
-                            placeholder="Save the form to generate a link"
+                            :placeholder="t('builder.settings.access.publicLinkPlaceholder')"
                             :ui="{ base: 'w-full' }"
                           />
                         </UFormField>
@@ -1371,10 +1371,10 @@ defineExpose(builderExpose)
                       <div class="flex items-start justify-between gap-4 border-t border-muted pt-4">
                         <div class="space-y-1">
                           <p class="text-sm font-medium text-default">
-                            PIN protection
+                            {{ t('builder.settings.access.pinProtection.title') }}
                           </p>
                           <p class="text-sm text-muted">
-                            Require a PIN before the form can be submitted.
+                            {{ t('builder.settings.access.pinProtection.description') }}
                           </p>
                         </div>
                         <USwitch
@@ -1384,12 +1384,12 @@ defineExpose(builderExpose)
                       </div>
 
                       <div v-if="submissionPinEnabled">
-                        <UFormField label="PIN">
+                        <UFormField :label="t('builder.settings.access.pin')">
                           <UInput
                             v-model="submissionPinValue"
                             :disabled="readonly"
                             type="password"
-                            placeholder="Enter PIN"
+                            :placeholder="t('builder.settings.access.pinPlaceholder')"
                             :ui="{ base: 'w-full' }"
                           />
                         </UFormField>
