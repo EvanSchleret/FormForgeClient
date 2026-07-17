@@ -1,6 +1,6 @@
 {
   "name": "@evanschleret/formforgeclient",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Nuxt module and runtime client for FormForge",
   "license": "MIT",
   "type": "module",
