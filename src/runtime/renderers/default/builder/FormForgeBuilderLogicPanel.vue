@@ -12,7 +12,7 @@ import {
   createPageLogicThen,
   ensurePageLogic,
   findFieldByKey,
-  getFuturePageQuestions,
+  getCurrentAndFuturePageQuestions,
   isChoiceFieldType,
   isConsentFieldType,
   pageLogicOperatorRequiresValue,
@@ -54,8 +54,8 @@ function fieldItems(): Array<{ label: string, value: string }> {
   }))
 }
 
-function futureQuestionItems(): Array<{ label: string, value: string }> {
-  return getFuturePageQuestions(props.pages, props.pageIndex).map((field) => ({
+function requiredQuestionItems(): Array<{ label: string, value: string }> {
+  return getCurrentAndFuturePageQuestions(props.pages, props.pageIndex).map((field) => ({
     label: field.label === undefined || field.label === '' ? field.field_key : field.label,
     value: field.field_key
   }))
@@ -192,7 +192,7 @@ function setThenAction(rule: FormForgePageLogicRule, thenIndex: number, action: 
 }
 
 function thenTargetItems(action: 'require' | 'goto_block'): Array<{ label: string, value: string | number }> {
-  return action === 'require' ? futureQuestionItems() : futureBlockItems()
+  return action === 'require' ? requiredQuestionItems() : futureBlockItems()
 }
 
 function thenTargetPlaceholder(action: 'require' | 'goto_block'): string {
@@ -220,7 +220,7 @@ function usedRequiredFieldKeys(rule: FormForgePageLogicRule, excludeIndex: numbe
 function availableThenQuestionItems(rule: FormForgePageLogicRule, thenIndex: number): Array<{ label: string, value: string }> {
   const usedKeys = usedRequiredFieldKeys(rule, thenIndex)
 
-  return futureQuestionItems().filter((item) => !usedKeys.has(item.value))
+  return requiredQuestionItems().filter((item) => !usedKeys.has(item.value))
 }
 
 function addLogicClause(rule: FormForgePageLogicRule): void {

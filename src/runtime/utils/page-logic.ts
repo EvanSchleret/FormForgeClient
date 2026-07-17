@@ -237,6 +237,21 @@ export function getFuturePageQuestions(pages: FormForgePageSchema[], pageIndex: 
   return fields
 }
 
+export function getCurrentAndFuturePageQuestions(pages: FormForgePageSchema[], pageIndex: number): FormForgeFieldSchema[] {
+  const fields: FormForgeFieldSchema[] = []
+
+  for (let index = pageIndex; index < pages.length; index += 1) {
+    const page = pages[index]
+    if (!page || !Array.isArray(page.fields)) {
+      continue
+    }
+
+    fields.push(...page.fields)
+  }
+
+  return fields
+}
+
 export function findFieldByKey(page: FormForgePageSchema, fieldKey: string): FormForgeFieldSchema | undefined {
   return Array.isArray(page.fields) ? page.fields.find((field) => field.field_key === fieldKey) : undefined
 }
