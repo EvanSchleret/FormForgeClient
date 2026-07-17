@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { evaluatePageLogicRule, getCurrentAndFuturePageQuestions, normalizePageLogic, pageLogicOperatorRequiresValue, pageLogicOperatorsForFieldType } from '../src/runtime/utils/page-logic'
+import { evaluatePageLogicRule, getCurrentAndFuturePageQuestions, normalizePageLogic, pageLogicOperatorRequiresValue, pageLogicOperatorsForFieldType, resolvePageLogicOperator } from '../src/runtime/utils/page-logic'
 import type { FormForgePageSchema } from '../src/runtime/types'
 
 describe('page logic', () => {
@@ -50,6 +50,21 @@ describe('page logic', () => {
       version: 1,
       rules: []
     })
+  })
+
+  it('does not expose an operator before a field is selected', () => {
+    expect(resolvePageLogicOperator(undefined, 'eq')).toBeUndefined()
+    expect(resolvePageLogicOperator({
+      field_key: 'field_1',
+      type: 'text',
+      name: 'field_1',
+      page_key: 'page_1',
+      required: false,
+      nullable: false,
+      default: null,
+      rules: [],
+      meta: {}
+    }, 'eq')).toBe('eq')
   })
 
   it('evaluates block clauses against page questions', () => {

@@ -66,6 +66,22 @@ export function pageLogicOperatorsForFieldType(type: FormForgeFieldType): FormFo
   return TEXT_OPERATORS
 }
 
+export function resolvePageLogicOperator(
+  field: FormForgeFieldSchema | undefined,
+  operator: string
+): FormForgePageLogicOperator | undefined {
+  if (field === undefined) {
+    return undefined
+  }
+
+  const operators = pageLogicOperatorsForFieldType(field.type)
+  if (operators.includes(operator as FormForgePageLogicOperator)) {
+    return operator as FormForgePageLogicOperator
+  }
+
+  return operators[0]
+}
+
 export function pageLogicOperatorRequiresValue(type: FormForgeFieldType, operator: FormForgePageLogicOperator): boolean {
   if (type === 'address') {
     return false

@@ -16,7 +16,8 @@ import {
   isChoiceFieldType,
   isConsentFieldType,
   pageLogicOperatorRequiresValue,
-  pageLogicOperatorsForFieldType
+  pageLogicOperatorsForFieldType,
+  resolvePageLogicOperator
 } from '../../../utils/page-logic'
 
 interface Props {
@@ -83,15 +84,8 @@ function logicRuleOperatorItems(field: FormForgeFieldSchema | undefined): Array<
   }))
 }
 
-function logicClauseOperator(field: FormForgeFieldSchema | undefined, operator: string): FormForgePageLogicOperator {
-  const items = logicRuleOperatorItems(field)
-  const available = new Set(items.map((item) => item.value))
-
-  if (available.has(operator)) {
-    return operator as FormForgePageLogicOperator
-  }
-
-  return (items[0]?.value ?? operator) as FormForgePageLogicOperator
+function logicClauseOperator(field: FormForgeFieldSchema | undefined, operator: string): FormForgePageLogicOperator | undefined {
+  return resolvePageLogicOperator(field, operator)
 }
 
 function defaultLogicOperatorForField(field: FormForgeFieldSchema | undefined): FormForgePageLogicOperator {
@@ -306,7 +300,8 @@ function removeLogicClause(rule: FormForgePageLogicRule, clauseIndex: number): v
           <USelect
             :model-value="logicClauseOperator(findFieldByKey(props.page, clause.field_key), clause.operator)"
             :items="logicRuleOperatorItems(findFieldByKey(props.page, clause.field_key))"
-            :disabled="readonly"
+            :disabled="readonly || findFieldByKey(props.page, clause.field_key) === undefined"
+            :placeholder="t('builder.logic.operatorPlaceholder')"
             @update:model-value="(value: string) => {
               clause.operator = value as FormForgePageLogicClause['operator']
               if (!logicClauseRequiresValue(clause)) {
