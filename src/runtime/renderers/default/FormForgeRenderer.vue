@@ -21,6 +21,7 @@ import { isFormForgeJsonObject } from '../../utils/object'
 import { createDefaultAddressFields } from '../../utils/defaults'
 import { resolveTemporalMode } from '../../utils/temporal'
 import { sanitizePayloadWithSchema } from '../../utils/renderer-payload'
+import { resolveFormForgeSubmitVisibility } from '../../utils/submit-visibility'
 import { useFormForgeForm } from '../../composables/useFormForgeForm'
 import { useFormForgeI18n } from '../../composables/useFormForgeI18n'
 import { useFormForgeSubmit } from '../../composables/useFormForgeSubmit'
@@ -132,7 +133,7 @@ const props = withDefaults(defineProps<Props>(), {
   endpoint: undefined,
   clientConfig: undefined,
   submitLabel: undefined,
-  showSubmit: true,
+  showSubmit: undefined,
   simulation: false,
   uploadMode: undefined,
   clearAfterSubmit: false,
@@ -206,6 +207,10 @@ function unwrapZodSchemaProp(value: Props['zodSchema']): object | undefined {
 
 const usesExternalModel = computed<boolean>(() => {
   return props.modelValue !== undefined
+})
+
+const shouldShowSubmit = computed<boolean>(() => {
+  return resolveFormForgeSubmitVisibility(props.showSubmit, usesExternalModel.value)
 })
 
 const usesExternalSchema = computed<boolean>(() => {
@@ -1775,7 +1780,7 @@ async function onSubmit(): Promise<void> {
         </UButton>
 
         <UButton
-          v-else-if="showSubmit"
+          v-else-if="shouldShowSubmit"
           type="submit"
           :loading="internalSubmit.submitting.value"
           :disabled="internalForm.loading.value || getResolvedSchema() === null || availabilityAlert !== null || (requiresSubmissionCode && submissionCode.trim() === '')"
@@ -1785,7 +1790,7 @@ async function onSubmit(): Promise<void> {
       </div>
 
       <div
-        v-else-if="showSubmit"
+        v-else-if="shouldShowSubmit"
         class="flex justify-end"
       >
         <UButton
