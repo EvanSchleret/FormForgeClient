@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## v2.0.3 - 2026-07-17
+
+### ✨ Highlights
+
+#### 🧩 Safer field type changes
+
+`FormForgeBuilder` now resets type-specific field state when changing types, preventing stale validation rules and incompatible properties from being carried over.
+
+#### 🧱 Add new blocks from the builder
+
+The builder now includes an **Add page** action in both layouts. New blocks are created with their first question and automatically selected for editing.
+
+### 🚀 Features
+
+- **Builder**: add new blocks/pages directly from the form editor (`a126109`)
+
+### 🐛 Bug Fixes
+
+- **Renderer**: hide the submit button by default when using `v-model` (`1435cb5`)
+- **Builder**: reset field-specific properties when changing field types (`d32cab3`)
+
+### ❤️ Contributors
+
+- @EvanSchleret
+
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v2.0.2...v2.0.3
+
 ## v2.0.2 - 2026-07-17
 
 ### v2.0.2
