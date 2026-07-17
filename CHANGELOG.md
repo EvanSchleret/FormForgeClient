@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## v2.0.2 - 2026-07-17
+
+### v2.0.2
+
+#### ✨ Highlights
+
+##### 🧩 Automatic `v-model` mode detection
+
+`FormForgeRenderer` now automatically hides the submit button when used with `v-model`. The button can still be explicitly re-enabled with `:show-submit="true"`.
+
+#### 🐛 Bug Fixes
+
+- **Renderer**: hide the submit button by default with `v-model` while preserving the default behavior without an external model (`1435cb5`)
+
+#### ❤️ Contributors
+
+- @EvanSchleret
+
+Full Changelog: [[v2.0.1...v2.0.2](https://github.com/EvanSchleret/FormForgeClient/compare/v2.0.1...v2.0.2)](https://github.com/EvanSchleret/FormForgeClient/compare/v2.0.1...v2.0.2)
+
 ## v2.0.1 - 2026-07-01
 
 ### What's Changed
