@@ -274,13 +274,15 @@ function removeLogicClause(rule: FormForgePageLogicRule, clauseIndex: number): v
             :items="logicMatchItems()"
             :disabled="readonly"
           />
-          <UButton
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-trash-2"
-            :disabled="readonly"
-            @click="logic.rules = logic.rules.filter((candidate: FormForgePageLogicRule) => candidate.rule_key !== rule.rule_key)"
-          />
+          <UTooltip :text="t('builder.logic.deleteRule')">
+            <UButton
+              color="error"
+              variant="ghost"
+              icon="i-lucide-trash-2"
+              :disabled="readonly"
+              @click="logic.rules = logic.rules.filter((candidate: FormForgePageLogicRule) => candidate.rule_key !== rule.rule_key)"
+            />
+          </UTooltip>
         </div>
       </div>
 
@@ -335,14 +337,15 @@ function removeLogicClause(rule: FormForgePageLogicRule, clauseIndex: number): v
           />
           <div v-else />
 
-          <UButton
-            color="neutral"
-            variant="soft"
-            :disabled="readonly || rule.when.length <= 1"
-            @click="removeLogicClause(rule, clauseIndex)"
-          >
-            {{ t('builder.remove') }}
-          </UButton>
+          <UTooltip :text="t('builder.logic.deleteClause')">
+            <UButton
+              color="error"
+              variant="ghost"
+              icon="i-lucide-trash-2"
+              :disabled="readonly || rule.when.length <= 1"
+              @click="removeLogicClause(rule, clauseIndex)"
+            />
+          </UTooltip>
         </div>
       </div>
 
@@ -392,14 +395,15 @@ function removeLogicClause(rule: FormForgePageLogicRule, clauseIndex: number): v
               :disabled="readonly"
               :placeholder="thenTargetPlaceholder('goto_block')"
             />
-            <UButton
-              color="neutral"
-              variant="soft"
-              :disabled="readonly || rule.then.length <= 1"
-              @click="removeThenAction(rule, thenIndex)"
-            >
-              {{ t('builder.remove') }}
-            </UButton>
+            <UTooltip :text="t('builder.logic.deleteAction')">
+              <UButton
+                color="error"
+                variant="ghost"
+                icon="i-lucide-trash-2"
+                :disabled="readonly || rule.then.length <= 1"
+                @click="removeThenAction(rule, thenIndex)"
+              />
+            </UTooltip>
           </div>
         </div>
         <div class="flex flex-wrap gap-2">
