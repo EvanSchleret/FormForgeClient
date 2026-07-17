@@ -11,16 +11,13 @@ import {
 } from '../../composables/useFormForgeBuilder'
 import { useFormForgeCategory, useFormForgeCategoryOptions } from '../../composables/useFormForgeCategory'
 import { useFormForgeI18n } from '../../composables/useFormForgeI18n'
-import {
-  createDefaultAddressFields,
-  resolveDefaultConsentLabel
-} from '../../utils/defaults'
+import { normalizeFormForgeFieldTypeChange } from '../../utils/field-type'
 import type {
   FormForgeBuilderDraft,
   FormForgeBuilderExpose,
   UseFormForgeBuilderOptions
 } from '../../composables/useFormForgeBuilder'
-import type { FormForgeFieldOption, FormForgeFieldSchema, FormForgeFieldType, FormForgeFormSchema, FormForgePageSchema } from '../../types'
+import type { FormForgeFieldSchema, FormForgeFieldType, FormForgeFormSchema, FormForgePageSchema } from '../../types'
 import type { FormForgeCategory, FormForgeCategorySelectOption } from '../../types'
 import {
   ensurePageLogic,
@@ -569,17 +566,6 @@ const fieldTypeItems = computed(() => FORM_FORGE_BUILDER_FIELD_TYPES.map((type) 
   icon: fieldTypeMeta.value[type].icon
 })))
 
-function isChoiceFieldType(type: FormForgeFieldType): boolean {
-  return type === 'radio' || type === 'checkbox_group'
-}
-
-function createChoiceOption(index: number): FormForgeFieldOption {
-  return {
-    label: '',
-    value: `option_${index + 1}`
-  }
-}
-
 function normalizeLoadedPageLogic(pages: FormForgePageSchema[]): void {
   if (!Array.isArray(pages)) {
     return
@@ -757,60 +743,20 @@ function addField(pageKey: string, type: FormForgeFieldType): void {
   }
 }
 
+function addPage(type: FormForgeFieldType = 'text'): void {
+  const page = builder.addPage(type)
+  const firstField = page.fields[0]
+
+  selectedPageKey.value = page.page_key
+  selectedFieldKey.value = firstField?.field_key ?? null
+}
+
 function onFieldTypeChange(field: FormForgeFieldSchema, nextType: FormForgeFieldType): void {
-  field.type = nextType
-
-  if (isChoiceFieldType(nextType)) {
-    if (!Array.isArray(field.options) || field.options.length === 0) {
-      field.options = nextType === 'checkbox_group'
-        ? [createChoiceOption(0), createChoiceOption(1), createChoiceOption(2)]
-        : [createChoiceOption(0), createChoiceOption(1)]
-    } else if (field.options.length < (nextType === 'checkbox_group' ? 2 : 1)) {
-      const minimumOptionCount = nextType === 'checkbox_group' ? 2 : 1
-      const nextOptions = [...field.options]
-
-      for (let index = nextOptions.length; index < minimumOptionCount; index += 1) {
-        nextOptions.push(createChoiceOption(index))
-      }
-
-      field.options = nextOptions
-    }
-
-    field.display = nextType === 'radio' || nextType === 'checkbox_group'
-      ? 'list'
-      : 'menu'
-  } else {
-    field.options = undefined
-    field.display = undefined
+  if (field.type === nextType) {
+    return
   }
 
-  if (nextType === 'file') {
-    field.multiple = false
-    if (!('accept' in field)) {
-      Object.assign(field, {
-        accept: []
-      })
-    }
-  }
-
-  if (nextType === 'consent' && typeof field.consent_label !== 'string') {
-    field.consent_label = resolveDefaultConsentLabel(locale.value)
-  }
-
-  if (nextType === 'address') {
-    if (!Array.isArray(field.address_fields) || field.address_fields.length === 0) {
-      field.address_fields = createDefaultAddressFields(locale.value)
-    }
-
-    field.default = {
-      line1: null,
-      line2: null,
-      city: null,
-      state: null,
-      zip: null,
-      country: null
-    }
-  }
+  normalizeFormForgeFieldTypeChange(field, nextType, locale.value)
 }
 
 async function save(): Promise<void> {
@@ -1173,6 +1119,26 @@ defineExpose(builderExpose)
                     />
                   </template>
                 </Draggable>
+
+                <div class="flex flex-col items-center justify-between gap-3 rounded-lg border border-dashed border-muted p-4 sm:flex-row">
+                  <div class="space-y-1">
+                    <p class="text-sm font-semibold text-default">
+                      {{ t('builder.block.addNewBlock') }}
+                    </p>
+                    <p class="text-sm text-muted">
+                      {{ t('builder.block.addNewBlockDescription') }}
+                    </p>
+                  </div>
+                  <UButton
+                    color="neutral"
+                    variant="soft"
+                    icon="i-lucide-plus"
+                    :disabled="readonly"
+                    @click="addPage()"
+                  >
+                    {{ t('builder.rail.addPage') }}
+                  </UButton>
+                </div>
               </div>
             </template>
 
@@ -1467,6 +1433,26 @@ defineExpose(builderExpose)
               />
             </template>
           </Draggable>
+
+          <div class="flex flex-col items-center justify-between gap-3 rounded-lg border border-dashed border-muted p-4 sm:flex-row">
+            <div class="space-y-1">
+              <p class="text-sm font-semibold text-default">
+                {{ t('builder.block.addNewBlock') }}
+              </p>
+              <p class="text-sm text-muted">
+                {{ t('builder.block.addNewBlockDescription') }}
+              </p>
+            </div>
+            <UButton
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-plus"
+              :disabled="readonly"
+              @click="addPage()"
+            >
+              {{ t('builder.rail.addPage') }}
+            </UButton>
+          </div>
         </div>
       </div>
     </div>
