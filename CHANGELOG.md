@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## v2.1.0 - 2026-07-17
+
+### ✨ Highlights
+
+#### 🧩 Clearer conditional logic
+
+Conditional rules now support requiring questions in the current block, use clearer labels, provide more consistent deletion controls, and handle empty operators correctly.
+
+#### 🏠 Readable address responses
+
+Address answers are now displayed as readable, comma-separated values instead of raw JSON.
+
+### 🐛 Bug Fixes
+
+- **Conditional logic**: allow requiring questions in the current block (`9725d05`)
+- **Conditional logic**: clarify deletion controls (`ebe78c6`)
+- **Conditional logic**: clarify conditional rule labels (`8090efb`)
+- **Conditional logic**: handle empty condition operators correctly (`4f3073c`)
+- **Responses**: format address answers as readable text (`1a895b6`)
+
+### ❤️ Contributors
+
+- @EvanSchleret
+
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v2.0.3...v2.1.0
+
 ## v2.0.3 - 2026-07-17
 
 ### ✨ Highlights
