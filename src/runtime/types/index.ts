@@ -94,3 +94,4 @@ export type {
   FormForgeDiffResponse
 } from './management'
 export type { FormForgeJsonObject, FormForgeJsonPrimitive, FormForgeJsonValue } from './json'
+export type { FormForgeRendererPagination } from './renderer'

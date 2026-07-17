@@ -12,6 +12,7 @@ import type {
   FormForgeFieldSchema,
   FormForgeFormSchema,
   FormForgePageSchema,
+  FormForgeRendererPagination,
   FormForgeTemporalMode,
   FormForgeSubmissionPayload,
   FormForgeSubmissionResponse,
@@ -22,6 +23,11 @@ import { createDefaultAddressFields } from '../../utils/defaults'
 import { resolveTemporalMode } from '../../utils/temporal'
 import { sanitizePayloadWithSchema } from '../../utils/renderer-payload'
 import { resolveFormForgeSubmitVisibility } from '../../utils/submit-visibility'
+import {
+  resolveFormForgeRenderedPages,
+  shouldShowFormForgeNavigation,
+  shouldShowFormForgeProgress
+} from '../../utils/renderer-pagination'
 import { useFormForgeForm } from '../../composables/useFormForgeForm'
 import { useFormForgeI18n } from '../../composables/useFormForgeI18n'
 import { useFormForgeSubmit } from '../../composables/useFormForgeSubmit'
@@ -115,6 +121,7 @@ interface Props {
   uploadMode?: FormForgeUploadMode
   clearAfterSubmit?: boolean
   showProgress?: boolean
+  pagination?: FormForgeRendererPagination
   showAlertOnError?: boolean
   validateOn?: FormForgeValidateEvent[]
   validateOnBlur?: boolean
@@ -138,6 +145,7 @@ const props = withDefaults(defineProps<Props>(), {
   uploadMode: undefined,
   clearAfterSubmit: false,
   showProgress: false,
+  pagination: 'auto',
   showAlertOnError: false,
   validateOn: undefined,
   validateOnBlur: undefined,
@@ -928,7 +936,13 @@ const activePageIndex = computed<number>(() => {
 })
 
 const shouldShowProgress = computed<boolean>(() => {
-  return props.showProgress && visiblePages.value.length > 1 && (!isPreviewMode.value || props.simulation)
+  return shouldShowFormForgeProgress(
+    props.pagination,
+    props.showProgress,
+    visiblePages.value.length,
+    isPreviewMode.value,
+    props.simulation
+  )
 })
 
 const currentVisiblePage = computed<FormForgePageSchema | null>(() => {
@@ -949,7 +963,12 @@ const progressValue = computed<number>(() => {
 })
 
 const shouldShowNavigation = computed<boolean>(() => {
-  return visiblePages.value.length > 1 && (!isPreviewMode.value || props.simulation)
+  return shouldShowFormForgeNavigation(
+    props.pagination,
+    visiblePages.value.length,
+    isPreviewMode.value,
+    props.simulation
+  )
 })
 
 function resolveNextPageKey(): string | null {
@@ -1007,11 +1026,11 @@ const renderedPages = computed<FormForgePageSchema[]>(() => {
     return [previewPage.value]
   }
 
-  if (currentVisiblePage.value === null) {
-    return []
-  }
-
-  return [currentVisiblePage.value]
+  return resolveFormForgeRenderedPages(
+    props.pagination,
+    visiblePages.value,
+    currentVisiblePage.value
+  )
 })
 
 const canGoPrev = computed<boolean>(() => {
