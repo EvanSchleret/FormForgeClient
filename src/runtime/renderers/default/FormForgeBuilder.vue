@@ -1119,6 +1119,26 @@ defineExpose(builderExpose)
                     />
                   </template>
                 </Draggable>
+
+                <div class="flex flex-col items-center justify-between gap-3 rounded-lg border border-dashed border-muted p-4 sm:flex-row">
+                  <div class="space-y-1">
+                    <p class="text-sm font-semibold text-default">
+                      {{ t('builder.block.addNewBlock') }}
+                    </p>
+                    <p class="text-sm text-muted">
+                      {{ t('builder.block.addNewBlockDescription') }}
+                    </p>
+                  </div>
+                  <UButton
+                    color="neutral"
+                    variant="soft"
+                    icon="i-lucide-plus"
+                    :disabled="readonly"
+                    @click="addPage()"
+                  >
+                    {{ t('builder.rail.addPage') }}
+                  </UButton>
+                </div>
               </div>
             </template>
 
@@ -1413,6 +1433,26 @@ defineExpose(builderExpose)
               />
             </template>
           </Draggable>
+
+          <div class="flex flex-col items-center justify-between gap-3 rounded-lg border border-dashed border-muted p-4 sm:flex-row">
+            <div class="space-y-1">
+              <p class="text-sm font-semibold text-default">
+                {{ t('builder.block.addNewBlock') }}
+              </p>
+              <p class="text-sm text-muted">
+                {{ t('builder.block.addNewBlockDescription') }}
+              </p>
+            </div>
+            <UButton
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-plus"
+              :disabled="readonly"
+              @click="addPage()"
+            >
+              {{ t('builder.rail.addPage') }}
+            </UButton>
+          </div>
         </div>
       </div>
     </div>

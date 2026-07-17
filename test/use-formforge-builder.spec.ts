@@ -82,4 +82,18 @@ describe('useFormForgeBuilder', () => {
       { key: 'country', label: 'Pays', visible: true, required: true }
     ])
   })
+
+  it('adds a new block with its first question', async () => {
+    const { useFormForgeBuilder } = await import('../src/runtime/composables/useFormForgeBuilder')
+
+    const builder = useFormForgeBuilder()
+    const initialPageCount = builder.draft.value.pages.length
+
+    const page = builder.addPage('address')
+
+    expect(builder.draft.value.pages).toHaveLength(initialPageCount + 1)
+    expect(page.fields).toHaveLength(1)
+    expect(page.fields[0]?.type).toBe('address')
+    expect(page.fields[0]?.page_key).toBe(page.page_key)
+  })
 })
