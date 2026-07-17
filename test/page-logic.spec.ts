@@ -1,13 +1,70 @@
 import { describe, expect, it } from 'vitest'
-import { evaluatePageLogicRule, normalizePageLogic, pageLogicOperatorRequiresValue, pageLogicOperatorsForFieldType } from '../src/runtime/utils/page-logic'
+import { evaluatePageLogicRule, getCurrentAndFuturePageQuestions, normalizePageLogic, pageLogicOperatorRequiresValue, pageLogicOperatorsForFieldType, resolvePageLogicOperator } from '../src/runtime/utils/page-logic'
 import type { FormForgePageSchema } from '../src/runtime/types'
 
 describe('page logic', () => {
+  it('offers questions from the current and following pages for required actions', () => {
+    const pages: FormForgePageSchema[] = [
+      {
+        page_key: 'page_1',
+        title: 'Page 1',
+        meta: {},
+        fields: [{
+          field_key: 'current_question',
+          type: 'text',
+          name: 'current_question',
+          page_key: 'page_1',
+          required: false,
+          nullable: false,
+          default: null,
+          rules: [],
+          meta: {}
+        }]
+      },
+      {
+        page_key: 'page_2',
+        title: 'Page 2',
+        meta: {},
+        fields: [{
+          field_key: 'next_question',
+          type: 'text',
+          name: 'next_question',
+          page_key: 'page_2',
+          required: false,
+          nullable: false,
+          default: null,
+          rules: [],
+          meta: {}
+        }]
+      }
+    ]
+
+    expect(getCurrentAndFuturePageQuestions(pages, 0).map((field) => field.field_key)).toEqual([
+      'current_question',
+      'next_question'
+    ])
+  })
+
   it('normalizes empty logic payloads', () => {
     expect(normalizePageLogic(null)).toEqual({
       version: 1,
       rules: []
     })
+  })
+
+  it('does not expose an operator before a field is selected', () => {
+    expect(resolvePageLogicOperator(undefined, 'eq')).toBeUndefined()
+    expect(resolvePageLogicOperator({
+      field_key: 'field_1',
+      type: 'text',
+      name: 'field_1',
+      page_key: 'page_1',
+      required: false,
+      nullable: false,
+      default: null,
+      rules: [],
+      meta: {}
+    }, 'eq')).toBe('eq')
   })
 
   it('evaluates block clauses against page questions', () => {

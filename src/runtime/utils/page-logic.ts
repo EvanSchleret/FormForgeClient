@@ -66,6 +66,22 @@ export function pageLogicOperatorsForFieldType(type: FormForgeFieldType): FormFo
   return TEXT_OPERATORS
 }
 
+export function resolvePageLogicOperator(
+  field: FormForgeFieldSchema | undefined,
+  operator: string
+): FormForgePageLogicOperator | undefined {
+  if (field === undefined) {
+    return undefined
+  }
+
+  const operators = pageLogicOperatorsForFieldType(field.type)
+  if (operators.includes(operator as FormForgePageLogicOperator)) {
+    return operator as FormForgePageLogicOperator
+  }
+
+  return operators[0]
+}
+
 export function pageLogicOperatorRequiresValue(type: FormForgeFieldType, operator: FormForgePageLogicOperator): boolean {
   if (type === 'address') {
     return false
@@ -226,6 +242,21 @@ export function getFuturePageQuestions(pages: FormForgePageSchema[], pageIndex: 
   const fields: FormForgeFieldSchema[] = []
 
   for (let index = pageIndex + 1; index < pages.length; index += 1) {
+    const page = pages[index]
+    if (!page || !Array.isArray(page.fields)) {
+      continue
+    }
+
+    fields.push(...page.fields)
+  }
+
+  return fields
+}
+
+export function getCurrentAndFuturePageQuestions(pages: FormForgePageSchema[], pageIndex: number): FormForgeFieldSchema[] {
+  const fields: FormForgeFieldSchema[] = []
+
+  for (let index = pageIndex; index < pages.length; index += 1) {
     const page = pages[index]
     if (!page || !Array.isArray(page.fields)) {
       continue

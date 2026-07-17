@@ -12,11 +12,12 @@ import {
   createPageLogicThen,
   ensurePageLogic,
   findFieldByKey,
-  getFuturePageQuestions,
+  getCurrentAndFuturePageQuestions,
   isChoiceFieldType,
   isConsentFieldType,
   pageLogicOperatorRequiresValue,
-  pageLogicOperatorsForFieldType
+  pageLogicOperatorsForFieldType,
+  resolvePageLogicOperator
 } from '../../../utils/page-logic'
 
 interface Props {
@@ -54,8 +55,8 @@ function fieldItems(): Array<{ label: string, value: string }> {
   }))
 }
 
-function futureQuestionItems(): Array<{ label: string, value: string }> {
-  return getFuturePageQuestions(props.pages, props.pageIndex).map((field) => ({
+function requiredQuestionItems(): Array<{ label: string, value: string }> {
+  return getCurrentAndFuturePageQuestions(props.pages, props.pageIndex).map((field) => ({
     label: field.label === undefined || field.label === '' ? field.field_key : field.label,
     value: field.field_key
   }))
@@ -83,15 +84,8 @@ function logicRuleOperatorItems(field: FormForgeFieldSchema | undefined): Array<
   }))
 }
 
-function logicClauseOperator(field: FormForgeFieldSchema | undefined, operator: string): FormForgePageLogicOperator {
-  const items = logicRuleOperatorItems(field)
-  const available = new Set(items.map((item) => item.value))
-
-  if (available.has(operator)) {
-    return operator as FormForgePageLogicOperator
-  }
-
-  return (items[0]?.value ?? operator) as FormForgePageLogicOperator
+function logicClauseOperator(field: FormForgeFieldSchema | undefined, operator: string): FormForgePageLogicOperator | undefined {
+  return resolvePageLogicOperator(field, operator)
 }
 
 function defaultLogicOperatorForField(field: FormForgeFieldSchema | undefined): FormForgePageLogicOperator {
@@ -192,7 +186,7 @@ function setThenAction(rule: FormForgePageLogicRule, thenIndex: number, action: 
 }
 
 function thenTargetItems(action: 'require' | 'goto_block'): Array<{ label: string, value: string | number }> {
-  return action === 'require' ? futureQuestionItems() : futureBlockItems()
+  return action === 'require' ? requiredQuestionItems() : futureBlockItems()
 }
 
 function thenTargetPlaceholder(action: 'require' | 'goto_block'): string {
@@ -220,7 +214,7 @@ function usedRequiredFieldKeys(rule: FormForgePageLogicRule, excludeIndex: numbe
 function availableThenQuestionItems(rule: FormForgePageLogicRule, thenIndex: number): Array<{ label: string, value: string }> {
   const usedKeys = usedRequiredFieldKeys(rule, thenIndex)
 
-  return futureQuestionItems().filter((item) => !usedKeys.has(item.value))
+  return requiredQuestionItems().filter((item) => !usedKeys.has(item.value))
 }
 
 function addLogicClause(rule: FormForgePageLogicRule): void {
@@ -274,13 +268,15 @@ function removeLogicClause(rule: FormForgePageLogicRule, clauseIndex: number): v
             :items="logicMatchItems()"
             :disabled="readonly"
           />
-          <UButton
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-trash-2"
-            :disabled="readonly"
-            @click="logic.rules = logic.rules.filter((candidate: FormForgePageLogicRule) => candidate.rule_key !== rule.rule_key)"
-          />
+          <UTooltip :text="t('builder.logic.deleteRule')">
+            <UButton
+              color="error"
+              variant="ghost"
+              icon="i-lucide-trash-2"
+              :disabled="readonly"
+              @click="logic.rules = logic.rules.filter((candidate: FormForgePageLogicRule) => candidate.rule_key !== rule.rule_key)"
+            />
+          </UTooltip>
         </div>
       </div>
 
@@ -304,7 +300,8 @@ function removeLogicClause(rule: FormForgePageLogicRule, clauseIndex: number): v
           <USelect
             :model-value="logicClauseOperator(findFieldByKey(props.page, clause.field_key), clause.operator)"
             :items="logicRuleOperatorItems(findFieldByKey(props.page, clause.field_key))"
-            :disabled="readonly"
+            :disabled="readonly || findFieldByKey(props.page, clause.field_key) === undefined"
+            :placeholder="t('builder.logic.operatorPlaceholder')"
             @update:model-value="(value: string) => {
               clause.operator = value as FormForgePageLogicClause['operator']
               if (!logicClauseRequiresValue(clause)) {
@@ -335,14 +332,15 @@ function removeLogicClause(rule: FormForgePageLogicRule, clauseIndex: number): v
           />
           <div v-else />
 
-          <UButton
-            color="neutral"
-            variant="soft"
-            :disabled="readonly || rule.when.length <= 1"
-            @click="removeLogicClause(rule, clauseIndex)"
-          >
-            {{ t('builder.remove') }}
-          </UButton>
+          <UTooltip :text="t('builder.logic.deleteClause')">
+            <UButton
+              color="error"
+              variant="ghost"
+              icon="i-lucide-trash-2"
+              :disabled="readonly || rule.when.length <= 1"
+              @click="removeLogicClause(rule, clauseIndex)"
+            />
+          </UTooltip>
         </div>
       </div>
 
@@ -392,14 +390,15 @@ function removeLogicClause(rule: FormForgePageLogicRule, clauseIndex: number): v
               :disabled="readonly"
               :placeholder="thenTargetPlaceholder('goto_block')"
             />
-            <UButton
-              color="neutral"
-              variant="soft"
-              :disabled="readonly || rule.then.length <= 1"
-              @click="removeThenAction(rule, thenIndex)"
-            >
-              {{ t('builder.remove') }}
-            </UButton>
+            <UTooltip :text="t('builder.logic.deleteAction')">
+              <UButton
+                color="error"
+                variant="ghost"
+                icon="i-lucide-trash-2"
+                :disabled="readonly || rule.then.length <= 1"
+                @click="removeThenAction(rule, thenIndex)"
+              />
+            </UTooltip>
           </div>
         </div>
         <div class="flex flex-wrap gap-2">

@@ -5,6 +5,7 @@ import { useFormForgeI18n } from '../../composables/useFormForgeI18n'
 import { useFormForgeResponses } from '../../composables/useFormForgeResponses'
 import type { FormForgeClientConfig, FormForgeJsonObject } from '../../types'
 import { sanitizeFormForgeInlineRichText } from '../../utils/rich-text'
+import { formatFormForgeAddressAnswer } from '../../utils/response-answer'
 
 type FormForgeResponseLayout = 'line' | 'column'
 
@@ -267,7 +268,7 @@ function collectFiles(value: unknown, allowFiles: boolean): ResponseFileItem[] {
   return []
 }
 
-function formatAnswerText(value: unknown): string {
+function formatAnswerText(value: unknown, fieldType?: string): string {
   if (value === undefined || value === null) {
     return t('response.answer.empty')
   }
@@ -294,6 +295,13 @@ function formatAnswerText(value: unknown): string {
   }
 
   if (isRecord(value)) {
+    if (fieldType === 'address') {
+      const addressText = formatFormForgeAddressAnswer(value)
+      if (addressText !== null) {
+        return addressText
+      }
+    }
+
     const start = value.start
     const end = value.end
 
@@ -322,7 +330,7 @@ function formatAnswerText(value: unknown): string {
   return t('response.answer.empty')
 }
 
-function makeAnswer(value: unknown, allowFiles: boolean): ResponseAnswer {
+function makeAnswer(value: unknown, allowFiles: boolean, fieldType?: string): ResponseAnswer {
   const files = collectFiles(value, allowFiles)
   if (files.length > 0) {
     return {
@@ -333,7 +341,7 @@ function makeAnswer(value: unknown, allowFiles: boolean): ResponseAnswer {
 
   return {
     kind: 'text',
-    value: formatAnswerText(value)
+    value: formatAnswerText(value, fieldType)
   }
 }
 
@@ -524,7 +532,8 @@ function createPagesFromSchema(schemaValue: unknown): ResponsePage[] {
         : t('response.question.fallback', { index: fieldIndex + 1 }),
       answer: makeAnswer(
         mapFieldAnswerValue(field, payload.value[field.name]),
-        field.type === 'file'
+        field.type === 'file',
+        field.type
       )
     }))
   }))
