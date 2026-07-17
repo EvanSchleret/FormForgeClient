@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## v2.2.0 - 2026-07-17
+
+### ✨ Highlights
+
+#### 📄 Single-view renderer mode
+
+`FormForgeRenderer` now supports `pagination="none"` to display all visible form fields on a single view.
+
+The default `pagination="auto"` behavior remains unchanged. In single-view mode, navigation controls and the progress indicator are hidden while validation, payload structure, and conditional rules continue to work as before.
+
+### 🚀 Features
+
+- **Renderer**: add `auto` and `none` pagination modes (`0d07d2d`)
+
+### ❤️ Contributors
+
+- @EvanSchleret
+
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v2.1.0...v2.2.0
+
 ## v2.1.0 - 2026-07-17
 
 ### ✨ Highlights
