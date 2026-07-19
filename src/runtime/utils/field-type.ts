@@ -59,6 +59,7 @@ export function normalizeFormForgeFieldTypeChange(
   fileField.accept = undefined
   fileField.max_size = undefined
   fileField.max_files = undefined
+  fileField.max_total_size = undefined
   fileField.storage = undefined
 
   if (nextType === 'text' || nextType === 'number') {

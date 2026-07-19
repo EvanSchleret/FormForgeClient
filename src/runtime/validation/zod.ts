@@ -3,6 +3,7 @@ import type {
   FormForgeFieldSchema,
   FormForgeFieldValidationConfig,
   FormForgeFieldValidationRule,
+  FormForgeFileFieldSchema,
   FormForgeFormSchema,
   FormForgeTemporalValidationRangeValue,
   FormForgeSubmissionPayload
@@ -120,6 +121,55 @@ function resolveLocaleMessages(locale: string | undefined): FormForgeZodValidati
     temporalBetween: (label: string, start: string, end: string) => `${label} must be between ${start} and ${end}`,
     temporalNotBetween: (label: string, start: string, end: string) => `${label} must not be between ${start} and ${end}`
   }
+}
+
+function fileMatchesAccept(file: File, accept: string[] | undefined): boolean {
+  if (accept === undefined || accept.length === 0) {
+    return true
+  }
+
+  const extension = file.name.includes('.') ? `.${file.name.split('.').pop()?.toLowerCase()}` : ''
+  const mimeType = file.type.toLowerCase()
+
+  return accept.some((rawRule) => {
+    const rule = rawRule.trim().toLowerCase()
+
+    if (rule === '' || rule === '*') {
+      return true
+    }
+
+    if (rule.endsWith('/*')) {
+      return mimeType.startsWith(`${rule.slice(0, -1)}`)
+    }
+
+    return rule.startsWith('.') ? extension === rule : mimeType === rule
+  })
+}
+
+function fileValidationSchema(field: FormForgeFileFieldSchema, messages: FormForgeZodValidationMessages): z.ZodType<File> {
+  let schema: z.ZodType<File> = z.custom<File>((value: unknown): value is File => {
+    if (typeof File === 'undefined') {
+      return false
+    }
+
+    return value instanceof File
+  }, {
+    error: typeError(messages.required, messages.invalidFile)
+  })
+
+  if (field.accept !== undefined && field.accept.length > 0) {
+    schema = schema.refine((file) => fileMatchesAccept(file, field.accept), {
+      error: messages.invalidFile
+    })
+  }
+
+  if (typeof field.max_size === 'number' && field.max_size > 0) {
+    schema = schema.refine((file) => file.size <= field.max_size!, {
+      error: messages.invalidFile
+    })
+  }
+
+  return schema
 }
 
 function plainTextLabel(value: string | null | undefined, fallback: string): string {
@@ -745,20 +795,26 @@ function buildFieldBaseSchema(
   }
 
   if (field.type === 'file') {
-    const fileSchema = z.custom<File>((value: unknown): value is File => {
-      if (typeof File === 'undefined') {
-        return false
-      }
-
-      return value instanceof File
-    }, {
-      error: typeError(messages.required, messages.invalidFile)
-    })
+    const fileSchema = fileValidationSchema(field, messages)
 
     if (field.multiple === true) {
-      return z.array(fileSchema, {
+      let multipleSchema = z.array(fileSchema, {
         error: typeError(messages.required, messages.invalidFile)
       })
+
+      if (typeof field.max_files === 'number' && field.max_files > 0) {
+        multipleSchema = multipleSchema.max(field.max_files, {
+          error: messages.invalidFile
+        })
+      }
+
+      if (typeof field.max_total_size === 'number' && field.max_total_size > 0) {
+        multipleSchema = multipleSchema.refine((files) => files.reduce((total, file) => total + file.size, 0) <= field.max_total_size!, {
+          error: messages.invalidFile
+        })
+      }
+
+      return multipleSchema
     }
 
     return fileSchema

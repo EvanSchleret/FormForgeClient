@@ -1576,6 +1576,8 @@ function getComponentProps(field: FormForgeFieldSchema, page: FormForgePageSchem
   if (field.type === 'file') {
     componentProps.multiple = field.multiple === true
     componentProps.accept = field.accept?.join(',')
+    componentProps.maxFiles = field.max_files ?? undefined
+    componentProps.maxSize = field.max_size ?? undefined
   }
 
   if (metaUi.component !== undefined) {
@@ -1754,7 +1756,6 @@ async function onSubmit(): Promise<void> {
       <FormForgeRendererPage
         v-for="page in renderedPages"
         :key="page.page_key"
-        :page="page"
         class="space-y-4"
         @focusin="setActivePage(page.page_key)"
         @pointerdown="setActivePage(page.page_key)"

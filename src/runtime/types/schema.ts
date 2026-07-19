@@ -100,6 +100,7 @@ export interface FormForgeFileFieldSchema extends FormForgeFieldSchemaBase<'file
   accept?: string[]
   max_size?: number | null
   max_files?: number | null
+  max_total_size?: number | null
   storage?: FormForgeFieldStorage | null
 }
 

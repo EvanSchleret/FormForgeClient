@@ -266,6 +266,7 @@ function normalizeField(
     const accept: string[] | undefined = getFormForgeStringArray(field.accept)
     const maxSize: number | null | undefined = typeof field.max_size === 'number' || field.max_size === null ? field.max_size : undefined
     const maxFiles: number | null | undefined = typeof field.max_files === 'number' || field.max_files === null ? field.max_files : undefined
+    const maxTotalSize: number | null | undefined = typeof field.max_total_size === 'number' || field.max_total_size === null ? field.max_total_size : undefined
     const storageValue: FormForgeJsonValue | undefined = field.storage
     const storage: FormForgeJsonObject | null = isFormForgeJsonObject(storageValue) ? storageValue : null
 
@@ -275,6 +276,7 @@ function normalizeField(
       accept,
       max_size: maxSize,
       max_files: maxFiles,
+      max_total_size: maxTotalSize,
       storage: storage as FormForgeFileFieldSchema['storage']
     } as FormForgeFileFieldSchema
   }

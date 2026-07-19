@@ -1,7 +1,72 @@
 import { describe, expect, it } from 'vitest'
 import { createFormForgeZodSchema, validateFormForgePayload } from '../src/runtime/validation/zod'
+import type { FormForgeFileFieldSchema } from '../src/runtime/types'
 
 describe('createFormForgeZodSchema', () => {
+  it('validates file type, per-file size, file count and total size limits', () => {
+    const originalFile = globalThis.File
+
+    class TestFile {
+      name: string
+      type: string
+      size: number
+
+      constructor(name: string, type: string, size: number) {
+        this.name = name
+        this.type = type
+        this.size = size
+      }
+    }
+
+    Object.defineProperty(globalThis, 'File', { configurable: true, value: TestFile })
+    const file = (name: string, type: string, size: number): File => new TestFile(name, type, size) as unknown as File
+
+    const field: FormForgeFileFieldSchema = {
+      field_key: 'fk_documents',
+      type: 'file',
+      name: 'documents',
+      page_key: 'page_1',
+      required: false,
+      nullable: false,
+      default: null,
+      rules: [],
+      meta: {},
+      multiple: true,
+      accept: ['.pdf'],
+      max_size: 100,
+      max_files: 2,
+      max_total_size: 150
+    }
+
+    const schema = createFormForgeZodSchema({
+      key: 'uploads',
+      version: '1',
+      schema_version: 2,
+      title: 'Uploads',
+      is_published: true,
+      api: {},
+      pages: [],
+      conditions: [],
+      drafts: { enabled: false },
+      fields: [field]
+    })
+
+    expect(validateFormForgePayload(schema, {
+      documents: [file('one.pdf', 'application/pdf', 80)]
+    })).toEqual({})
+    expect(Object.keys(validateFormForgePayload(schema, {
+      documents: [file('one.txt', 'text/plain', 80)]
+    }))).toContain('documents')
+    expect(Object.keys(validateFormForgePayload(schema, {
+      documents: [file('one.pdf', 'application/pdf', 100), file('two.pdf', 'application/pdf', 100)]
+    }))).toContain('documents')
+    expect(Object.keys(validateFormForgePayload(schema, {
+      documents: [file('one.pdf', 'application/pdf', 40), file('two.pdf', 'application/pdf', 40), file('three.pdf', 'application/pdf', 40)]
+    }))).toContain('documents')
+
+    Object.defineProperty(globalThis, 'File', { configurable: true, value: originalFile })
+  })
+
   it('validates required fields and email format', () => {
     const schema = createFormForgeZodSchema({
       key: 'contact',
