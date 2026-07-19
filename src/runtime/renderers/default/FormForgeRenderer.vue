@@ -1754,7 +1754,6 @@ async function onSubmit(): Promise<void> {
       <FormForgeRendererPage
         v-for="page in renderedPages"
         :key="page.page_key"
-        :page="page"
         class="space-y-4"
         @focusin="setActivePage(page.page_key)"
         @pointerdown="setActivePage(page.page_key)"
