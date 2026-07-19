@@ -4,6 +4,43 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## v2.3.0 - 2026-07-19
+
+### ✨ Highlights
+
+#### 📦 Configurable file upload constraints
+
+File fields now support accepted types, per-file size limits, maximum file counts, and cumulative size limits.
+
+```ts
+{
+  type: 'file',
+  multiple: true,
+  accept: ['.pdf', 'image/*'],
+  max_size: 5_000_000,
+  max_files: 3,
+  max_total_size: 10_000_000
+}
+
+```
+#### 🧹 Cleaner paginated rendering
+
+Obsolete page titles and descriptions are no longer rendered by `FormForgeRenderer`, matching the current builder experience.
+
+### 🚀 Features
+
+- **File uploads**: add client-side validation for accepted types, file count, per-file size, and cumulative size (`65d4399`)
+
+### 🐛 Bug Fixes
+
+- **Renderer**: remove obsolete page headings and descriptions from rendered pages (`0af8c55`)
+
+### ❤️ Contributors
+
+- @EvanSchleret
+
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v2.2.0...v2.3.0
+
 ## v2.2.0 - 2026-07-17
 
 ### ✨ Highlights
