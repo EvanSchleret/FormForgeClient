@@ -1111,7 +1111,7 @@ function isFieldDisabled(field: FormForgeFieldSchema, page: FormForgePageSchema)
   const runtimeField = runtimeConditions.value.fields[field.field_key]
   const fieldDisabled = runtimeField?.disabled ?? field.disabled === true
 
-  return fieldDisabled || isPageDisabled(page)
+  return props.disabled || fieldDisabled || isPageDisabled(page)
 }
 
 function setActivePage(pageKey: string): void {
