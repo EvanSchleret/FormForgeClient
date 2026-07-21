@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## v2.3.1 - 2026-07-21
+
+### ✨ Highlights
+
+#### 🔒 Reliable read-only rendering
+
+Using `:disabled="true"` now correctly disables all rendered fields, including composite fields such as address inputs.
+
+### 🐛 Bug Fixes
+
+- **Renderer**: apply the global `disabled` prop to every rendered field (`5675103`)
+
+### ❤️ Contributors
+
+- @EvanSchleret
+
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v2.3.0...v2.3.1
+
 ## v2.3.0 - 2026-07-19
 
 ### ✨ Highlights
@@ -21,6 +39,7 @@ File fields now support accepted types, per-file size limits, maximum file count
   max_files: 3,
   max_total_size: 10_000_000
 }
+
 
 ```
 #### 🧹 Cleaner paginated rendering
