@@ -37,7 +37,7 @@ jobs:
           bun-version: "1.3.14"
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: "22.14.0"
           check-latest: true
