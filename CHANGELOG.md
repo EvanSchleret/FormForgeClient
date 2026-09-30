@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## v2.3.2 - 2026-09-30
+
+### v2.3.2
+
+#### ✨ Highlights
+
+##### 🔐 Patched Nuxt security dependencies
+
+The client now requires Nuxt 4.5.1 or later and locks to Nuxt 4.5.2 and Nuxt DevTools 3.4.2.
+
+#### 🐛 Bug Fixes
+
+- **Dependencies**: raise the Nuxt and `@nuxt/kit` minimum versions to 4.5.1 and update the lockfile to patched Nuxt and DevTools releases ([#36](https://github.com/EvanSchleret/FormForgeClient/pull/36)) ([(61f8736)](https://github.com/EvanSchleret/FormForgeClient/commit/61f8736))
+
+#### ❤️ Contributors
+
+- @EvanSchleret
+
+Full Changelog: [v2.3.1...v2.3.2](https://github.com/EvanSchleret/FormForgeClient/compare/v2.3.1...v2.3.2)
+
 ## v2.3.1 - 2026-07-21
 
 ### ✨ Highlights
@@ -39,6 +59,7 @@ File fields now support accepted types, per-file size limits, maximum file count
   max_files: 3,
   max_total_size: 10_000_000
 }
+
 
 
 ```
