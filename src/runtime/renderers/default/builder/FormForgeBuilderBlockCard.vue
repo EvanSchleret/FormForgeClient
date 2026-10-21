@@ -230,6 +230,7 @@ function toggleCollapsed(): void {
             <UDropdownMenu
               :items="questionPickerItems()"
               :content="{ align: 'start', sideOffset: 8 }"
+              :ui="{ content: 'w-(--reka-dropdown-menu-trigger-width)' }"
             >
               <UButton
                 color="neutral"
