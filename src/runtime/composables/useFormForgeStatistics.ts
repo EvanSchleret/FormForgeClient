@@ -51,7 +51,10 @@ export function useFormForgeStatistics(options: UseFormForgeStatisticsOptions) {
 
       return response
     } catch (caughtError) {
-      error.value = caughtError instanceof Error ? caughtError.message : 'Statistics request failed'
+      const message = typeof caughtError === 'object' && caughtError !== null && 'message' in caughtError
+        ? caughtError.message
+        : undefined
+      error.value = typeof message === 'string' ? message : 'Statistics request failed'
       throw caughtError
     } finally {
       loading.value = false

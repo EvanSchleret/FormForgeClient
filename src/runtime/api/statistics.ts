@@ -19,5 +19,5 @@ export async function fetchFormForgeStatistics(
     query: { ...query }
   })
 
-  return pickFormForgeDataEnvelope(response.data) as FormForgeStatisticsResponse
+  return pickFormForgeDataEnvelope(response.data) as object as FormForgeStatisticsResponse
 }
