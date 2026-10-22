@@ -25,7 +25,9 @@ import type {
   FormForgeStageUploadInput,
   FormForgeStagedUploadResponse,
   FormForgeSubmitInput,
-  FormForgeSubmissionResponse
+  FormForgeSubmissionResponse,
+  FormForgeStatisticsQuery,
+  FormForgeStatisticsResponse
 } from '../types'
 import { createFormForgeHttpAdapter } from './http'
 import { deleteCurrentFormForgeDraft, fetchCurrentFormForgeDraft, saveFormForgeDraft } from './drafts'
@@ -33,6 +35,7 @@ import { fetchFormForgeDiff, fetchFormForgeFormRoute, fetchFormForgeForms, fetch
 import { createFormForgeCategory, deleteFormForgeCategory, fetchFormForgeCategories, fetchFormForgeCategory, fetchFormForgeCategoryRoute, patchFormForgeCategory } from './categories'
 import { fetchFormForgeSchema, fetchFormForgeSchemaVersion, fetchFormForgeSchemaVersions, resolveFormForgeSchema } from './schema'
 import { deleteFormForgeResponse, fetchFormForgeResponse, fetchFormForgeResponses } from './responses'
+import { fetchFormForgeStatistics } from './statistics'
 import { submitFormForgeJson, submitFormForgeMultipart } from './submission'
 import { stageFormForgeUpload } from './upload'
 import type { FormForgeRequestOptions } from './request'
@@ -49,6 +52,7 @@ export interface FormForgeSubmitMultipartOptions extends FormForgeRequestOptions
 export type FormForgeSchemaRequestOptions = FormForgeRequestOptions
 export type FormForgeDraftRequestOptions = FormForgeRequestOptions
 export type FormForgeResponsesRequestOptions = FormForgeRequestOptions
+export type FormForgeStatisticsRequestOptions = FormForgeRequestOptions
 export type FormForgeCategoryRequestOptions = FormForgeRequestOptions
 
 export interface FormForgeClient {
@@ -70,6 +74,7 @@ export interface FormForgeClient {
   ): Promise<FormForgeResponsesListResponse>
   getResponse(key: string, submissionId: string, options?: FormForgeResponsesRequestOptions): Promise<FormForgeJsonObject>
   deleteResponse(key: string, submissionId: string, options?: FormForgeResponsesRequestOptions): Promise<FormForgeJsonObject>
+  getFormStatistics(key: string, query: FormForgeStatisticsQuery, options?: FormForgeStatisticsRequestOptions): Promise<FormForgeStatisticsResponse>
   listForms(includeDeleted?: boolean, options?: FormForgeManagementRequestOptions): Promise<FormForgeManagementForm[]>
   listFormRoute(routeKey: string, options?: FormForgeManagementRequestOptions): Promise<FormForgeManagementForm[]>
   createForm(input: FormForgeManagementCreateInput, options?: FormForgeMutationOptions): Promise<FormForgeManagementForm>
@@ -246,6 +251,14 @@ class FormForgeClientImpl implements FormForgeClient {
     options: FormForgeResponsesRequestOptions = {}
   ): Promise<FormForgeJsonObject> {
     return deleteFormForgeResponse(this.http, key, submissionId, this.withRequestScope(options))
+  }
+
+  async getFormStatistics(
+    key: string,
+    query: FormForgeStatisticsQuery,
+    options: FormForgeStatisticsRequestOptions = {}
+  ): Promise<FormForgeStatisticsResponse> {
+    return fetchFormForgeStatistics(this.http, key, query, this.withRequestScope(options))
   }
 
   async listForms(includeDeleted: boolean = false, options: FormForgeManagementRequestOptions = {}): Promise<FormForgeManagementForm[]> {

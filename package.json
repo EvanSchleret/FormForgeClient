@@ -34,6 +34,8 @@
     "lint": "eslint .",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
+    "types:generate": "cd ../formforge && composer run types:generate",
+    "types:check": "cd ../formforge && composer run types:check",
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {

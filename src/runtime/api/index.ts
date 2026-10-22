@@ -2,6 +2,7 @@ export { createFormForgeClient } from './client'
 export { resolveFormForgeSchema, fetchFormForgeSchema, fetchFormForgeSchemaVersion, fetchFormForgeSchemaVersions } from './schema'
 export { saveFormForgeDraft, fetchCurrentFormForgeDraft, deleteCurrentFormForgeDraft } from './drafts'
 export { fetchFormForgeResponses, fetchFormForgeResponse, deleteFormForgeResponse } from './responses'
+export { fetchFormForgeStatistics } from './statistics'
 export { fetchFormForgeFormRoute } from './management'
 export {
   fetchFormForgeCategories,
@@ -14,7 +15,9 @@ export {
 export type {
   FormForgeClient,
   FormForgeSubmitRequestOptions,
-  FormForgeSubmitMultipartOptions
+  FormForgeSubmitMultipartOptions,
+  FormForgeStatisticsRequestOptions
 } from './client'
 export type { FormForgeMutationOptions, FormForgeManagementRequestOptions } from './management'
 export type { FormForgeRequestOptions } from './request'
+export type { FormForgeStatisticsQuery, FormForgeStatisticsResponse } from '../types'
