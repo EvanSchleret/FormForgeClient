@@ -4,6 +4,210 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## v2.3.2 - 2026-09-30
+
+### v2.3.2
+
+#### ✨ Highlights
+
+##### 🔐 Patched Nuxt security dependencies
+
+The client now requires Nuxt 4.5.1 or later and locks to Nuxt 4.5.2 and Nuxt DevTools 3.4.2.
+
+#### 🐛 Bug Fixes
+
+- **Dependencies**: raise the Nuxt and `@nuxt/kit` minimum versions to 4.5.1 and update the lockfile to patched Nuxt and DevTools releases ([#36](https://github.com/EvanSchleret/FormForgeClient/pull/36)) ([(61f8736)](https://github.com/EvanSchleret/FormForgeClient/commit/61f8736))
+
+#### ❤️ Contributors
+
+- @EvanSchleret
+
+Full Changelog: [v2.3.1...v2.3.2](https://github.com/EvanSchleret/FormForgeClient/compare/v2.3.1...v2.3.2)
+
+## v2.3.1 - 2026-07-21
+
+### ✨ Highlights
+
+#### 🔒 Reliable read-only rendering
+
+Using `:disabled="true"` now correctly disables all rendered fields, including composite fields such as address inputs.
+
+### 🐛 Bug Fixes
+
+- **Renderer**: apply the global `disabled` prop to every rendered field (`5675103`)
+
+### ❤️ Contributors
+
+- @EvanSchleret
+
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v2.3.0...v2.3.1
+
+## v2.3.0 - 2026-07-19
+
+### ✨ Highlights
+
+#### 📦 Configurable file upload constraints
+
+File fields now support accepted types, per-file size limits, maximum file counts, and cumulative size limits.
+
+```ts
+{
+  type: 'file',
+  multiple: true,
+  accept: ['.pdf', 'image/*'],
+  max_size: 5_000_000,
+  max_files: 3,
+  max_total_size: 10_000_000
+}
+
+
+
+```
+#### 🧹 Cleaner paginated rendering
+
+Obsolete page titles and descriptions are no longer rendered by `FormForgeRenderer`, matching the current builder experience.
+
+### 🚀 Features
+
+- **File uploads**: add client-side validation for accepted types, file count, per-file size, and cumulative size (`65d4399`)
+
+### 🐛 Bug Fixes
+
+- **Renderer**: remove obsolete page headings and descriptions from rendered pages (`0af8c55`)
+
+### ❤️ Contributors
+
+- @EvanSchleret
+
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v2.2.0...v2.3.0
+
+## v2.2.0 - 2026-07-17
+
+### ✨ Highlights
+
+#### 📄 Single-view renderer mode
+
+`FormForgeRenderer` now supports `pagination="none"` to display all visible form fields on a single view.
+
+The default `pagination="auto"` behavior remains unchanged. In single-view mode, navigation controls and the progress indicator are hidden while validation, payload structure, and conditional rules continue to work as before.
+
+### 🚀 Features
+
+- **Renderer**: add `auto` and `none` pagination modes (`0d07d2d`)
+
+### ❤️ Contributors
+
+- @EvanSchleret
+
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v2.1.0...v2.2.0
+
+## v2.1.0 - 2026-07-17
+
+### ✨ Highlights
+
+#### 🧩 Clearer conditional logic
+
+Conditional rules now support requiring questions in the current block, use clearer labels, provide more consistent deletion controls, and handle empty operators correctly.
+
+#### 🏠 Readable address responses
+
+Address answers are now displayed as readable, comma-separated values instead of raw JSON.
+
+### 🐛 Bug Fixes
+
+- **Conditional logic**: allow requiring questions in the current block (`9725d05`)
+- **Conditional logic**: clarify deletion controls (`ebe78c6`)
+- **Conditional logic**: clarify conditional rule labels (`8090efb`)
+- **Conditional logic**: handle empty condition operators correctly (`4f3073c`)
+- **Responses**: format address answers as readable text (`1a895b6`)
+
+### ❤️ Contributors
+
+- @EvanSchleret
+
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v2.0.3...v2.1.0
+
+## v2.0.3 - 2026-07-17
+
+### ✨ Highlights
+
+#### 🧩 Safer field type changes
+
+`FormForgeBuilder` now resets type-specific field state when changing types, preventing stale validation rules and incompatible properties from being carried over.
+
+#### 🧱 Add new blocks from the builder
+
+The builder now includes an **Add page** action in both layouts. New blocks are created with their first question and automatically selected for editing.
+
+### 🚀 Features
+
+- **Builder**: add new blocks/pages directly from the form editor (`a126109`)
+
+### 🐛 Bug Fixes
+
+- **Renderer**: hide the submit button by default when using `v-model` (`1435cb5`)
+- **Builder**: reset field-specific properties when changing field types (`d32cab3`)
+
+### ❤️ Contributors
+
+- @EvanSchleret
+
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v2.0.2...v2.0.3
+
+## v2.0.2 - 2026-07-17
+
+### v2.0.2
+
+#### ✨ Highlights
+
+##### 🧩 Automatic `v-model` mode detection
+
+`FormForgeRenderer` now automatically hides the submit button when used with `v-model`. The button can still be explicitly re-enabled with `:show-submit="true"`.
+
+#### 🐛 Bug Fixes
+
+- **Renderer**: hide the submit button by default with `v-model` while preserving the default behavior without an external model (`1435cb5`)
+
+#### ❤️ Contributors
+
+- @EvanSchleret
+
+Full Changelog: [[v2.0.1...v2.0.2](https://github.com/EvanSchleret/FormForgeClient/compare/v2.0.1...v2.0.2)](https://github.com/EvanSchleret/FormForgeClient/compare/v2.0.1...v2.0.2)
+
+## v2.0.1 - 2026-07-01
+
+### What's Changed
+
+* fix(lang): add missing lang keys by @EvanSchleret in https://github.com/EvanSchleret/FormForgeClient/pull/16
+* chore: update deps by @EvanSchleret in https://github.com/EvanSchleret/FormForgeClient/pull/17
+
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v2.0.0...v2.0.1
+
+## v2.0.0 - 2026-06-30
+
+### v2.0.0
+
+We are thrilled to announce FormForge v2.0.0, a major release that brings a more reliable, schema-driven foundation to exports, imports, and form resolution.
+
+##### Added
+
+- Introduced a schema-driven exportable field model for stable CSV template generation, import mapping, and column validation
+- Added explicit flattening for composite fields, with `address` expanded into exportable leaf fields
+- Added public form resolution by `form_uuid`, with deterministic latest-version selection across backend and scoped managers
+- Expanded runtime APIs and type exports to make the new schema and submission primitives reusable by downstream consumers
+
+##### Changed
+
+- Export, import, and validation now share one schema-aware source of truth instead of relying on field-to-column assumptions
+- Builder and renderer now operate on the same normalized schema shape, keeping defaults, validation, and payload hydration aligned
+- External payload alias resolution remains stable for both `name` and `field_key`
+
+##### Tests
+
+- Added coverage for simple fields, composite fields, `address` expansion, header validation, latest-by-uuid resolution, and Zod/schema normalization
+
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v1.2.4...v2.0.0
+
 ## v1.2.4 - 2026-06-05
 
 ### v1.2.4
