@@ -95,3 +95,19 @@ export type {
 } from './management'
 export type { FormForgeJsonObject, FormForgeJsonPrimitive, FormForgeJsonValue } from './json'
 export type { FormForgeRendererPagination } from './renderer'
+export type {
+  FormForgeStatisticsGranularity,
+  FormForgeStatisticsQuery
+} from './statistics'
+export type {
+  FormForgeStatisticsResponse,
+  FormForgeStatisticsPeriod,
+  FormForgeStatisticsPeriodFilter,
+  FormForgeStatisticsTotals,
+  FormForgeStatisticsChoice,
+  FormForgeStatisticsBucket,
+  FormForgeStatisticsAddressPart,
+  FormForgeQuestionStatisticsSummary,
+  FormForgeQuestionStatisticsPoint,
+  FormForgeQuestionStatistics
+} from './generated'

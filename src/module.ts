@@ -99,6 +99,7 @@ export default defineNuxtModule<ModuleOptions>({
         { from: resolver.resolve('./runtime/composables/useFormForgeSubmit'), name: 'useFormForgeSubmit' },
         { from: resolver.resolve('./runtime/composables/useFormForgeSubmission'), name: 'useFormForgeSubmission' },
         { from: resolver.resolve('./runtime/composables/useFormForgeResponses'), name: 'useFormForgeResponses' },
+        { from: resolver.resolve('./runtime/composables/useFormForgeStatistics'), name: 'useFormForgeStatistics' },
         { from: resolver.resolve('./runtime/composables/useFormForgeCategory'), name: 'useFormForgeCategory' },
         { from: resolver.resolve('./runtime/composables/useFormForgeCategory'), name: 'useFormForgeCategoryOptions' },
         { from: resolver.resolve('./runtime/composables/useFormForgeManagement'), name: 'useFormForgeManagement' },

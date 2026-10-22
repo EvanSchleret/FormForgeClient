@@ -236,6 +236,7 @@ function blockEnterKeydown(_editor: unknown, event: KeyboardEvent): boolean {
         <UDropdownMenu
           :items="fieldMenuItems()"
           :content="{ align: 'end', sideOffset: 8 }"
+          :ui="{ content: 'min-w-56' }"
         >
           <UButton
             color="neutral"
