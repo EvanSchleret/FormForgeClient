@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { FormForgeBuilderDraft, FormForgeFormSchema } from '@evanschleret/formforgeclient/runtime'
 
-const builderDraft: FormForgeBuilderDraft = {
+const builderDraft = ref<FormForgeBuilderDraft>({
   uuid: null,
   key: null,
   schema_version: 2,
@@ -33,7 +33,7 @@ const builderDraft: FormForgeBuilderDraft = {
     enabled: false
   },
   api: {}
-}
+})
 
 const rendererSchema: FormForgeFormSchema = {
   key: 'consumer-smoke',
