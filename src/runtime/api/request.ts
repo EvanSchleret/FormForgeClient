@@ -4,6 +4,15 @@ export interface FormForgeRequestOptions {
   endpoint?: string
   scope?: FormForgeScope
   locale?: string
+  accessToken?: string
+}
+
+export function formForgeAccessHeaders(options: FormForgeRequestOptions): Record<string, string> {
+  const accessToken = options.accessToken?.trim()
+
+  return accessToken === undefined || accessToken === ''
+    ? {}
+    : { 'X-FormForge-Access-Token': accessToken }
 }
 
 const TEMPLATE_PARAM_PATTERN: RegExp = /\{([a-zA-Z0-9_]+)(?::[^}]+)?\}/g

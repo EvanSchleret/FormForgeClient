@@ -40,6 +40,9 @@ function settingsFromSchema(schema: FormForgeFormSchema): FormForgeSettingsModel
     submission_code_required: schema.submission_code_required === true,
     submission_code: '',
     has_submission_code: schema.submission_code_required === true,
+    access_code_required: false,
+    access_code: '',
+    has_access_code: false,
     public_url: schema.public_url ?? null,
     drafts: cloneValue(schema.drafts ?? { enabled: true }),
     api: cloneValue(schema.api ?? {})
@@ -81,6 +84,15 @@ export function buildFormForgeSettingsPatch(
     patch.submission_code = submissionCode
   }
 
+  if ((current.access_code_required === true) !== (original.access_code_required === true)) {
+    patch.access_code_required = current.access_code_required === true
+  }
+
+  const accessCode = typeof current.access_code === 'string' ? current.access_code.trim() : ''
+  if (accessCode !== '') {
+    patch.access_code = accessCode
+  }
+
   if (JSON.stringify(current.drafts) !== JSON.stringify(original.drafts)) {
     patch.drafts = cloneValue(current.drafts)
   }
@@ -102,6 +114,9 @@ function createEmptySettings(): FormForgeSettingsModel {
     submission_code_required: false,
     submission_code: '',
     has_submission_code: false,
+    access_code_required: false,
+    access_code: '',
+    has_access_code: false,
     public_url: null,
     drafts: { enabled: true },
     api: {}
@@ -146,26 +161,31 @@ export function useFormForgeSettings(options: UseFormForgeSettingsOptions = {}) 
     error.value = null
 
     try {
-      const schema = await client.getForm(requestId, {
-        endpoint: options.endpoint,
-        scope: options.scope,
-        locale: options.locale
-      })
-      const nextSettings = settingsFromSchema(schema)
-
+      let managementForm: FormForgeManagementForm | undefined
       try {
         const forms = await client.listForms(false, {
           endpoint: options.endpoint,
           scope: options.scope,
           filters: { key: requestId }
         })
-        const managementForm = forms.find(form => form.key === requestId || form.form_uuid === requestId)
-
-        if (typeof managementForm?.has_submission_code === 'boolean') {
-          nextSettings.has_submission_code = managementForm.has_submission_code
-        }
+        managementForm = forms.find(form => form.key === requestId || form.form_uuid === requestId)
       } catch {
-        nextSettings.has_submission_code = nextSettings.submission_code_required
+        managementForm = undefined
+      }
+
+      const schema = managementForm?.schema ?? await client.getForm(requestId, {
+        endpoint: options.endpoint,
+        scope: options.scope,
+        locale: options.locale
+      })
+      const nextSettings = settingsFromSchema(schema)
+
+      if (typeof managementForm?.has_submission_code === 'boolean') {
+        nextSettings.has_submission_code = managementForm.has_submission_code
+      }
+      if (typeof managementForm?.has_access_code === 'boolean') {
+        nextSettings.has_access_code = managementForm.has_access_code
+        nextSettings.access_code_required = managementForm.has_access_code
       }
 
       setSettings(nextSettings)
@@ -212,6 +232,11 @@ export function useFormForgeSettings(options: UseFormForgeSettingsOptions = {}) 
         ? updated.has_submission_code
         : nextSettings.submission_code_required
       nextSettings.submission_code = ''
+      nextSettings.has_access_code = typeof updated.has_access_code === 'boolean'
+        ? updated.has_access_code
+        : nextSettings.access_code_required
+      nextSettings.access_code_required = nextSettings.has_access_code
+      nextSettings.access_code = ''
       setSettings(nextSettings)
       original.value = cloneValue(nextSettings)
       lastSavedAt.value = new Date().toISOString()

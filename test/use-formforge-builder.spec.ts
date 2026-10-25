@@ -55,6 +55,36 @@ describe('useFormForgeBuilder', () => {
       title: 'System form',
       auto_publish: true
     })
+    expect(call?.[0]).not.toHaveProperty('access_code_required')
+  })
+
+  it('saves an access code once and clears the plaintext draft value', async () => {
+    patchForm.mockResolvedValue({
+      uuid: 'form-uuid',
+      key: 'form-key',
+      has_access_code: true
+    })
+
+    const { useFormForgeBuilder } = await import('../src/runtime/composables/useFormForgeBuilder')
+    const builder = useFormForgeBuilder({
+      formUuid: 'form-uuid',
+      initial: {
+        title: 'Protected form',
+        access_code_required: true,
+        access_code: 'visitor-code',
+        has_access_code: false
+      }
+    })
+
+    await builder.save()
+
+    const call = patchForm.mock.calls[0] as unknown as [string, Record<string, unknown>] | undefined
+    expect(call?.[1]).toMatchObject({
+      access_code_required: true,
+      access_code: 'visitor-code'
+    })
+    expect(builder.draft.value.access_code).toBeNull()
+    expect(builder.draft.value.has_access_code).toBe(true)
   })
 
   it('keeps both settings visibility props working as hide aliases', async () => {

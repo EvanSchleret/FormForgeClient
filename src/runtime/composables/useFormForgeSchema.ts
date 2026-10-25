@@ -39,8 +39,8 @@ export function useFormForgeSchema(options: UseFormForgeSchemaOptions) {
       const endpoint = resolveEndpoint(requestOptions)
       const scope = resolveScope(requestOptions)
       const nextSchema = options.version !== undefined && options.version !== ''
-        ? await client.getFormVersion(options.key, options.version, { endpoint, scope })
-        : await client.getForm(options.key, { endpoint, scope })
+        ? await client.getFormVersion(options.key, options.version, { endpoint, scope, ...(requestOptions.accessToken === undefined ? {} : { accessToken: requestOptions.accessToken }) })
+        : await client.getForm(options.key, { endpoint, scope, ...(requestOptions.accessToken === undefined ? {} : { accessToken: requestOptions.accessToken }) })
 
       schema.value = nextSchema
       return nextSchema
@@ -59,7 +59,8 @@ export function useFormForgeSchema(options: UseFormForgeSchemaOptions) {
     try {
       const nextVersions = await client.getFormVersions(options.key, {
         endpoint: resolveEndpoint(requestOptions),
-        scope: resolveScope(requestOptions)
+        scope: resolveScope(requestOptions),
+        ...(requestOptions.accessToken === undefined ? {} : { accessToken: requestOptions.accessToken })
       })
       versions.value = nextVersions
       return nextVersions

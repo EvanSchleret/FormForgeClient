@@ -30,6 +30,7 @@ export interface UseFormForgeSubmitOptions {
   client?: FormForgeClient
   clientConfig?: FormForgeClientConfig
   validateLocal?: boolean
+  accessToken?: () => string | null
 }
 
 export interface FormForgeSubmitOptions extends FormForgeRequestOptions {
@@ -202,7 +203,8 @@ async function stageSingleFile(
   file: File,
   version: string | undefined,
   endpoint: string | undefined,
-  scope: FormForgeScope | undefined
+  scope: FormForgeScope | undefined,
+  accessToken: string | null
 ): Promise<FormForgeStagedUploadValue> {
   const staged = await client.stageUpload(
     formKey,
@@ -214,7 +216,8 @@ async function stageSingleFile(
     {
       version,
       endpoint,
-      scope
+      scope,
+      ...(accessToken === null ? {} : { accessToken })
     }
   )
 
@@ -230,14 +233,15 @@ async function stageFieldFiles(
   value: FormForgeSubmissionPayload[string],
   version: string | undefined,
   endpoint: string | undefined,
-  scope: FormForgeScope | undefined
+  scope: FormForgeScope | undefined,
+  accessToken: string | null
 ): Promise<FormForgeSubmissionPayload[string]> {
   if (value === null || value === undefined || isStagedUploadToken(value)) {
     return value
   }
 
   if (isFileValue(value)) {
-    return stageSingleFile(client, formKey, field, value, version, endpoint, scope)
+    return stageSingleFile(client, formKey, field, value, version, endpoint, scope, accessToken)
   }
 
   if (Array.isArray(value)) {
@@ -245,7 +249,7 @@ async function stageFieldFiles(
 
     for (const item of value) {
       if (isFileValue(item)) {
-        const stagedItem = await stageSingleFile(client, formKey, field, item, version, endpoint, scope)
+        const stagedItem = await stageSingleFile(client, formKey, field, item, version, endpoint, scope, accessToken)
         stagedValues.push(stagedItem)
       }
 
@@ -326,6 +330,7 @@ export function useFormForgeSubmit(options: UseFormForgeSubmitOptions) {
     const version: string | undefined = submitOptions.version ?? options.version
     const endpoint: string | undefined = submitOptions.endpoint ?? options.endpoint
     const scope: FormForgeScope | undefined = submitOptions.scope ?? options.scope
+    const accessToken = submitOptions.accessToken ?? options.accessToken?.() ?? null
     const payload = buildSubmissionPayload(submittableFields, options.state())
     pruneOptionalEmptyFields(payload, submittableFields)
 
@@ -360,7 +365,8 @@ export function useFormForgeSubmit(options: UseFormForgeSubmitOptions) {
           version,
           test: submitOptions.test,
           endpoint,
-          scope
+          scope,
+          ...(accessToken === null ? {} : { accessToken })
         })
         response.value = managedResponse
         return managedResponse
@@ -381,7 +387,7 @@ export function useFormForgeSubmit(options: UseFormForgeSubmitOptions) {
             continue
           }
 
-          const stagedValue = await stageFieldFiles(client, options.key, field, currentValue, version, endpoint, scope)
+          const stagedValue = await stageFieldFiles(client, options.key, field, currentValue, version, endpoint, scope, accessToken)
 
           if (stagedValue === undefined) {
             delete jsonPayload[field.name]
@@ -404,7 +410,8 @@ export function useFormForgeSubmit(options: UseFormForgeSubmitOptions) {
         {
           version,
           endpoint,
-          scope
+          scope,
+          ...(accessToken === null ? {} : { accessToken })
         }
       )
 

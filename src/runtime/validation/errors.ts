@@ -32,6 +32,10 @@ function mapStatusToCode(status: number): FormForgeClientErrorCode {
     return 'rate_limited'
   }
 
+  if (status === 410) {
+    return 'expired'
+  }
+
   if (status >= 500) {
     return 'server_error'
   }

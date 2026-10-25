@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef, watch } from '#imports'
+import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from '#imports'
 import { parseDate, parseTime } from '@internationalized/date'
 import type { DateValue, Time } from '@internationalized/date'
 import UInput from '@nuxt/ui/components/Input.vue'
 import UProgress from '@nuxt/ui/components/Progress.vue'
 import type {
   FormForgeAddressFieldSchema,
+  FormForgeClientError,
   FormForgeClientConfig,
   FormForgeDatetimeMode,
   FormForgeFieldOption,
@@ -23,12 +24,14 @@ import { createDefaultAddressFields } from '../../utils/defaults'
 import { resolveTemporalMode } from '../../utils/temporal'
 import { sanitizePayloadWithSchema } from '../../utils/renderer-payload'
 import { resolveFormForgeSubmitVisibility } from '../../utils/submit-visibility'
+import { discoverFormForgeAccessAndLoadSchema, verifyFormForgeAccessAndLoadSchema } from '../../utils/renderer-access'
 import {
   resolveFormForgeRenderedPages,
   shouldShowFormForgeNavigation,
   shouldShowFormForgeProgress
 } from '../../utils/renderer-pagination'
 import { useFormForgeForm } from '../../composables/useFormForgeForm'
+import { useFormForgeAccess } from '../../composables/useFormForgeAccess'
 import { useFormForgeI18n } from '../../composables/useFormForgeI18n'
 import { useFormForgeSubmit } from '../../composables/useFormForgeSubmit'
 import { createFormForgeZodSchema } from '../../validation/zod'
@@ -233,6 +236,16 @@ const internalFormKey = computed<string>(() => {
   return props.formKey.trim()
 })
 
+const formAccess = useFormForgeAccess({
+  key: internalFormKey.value === '' ? '__missing_form_key__' : internalFormKey.value,
+  endpoint: props.endpoint,
+  locale: props.clientConfig?.locale,
+  clientConfig: props.clientConfig,
+  immediate: false
+})
+
+onBeforeUnmount(formAccess.dispose)
+
 const internalForm = useFormForgeForm({
   key: internalFormKey.value === '' ? '__missing_form_key__' : internalFormKey.value,
   version: props.formVersion,
@@ -247,7 +260,8 @@ const internalSubmit = useFormForgeSubmit({
   endpoint: props.endpoint,
   schema: (): FormForgeFormSchema | null => getResolvedSchema(),
   state: (): FormForgeSubmissionPayload => internalForm.state.value as FormForgeSubmissionPayload,
-  clientConfig: props.clientConfig
+  clientConfig: props.clientConfig,
+  accessToken: () => formAccess.accessToken.value
 })
 
 const submittedResponse = ref<FormForgeSubmissionResponse | null>(null)
@@ -262,12 +276,110 @@ watch(
       return
     }
 
-    await internalForm.fetchSchema().catch(() => {})
+    internalForm.schema.value = null
+    internalForm.state.value = {}
+    internalForm.error.value = null
+    await discoverFormForgeAccessAndLoadSchema(formAccess, fetchInternalSchema).catch(() => {})
   },
   {
     immediate: true
   }
 )
+
+watch(() => formAccess.state.value, (state) => {
+  if (state !== 'expired') {
+    return
+  }
+
+  internalForm.schema.value = null
+  internalForm.state.value = {}
+  internalForm.error.value = null
+  internalForm.initialized.value = false
+})
+
+watch(() => internalSubmit.error.value?.raw?.code, (code) => {
+  if (code === 'access_required' || code === 'access_invalid') {
+    formAccess.invalidateAuthorization()
+  }
+})
+
+function isFormForgeClientError(error: unknown): error is FormForgeClientError {
+  return typeof error === 'object'
+    && error !== null
+    && 'status' in error
+    && typeof error.status === 'number'
+    && 'code' in error
+    && typeof error.code === 'string'
+    && 'message' in error
+    && typeof error.message === 'string'
+}
+
+async function fetchInternalSchema(): Promise<void> {
+  try {
+    const accessToken = formAccess.accessToken.value
+    await internalForm.fetchSchema(accessToken === null ? {} : { accessToken })
+  } catch (error) {
+    const serverCode = isFormForgeClientError(error) && typeof error.raw?.code === 'string'
+      ? error.raw.code
+      : null
+
+    if (serverCode === 'access_required' || serverCode === 'access_invalid') {
+      formAccess.required.value = true
+      formAccess.invalidateAuthorization()
+      return
+    }
+
+    throw error
+  }
+}
+
+const accessCode = ref<string>('')
+
+const showAccessChallenge = computed<boolean>(() => {
+  return !usesExternalSchema.value
+    && internalFormKey.value !== ''
+    && formAccess.required.value
+    && formAccess.state.value !== 'authorized'
+})
+
+const accessErrorMessage = computed<string | null>(() => {
+  const code = formAccess.errorCode.value
+
+  if (code === null) {
+    return null
+  }
+
+  if (code === 'invalid_code') {
+    return t('renderer.access.invalidCode')
+  }
+
+  if (code === 'challenge_expired') {
+    return t('renderer.access.expired')
+  }
+
+  if (code === 'attempts_exceeded') {
+    return t('renderer.access.attemptsExceeded')
+  }
+
+  if (code === 'authorization_expired' || code === 'access_invalid' || code === 'access_required') {
+    return t('renderer.access.authorizationExpired')
+  }
+
+  if (code === 'rate_limited') {
+    return t('renderer.access.rateLimited')
+  }
+
+  return t('renderer.access.error')
+})
+
+async function verifyFormAccess(): Promise<void> {
+  await verifyFormForgeAccessAndLoadSchema(formAccess, accessCode.value, fetchInternalSchema).catch(() => {})
+  accessCode.value = ''
+}
+
+async function restartFormAccess(): Promise<void> {
+  await formAccess.startChallenge()
+}
 
 function getResolvedSchema(): FormForgeFormSchema | null {
   if (usesExternalSchema.value) {
@@ -1666,7 +1778,97 @@ async function onSubmit(): Promise<void> {
 </script>
 
 <template>
+  <UCard
+    v-if="showAccessChallenge"
+    class="formforge"
+    variant="subtle"
+  >
+    <template #header>
+      <div class="ff:formforge:stack-1">
+        <p class="ff:formforge:text-base ff:formforge:weight-600 ff:formforge:text-default">
+          {{ t('renderer.access.title') }}
+        </p>
+        <p class="ff:formforge:text-sm ff:formforge:text-muted">
+          {{ t('renderer.access.description') }}
+        </p>
+      </div>
+    </template>
+
+    <div class="ff:formforge:stack-4">
+      <UAlert
+        v-if="formAccess.state.value === 'loading'"
+        color="neutral"
+        variant="soft"
+        :title="t('renderer.access.starting')"
+        aria-live="polite"
+      />
+
+      <div
+        v-if="accessErrorMessage !== null"
+        role="alert"
+        aria-live="assertive"
+      >
+        <UAlert
+          color="error"
+          variant="soft"
+          icon="i-lucide-triangle-alert"
+          :title="accessErrorMessage"
+        />
+      </div>
+
+      <UAlert
+        v-if="formAccess.state.value === 'verifying'"
+        color="neutral"
+        variant="soft"
+        :title="t('renderer.access.verifying')"
+        aria-live="polite"
+      />
+
+      <UForm
+        v-if="formAccess.state.value === 'challenge' || formAccess.state.value === 'verifying'"
+        :state="{ code: accessCode }"
+        class="ff:formforge:stack-4"
+        @submit="verifyFormAccess"
+      >
+        <UFormField
+          name="code"
+          :label="t('renderer.access.label')"
+          required
+        >
+          <UInput
+            v-model="accessCode"
+            type="password"
+            maxlength="255"
+            autocomplete="off"
+            :disabled="formAccess.loading.value"
+            :placeholder="t('renderer.access.placeholder')"
+            :ui="{ base: 'ff:formforge:w-full' }"
+          />
+        </UFormField>
+
+        <UButton
+          type="submit"
+          :loading="formAccess.loading.value"
+          :disabled="formAccess.loading.value || accessCode.trim() === ''"
+        >
+          {{ t('renderer.access.continue') }}
+        </UButton>
+      </UForm>
+
+      <UButton
+        v-if="formAccess.state.value === 'expired' || formAccess.state.value === 'error'"
+        type="button"
+        :loading="formAccess.loading.value"
+        :disabled="formAccess.loading.value"
+        @click="restartFormAccess"
+      >
+        {{ t('renderer.access.restart') }}
+      </UButton>
+    </div>
+  </UCard>
+
   <UForm
+    v-else
     ref="rendererForm"
     class="formforge"
     :state="formState"

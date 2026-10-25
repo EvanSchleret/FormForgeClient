@@ -7,6 +7,7 @@ export type FormForgeClientErrorCode =
   | 'conflict'
   | 'validation'
   | 'rate_limited'
+  | 'expired'
   | 'server_error'
   | 'network_error'
 

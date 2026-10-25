@@ -99,9 +99,10 @@ export function useFormForgeForm(options: UseFormForgeFormOptions) {
     try {
       const endpoint = resolveEndpoint(requestOptions)
       const scope = resolveScope(requestOptions)
+      const accessOptions = requestOptions.accessToken === undefined ? {} : { accessToken: requestOptions.accessToken }
       const nextSchema = options.version !== undefined && options.version !== ''
-        ? await client.getFormVersion(options.key, options.version, { endpoint, scope })
-        : await client.getForm(options.key, { endpoint, scope })
+        ? await client.getFormVersion(options.key, options.version, { endpoint, scope, ...accessOptions })
+        : await client.getForm(options.key, { endpoint, scope, ...accessOptions })
 
       const nextState = createInitialPayload(nextSchema)
 

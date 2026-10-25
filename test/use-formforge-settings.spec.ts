@@ -68,6 +68,9 @@ const originalSettings: FormForgeSettingsModel = {
   submission_code_required: true,
   submission_code: '',
   has_submission_code: true,
+  access_code_required: true,
+  access_code: '',
+  has_access_code: true,
   public_url: null,
   drafts: {
     enabled: true,
@@ -112,6 +115,8 @@ describe('useFormForgeSettings', () => {
     expect(patch).not.toHaveProperty('fields')
     expect(patch).not.toHaveProperty('conditions')
     expect(patch.api?.integration).toEqual({ token: 'preserved' })
+    expect(patch).not.toHaveProperty('access_code')
+    expect(patch).not.toHaveProperty('access_code_required')
   })
 
   it('loads with public connection options and sends exactly one settings patch', async () => {
@@ -137,7 +142,8 @@ describe('useFormForgeSettings', () => {
 
     listForms.mockResolvedValue([{
       key: 'form-uuid',
-      has_submission_code: true
+      has_submission_code: true,
+      has_access_code: true
     } satisfies FormForgeManagementForm])
 
     const client = { getForm, listForms, patchForm } as unknown as FormForgeClient
@@ -180,8 +186,15 @@ describe('useFormForgeSettings', () => {
     patchForm.mockResolvedValue({
       key: 'form-key',
       has_submission_code: true,
+      has_access_code: true,
       schema: formSchema
     } satisfies FormForgeManagementForm)
+    listForms.mockResolvedValue([{
+      key: 'form-key',
+      has_submission_code: true,
+      has_access_code: true,
+      schema: formSchema
+    } satisfies FormForgeManagementForm])
 
     const { useFormForgeSettings } = await import('../src/runtime/composables/useFormForgeSettings')
     const settingsState = useFormForgeSettings({
@@ -194,12 +207,18 @@ describe('useFormForgeSettings', () => {
     await settingsState.save()
 
     expect(patchForm.mock.calls[0]?.[1]).not.toHaveProperty('submission_code')
+    expect(patchForm.mock.calls[0]?.[1]).not.toHaveProperty('access_code')
+    expect(patchForm.mock.calls[0]?.[1]).not.toHaveProperty('access_code_required')
 
     settingsState.settings.value.submission_code = 'new-pin'
     await settingsState.save()
 
     expect(patchForm.mock.calls[1]?.[1]).toHaveProperty('submission_code', 'new-pin')
     expect(settingsState.settings.value.submission_code).toBe('')
+    expect(settingsState.settings.value.access_code_required).toBe(true)
+    expect(settingsState.settings.value.has_access_code).toBe(true)
+    expect(patchForm.mock.calls[1]?.[1]).not.toHaveProperty('access_code')
+    expect(patchForm.mock.calls[1]?.[1]).not.toHaveProperty('access_code_required')
   })
 
   it('keeps the save error available to the component', async () => {
@@ -217,6 +236,40 @@ describe('useFormForgeSettings', () => {
     await expect(settingsState.save()).rejects.toThrow('Permission denied')
     expect(settingsState.error.value).toBe('Permission denied')
     expect(settingsState.saving.value).toBe(false)
+  })
+
+  it('enables, replaces, and disables the separate form access code explicitly', async () => {
+    const { buildFormForgeSettingsPatch } = await import('../src/runtime/composables/useFormForgeSettings')
+    const enabled: FormForgeSettingsModel = {
+      ...originalSettings,
+      access_code_required: true,
+      access_code: 'new-form-code',
+      has_access_code: false
+    }
+    expect(buildFormForgeSettingsPatch(enabled, {
+      ...originalSettings,
+      access_code_required: false,
+      has_access_code: false
+    })).toMatchObject({
+      access_code: 'new-form-code',
+      access_code_required: true
+    })
+
+    const replacement: FormForgeSettingsModel = {
+      ...originalSettings,
+      access_code: 'replacement-code'
+    }
+    expect(buildFormForgeSettingsPatch(replacement, originalSettings)).toEqual({
+      access_code: 'replacement-code'
+    })
+
+    const disabled: FormForgeSettingsModel = {
+      ...originalSettings,
+      access_code_required: false
+    }
+    expect(buildFormForgeSettingsPatch(disabled, originalSettings)).toEqual({
+      access_code_required: false
+    })
   })
 
   it('sends only explicitly changed top-level settings and complete changed nested objects', async () => {

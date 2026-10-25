@@ -33,7 +33,8 @@ export function useFormForgeUploads(options: UseFormForgeUploadsOptions) {
         {
           version: stageOptions.version ?? options.version,
           endpoint: stageOptions.endpoint ?? options.endpoint,
-          scope: stageOptions.scope ?? options.scope
+          scope: stageOptions.scope ?? options.scope,
+          ...(stageOptions.accessToken === undefined ? {} : { accessToken: stageOptions.accessToken })
         }
       )
       lastUpload.value = response

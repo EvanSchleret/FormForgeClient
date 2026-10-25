@@ -7,6 +7,7 @@ import type {
   FormForgeUploadMode
 } from './runtime/types'
 export type { FormForgeBuilderExpose } from './runtime/composables/useFormForgeBuilder'
+export type { FormForgeAccessState, UseFormForgeAccessOptions } from './runtime/composables/useFormForgeAccess'
 export type { FormForgeSettingsExpose } from './runtime/types'
 
 export interface ModuleOptions {
@@ -102,6 +103,7 @@ export default defineNuxtModule<ModuleOptions>({
         { from: resolver.resolve('./runtime/composables/useFormForgeDrafts'), name: 'useFormForgeDrafts' },
         { from: resolver.resolve('./runtime/composables/useFormForgeUploads'), name: 'useFormForgeUploads' },
         { from: resolver.resolve('./runtime/composables/useFormForgeForm'), name: 'useFormForgeForm' },
+        { from: resolver.resolve('./runtime/composables/useFormForgeAccess'), name: 'useFormForgeAccess' },
         { from: resolver.resolve('./runtime/composables/useFormForgeSubmit'), name: 'useFormForgeSubmit' },
         { from: resolver.resolve('./runtime/composables/useFormForgeSubmission'), name: 'useFormForgeSubmission' },
         { from: resolver.resolve('./runtime/composables/useFormForgeResponses'), name: 'useFormForgeResponses' },
