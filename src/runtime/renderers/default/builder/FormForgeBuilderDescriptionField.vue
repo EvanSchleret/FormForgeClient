@@ -45,11 +45,11 @@ function blockEnterKeydown(_editor: unknown, event: KeyboardEvent): boolean {
 </script>
 
 <template>
-  <div class="grid gap-3">
+  <div class="ff:formforge:grid ff:formforge:gap-3">
     <template v-if="hasDescription">
       <UFormField :label="t('builder.categoryModal.descriptionLabel')">
         <template #hint>
-          <div class="flex justify-end">
+          <div class="ff:formforge:flex ff:formforge:justify-end">
             <UButton
               color="neutral"
               variant="ghost"
@@ -62,14 +62,14 @@ function blockEnterKeydown(_editor: unknown, event: KeyboardEvent): boolean {
           </div>
         </template>
 
-        <div class="rounded-lg bg-white p-2 shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-white/10">
+        <div class="ff:formforge:rounded-lg ff:formforge:bg-elevated ff:formforge:p-2 ff:formforge:border-thin ff:formforge:border-default">
           <UEditor
             v-slot="{ editor }"
             v-model="description"
             content-type="html"
             :placeholder="t('builder.descriptionPlaceholder')"
             :disabled="readonly"
-            class="rounded-xl"
+            class="ff:formforge:rounded-xl"
             :editor-props="{
               handleKeyDown: blockEnterKeydown
             }"
@@ -96,7 +96,7 @@ function blockEnterKeydown(_editor: unknown, event: KeyboardEvent): boolean {
       icon="i-lucide-plus"
       :disabled="readonly"
       :ui="{
-        base: 'w-fit'
+        base: 'ff:formforge:w-fit'
       }"
       @click.stop="enableDescription"
     >

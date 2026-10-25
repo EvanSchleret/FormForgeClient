@@ -109,31 +109,31 @@ function toggleCollapsed(): void {
   <UCard
     variant="soft"
     :ui="{
-      body: 'p-0 sm:p-0'
+      body: 'ff:formforge:p-0 ff:formforge:sm:p-0'
     }"
   >
-    <div class="flex flex-row">
+    <div class="ff:formforge:flex ff:formforge:flex-row">
       <UBadge
-        class="page-drag-handle cursor-grab select-none"
+        class="formforge-page-drag-handle ff:formforge:cursor-grab ff:formforge:select-none"
         :ui="{
-          base: 'rounded-none  w-8 flex items-center justify-center'
+          base: 'ff:formforge:rounded-none ff:formforge:w-8 ff:formforge:flex ff:formforge:items-center ff:formforge:justify-center'
         }"
       >
         {{ pageIndex + 1 }}
       </UBadge>
 
-      <div class="min-w-0 w-full">
-        <div class="px-5 py-4">
-          <div class="flex items-start justify-between gap-4">
-            <div class="min-w-0">
-              <p class="text-sm font-semibold">
+      <div class="ff:formforge:min-w-0 ff:formforge:w-full">
+        <div class="ff:formforge:px-5 ff:formforge:py-4">
+          <div class="ff:formforge:flex ff:formforge:items-start ff:formforge:justify-between ff:formforge:gap-4">
+            <div class="ff:formforge:min-w-0">
+              <p class="ff:formforge:text-sm ff:formforge:weight-600">
                 {{ t('builder.blockLabel') }} {{ pageIndex + 1 }}
               </p>
-              <p class="text-sm text-muted">
+              <p class="ff:formforge:text-sm ff:formforge:text-muted">
                 {{ t('builder.questionCount', { count: page.fields.length }) }}
               </p>
             </div>
-            <div class="flex items-center gap-1">
+            <div class="ff:formforge:flex ff:formforge:items-center ff:formforge:gap-1">
               <UButton
                 color="neutral"
                 variant="ghost"
@@ -226,11 +226,11 @@ function toggleCollapsed(): void {
             orientation="horizontal"
           />
 
-          <div class="px-5 py-4">
+          <div class="ff:formforge:px-5 ff:formforge:py-4">
             <UDropdownMenu
               :items="questionPickerItems()"
               :content="{ align: 'start', sideOffset: 8 }"
-              :ui="{ content: 'w-(--reka-dropdown-menu-trigger-width)' }"
+              :ui="{ content: 'formforge ff:formforge:w-(--reka-dropdown-menu-trigger-width)' }"
             >
               <UButton
                 color="neutral"

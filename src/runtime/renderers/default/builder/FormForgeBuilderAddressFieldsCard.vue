@@ -84,52 +84,52 @@ function setAddressFieldLabel(index: number, label: string): void {
 </script>
 
 <template>
-  <UCard :ui="{ body: 'grid gap-4' }">
-    <div class="grid gap-4">
+  <UCard :ui="{ body: 'ff:formforge:grid ff:formforge:gap-4' }">
+    <div class="ff:formforge:grid ff:formforge:gap-4">
       <div
-        class="hidden lg:grid lg:items-center lg:gap-x-6"
+        class="ff:formforge:hidden ff:formforge:lg:grid ff:formforge:lg:items-center ff:formforge:lg:gap-x-6"
         :style="addressFieldsGridStyle"
       >
-        <span class="min-w-0 text-sm font-medium text-default">{{ t('builder.addressFields') }}</span>
-        <span class="text-sm font-medium text-default">
+        <span class="ff:formforge:min-w-0 ff:formforge:text-sm ff:formforge:weight-500 ff:formforge:text-default">{{ t('builder.addressFields') }}</span>
+        <span class="ff:formforge:text-sm ff:formforge:weight-500 ff:formforge:text-default">
           {{ t('builder.address.show') }}
         </span>
-        <span class="text-sm font-medium text-default">
+        <span class="ff:formforge:text-sm ff:formforge:weight-500 ff:formforge:text-default">
           {{ t('builder.address.required') }}
         </span>
-        <span class="min-w-0 text-sm font-medium text-default">
+        <span class="ff:formforge:min-w-0 ff:formforge:text-sm ff:formforge:weight-500 ff:formforge:text-default">
           {{ t('builder.address.label') }}
         </span>
       </div>
 
-      <div class="grid gap-3">
+      <div class="ff:formforge:grid ff:formforge:gap-3">
         <div
           v-for="(addressField, addressIndex) in addressFields()"
           :key="addressField.key"
-          class="grid gap-2 lg:items-center lg:gap-x-6"
+          class="ff:formforge:grid ff:formforge:gap-2 ff:formforge:lg:items-center ff:formforge:lg:gap-x-6"
           :style="addressFieldsGridStyle"
         >
-          <span class="min-w-0 text-sm text-default">
+          <span class="ff:formforge:min-w-0 ff:formforge:text-sm ff:formforge:text-default">
             {{ t(addressFieldLabelKey(addressField.key)) }}
           </span>
           <USwitch
             :model-value="addressField.visible"
             :disabled="readonly"
-            class="justify-self-start"
+            class="ff:formforge:justify-self-start"
             @update:model-value="(value: boolean) => setAddressFieldVisible(addressIndex, value)"
           />
           <USwitch
             :model-value="addressField.required"
             :disabled="readonly || !addressField.visible"
-            class="justify-self-start"
+            class="ff:formforge:justify-self-start"
             @update:model-value="(value: boolean) => setAddressFieldRequired(addressIndex, value)"
           />
-          <div class="min-w-0">
+          <div class="ff:formforge:min-w-0">
             <UInput
               :model-value="addressField.label"
               :disabled="readonly"
               :placeholder="t(addressFieldLabelKey(addressField.key))"
-              class="w-full"
+              class="ff:formforge:w-full"
               @update:model-value="(value: string) => setAddressFieldLabel(addressIndex, value)"
             />
           </div>

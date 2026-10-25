@@ -33,8 +33,8 @@ function setChoiceDisplay(display: 'list' | 'menu'): void {
 </script>
 
 <template>
-  <div class="grid gap-2">
-    <span class="text-sm font-medium">{{ t('builder.choiceDisplay') }}</span>
+  <div class="ff:formforge:grid ff:formforge:gap-2">
+    <span class="ff:formforge:text-sm ff:formforge:weight-500">{{ t('builder.choiceDisplay') }}</span>
     <USelect
       :model-value="choiceDisplayValue()"
       :items="[

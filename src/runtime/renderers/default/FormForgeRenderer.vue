@@ -1668,6 +1668,7 @@ async function onSubmit(): Promise<void> {
 <template>
   <UForm
     ref="rendererForm"
+    class="formforge"
     :state="formState"
     :schema="getResolvedZodSchema()"
     :validate="props.validate"
@@ -1675,7 +1676,7 @@ async function onSubmit(): Promise<void> {
     @submit="onSubmit"
     @error="onFormError"
   >
-    <div class="space-y-6">
+    <div class="ff:formforge:stack-6">
       <UProgress
         v-if="shouldShowProgress"
         :model-value="progressValue"
@@ -1712,7 +1713,7 @@ async function onSubmit(): Promise<void> {
         :title="t('renderer.alert.fixFields')"
       >
         <template #description>
-          <ul class="list-disc space-y-1 pl-5">
+          <ul class="ff:formforge:list-disc ff:formforge:stack-1 ff:formforge:pl-5">
             <li
               v-for="(error, index) in rendererErrors"
               :key="`${error.name ?? error.id ?? 'form'}-${index}`"
@@ -1740,9 +1741,9 @@ async function onSubmit(): Promise<void> {
 
       <div
         v-if="requiresSubmissionCode"
-        class="space-y-2 rounded-xl border border-muted bg-elevated/40 p-4"
+        class="ff:formforge:stack-2 ff:formforge:rounded-xl ff:formforge:border-thin ff:formforge:border-muted ff:formforge:bg-elevated/40 ff:formforge:p-4"
       >
-        <p class="text-sm font-medium text-default">
+        <p class="ff:formforge:text-sm ff:formforge:weight-500 ff:formforge:text-default">
           {{ t('renderer.submissionCodeLabel') }}
         </p>
         <UInput
@@ -1756,7 +1757,7 @@ async function onSubmit(): Promise<void> {
       <FormForgeRendererPage
         v-for="page in renderedPages"
         :key="page.page_key"
-        class="space-y-4"
+        class="ff:formforge:stack-4"
         @focusin="setActivePage(page.page_key)"
         @pointerdown="setActivePage(page.page_key)"
       >
@@ -1778,7 +1779,7 @@ async function onSubmit(): Promise<void> {
 
       <div
         v-if="shouldShowNavigation"
-        class="flex items-center justify-between gap-2"
+        class="ff:formforge:flex ff:formforge:items-center ff:formforge:justify-between ff:formforge:gap-2"
       >
         <UButton
           type="button"
@@ -1811,7 +1812,7 @@ async function onSubmit(): Promise<void> {
 
       <div
         v-else-if="shouldShowSubmit"
-        class="flex justify-end"
+        class="ff:formforge:flex ff:formforge:justify-end"
       >
         <UButton
           type="submit"

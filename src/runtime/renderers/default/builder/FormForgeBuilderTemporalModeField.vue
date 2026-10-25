@@ -38,14 +38,14 @@ function setTemporalMode(mode: FormForgeTemporalMode): void {
 </script>
 
 <template>
-  <div class="grid gap-4">
+  <div class="ff:formforge:grid ff:formforge:gap-4">
     <UFormField :label="t('builder.temporalMode.label')">
       <USelect
         :model-value="temporalModeValue()"
         :items="items"
         :disabled="readonly"
         :ui="{
-          base: 'w-full'
+          base: 'ff:formforge:w-full'
         }"
         @update:model-value="(value: string | null) => {
           if (isTemporalMode(value)) {

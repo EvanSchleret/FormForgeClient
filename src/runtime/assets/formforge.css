@@ -1,2 +1,76 @@
-@import "#build/ui.css";
-@source "../renderers/**/*.{vue,ts}"
+@import "tailwindcss/theme.css" layer(theme) prefix(ff) theme(reference);
+@reference "#build/ui.css";
+@import "tailwindcss/utilities.css" layer(utilities) prefix(ff) source(none);
+
+@custom-variant formforge (&:where(.formforge, .formforge *));
+
+@utility stack-1 {
+  & > :not(:last-child) {
+    margin-block-end: calc(var(--ff-spacing, 0.25rem) * 1);
+  }
+}
+
+@utility stack-2 {
+  & > :not(:last-child) {
+    margin-block-end: calc(var(--ff-spacing, 0.25rem) * 2);
+  }
+}
+
+@utility stack-3 {
+  & > :not(:last-child) {
+    margin-block-end: calc(var(--ff-spacing, 0.25rem) * 3);
+  }
+}
+
+@utility stack-4 {
+  & > :not(:last-child) {
+    margin-block-end: calc(var(--ff-spacing, 0.25rem) * 4);
+  }
+}
+
+@utility stack-5 {
+  & > :not(:last-child) {
+    margin-block-end: calc(var(--ff-spacing, 0.25rem) * 5);
+  }
+}
+
+@utility stack-6 {
+  & > :not(:last-child) {
+    margin-block-end: calc(var(--ff-spacing, 0.25rem) * 6);
+  }
+}
+
+@utility stack-12 {
+  & > :not(:last-child) {
+    margin-block-end: calc(var(--ff-spacing, 0.25rem) * 12);
+  }
+}
+
+@utility border-thin {
+  border-width: 1px;
+  border-style: solid;
+}
+
+@utility border-top-thin {
+  border-top-width: 1px;
+  border-top-style: solid;
+}
+
+@utility border-dashed-thin {
+  border-width: 1px;
+  border-style: dashed;
+}
+
+@utility weight-500 {
+  font-weight: 500;
+}
+
+@utility weight-600 {
+  font-weight: 600;
+}
+
+@utility weight-700 {
+  font-weight: 700;
+}
+
+@source "../renderers/**/*.{vue,ts}";

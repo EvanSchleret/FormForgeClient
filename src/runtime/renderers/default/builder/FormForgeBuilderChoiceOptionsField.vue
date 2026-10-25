@@ -151,18 +151,18 @@ function userChoiceOptions(): FormForgeFieldOption[] {
 
 <template>
   <UFormField :label="t('builder.optionsLabel')">
-    <div class="grid gap-3">
+    <div class="ff:formforge:grid ff:formforge:gap-3">
       <div
         v-for="(option, optionIndex) in userChoiceOptions()"
         :key="optionIndex"
-        class="flex flex-row items-center gap-2"
+        class="ff:formforge:flex ff:formforge:flex-row ff:formforge:items-center ff:formforge:gap-2"
       >
         <UInput
           :model-value="optionLabel(option)"
           :disabled="readonly"
           :placeholder="t('builder.optionPlaceholder', { index: optionIndex + 1 })"
           :ui="{
-            root: 'w-full'
+            root: 'ff:formforge:w-full'
           }"
           @update:model-value="(value: string) => setOptionLabel(optionIndex, value)"
         />
@@ -177,14 +177,14 @@ function userChoiceOptions(): FormForgeFieldOption[] {
       <div
         v-for="specialOption in specialChoiceOptions()"
         :key="specialOption.type"
-        class="flex flex-row items-center gap-2"
+        class="ff:formforge:flex ff:formforge:flex-row ff:formforge:items-center ff:formforge:gap-2"
       >
         <UInput
           :model-value="optionLabel(specialOption.option)"
           disabled
           :placeholder="specialOption.type === 'other' ? t('builder.optionOther') : t('builder.optionNone')"
           :ui="{
-            root: 'w-full'
+            root: 'ff:formforge:w-full'
           }"
         />
         <UButton
@@ -196,7 +196,7 @@ function userChoiceOptions(): FormForgeFieldOption[] {
         />
       </div>
 
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="ff:formforge:flex ff:formforge:flex-wrap ff:formforge:items-center ff:formforge:gap-2">
         <UButton
           color="neutral"
           variant="soft"

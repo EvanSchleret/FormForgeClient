@@ -29,7 +29,7 @@ function close(): void {
   <UModal
     :title="t('builder.logic.title')"
     :close="{ onClick: close }"
-    :ui="{ content: 'max-w-7xl' }"
+    :ui="{ content: 'formforge ff:formforge:max-w-7xl' }"
   >
     <template #body>
       <FormForgeBuilderLogicPanel

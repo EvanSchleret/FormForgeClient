@@ -214,8 +214,8 @@ const draftMutationIdentifier = computed<string | null>(() => {
 
 const builderLayoutClass = computed<string>(() => {
   return props.standalone
-    ? 'grid gap-4'
-    : 'grid gap-4 lg:grid-cols-[minmax(0,1fr)_4rem]'
+    ? 'ff:formforge:grid ff:formforge:gap-4'
+    : 'ff:formforge:grid ff:formforge:gap-4 ff:formforge:lg:grid-cols-[minmax(0,1fr)_4rem]'
 })
 
 function twoDigits(value: number): string {
@@ -1069,32 +1069,30 @@ defineExpose(builderExpose)
 </script>
 
 <template>
-  <div
-    class="w-full"
-  >
+  <div class="formforge ff:formforge:w-full">
     <div :class="builderLayoutClass">
       <div
-        class="grid min-w-0 gap-6"
+        class="ff:formforge:grid ff:formforge:min-w-0 ff:formforge:gap-6"
       >
         <template v-if="!settingsHidden">
           <UTabs
             v-model="selectedTab"
             :items="builderTabs"
             value-key="slot"
-            class="w-full"
+            class="ff:formforge:w-full"
             :ui="{
-              list: 'w-full',
-              trigger: 'flex-1 justify-center'
+              list: 'ff:formforge:w-full',
+              trigger: 'ff:formforge:flex-1 ff:formforge:justify-center'
             }"
           >
             <template #builder>
-              <div class="grid gap-6">
+              <div class="ff:formforge:grid ff:formforge:gap-6">
                 <Draggable
                   v-model="draftPages"
                   item-key="page_key"
-                  handle=".page-drag-handle"
+                  handle=".formforge-page-drag-handle"
                   group="formforge-pages"
-                  class="grid gap-6"
+                  class="ff:formforge:grid ff:formforge:gap-6"
                 >
                   <template #item="{ element: page, index }">
                     <FormForgeBuilderBlockCard
@@ -1120,12 +1118,12 @@ defineExpose(builderExpose)
                   </template>
                 </Draggable>
 
-                <div class="flex flex-col items-center justify-between gap-3 rounded-lg border border-dashed border-muted p-4 sm:flex-row">
-                  <div class="space-y-1">
-                    <p class="text-sm font-semibold text-default">
+                <div class="ff:formforge:flex ff:formforge:flex-col ff:formforge:items-center ff:formforge:justify-between ff:formforge:gap-3 ff:formforge:rounded-lg ff:formforge:border-thin ff:formforge:border-dashed-thin ff:formforge:border-muted ff:formforge:p-4 ff:formforge:sm:flex-row">
+                  <div class="ff:formforge:stack-1">
+                    <p class="ff:formforge:text-sm ff:formforge:weight-600 ff:formforge:text-default">
                       {{ t('builder.block.addNewBlock') }}
                     </p>
-                    <p class="text-sm text-muted">
+                    <p class="ff:formforge:text-sm ff:formforge:text-muted">
                       {{ t('builder.block.addNewBlockDescription') }}
                     </p>
                   </div>
@@ -1145,31 +1143,31 @@ defineExpose(builderExpose)
             <template #settings>
               <UCard variant="subtle">
                 <template #header>
-                  <div class="space-y-1">
-                    <p class="text-sm font-semibold text-default">
+                  <div class="ff:formforge:stack-1">
+                    <p class="ff:formforge:text-sm ff:formforge:weight-600 ff:formforge:text-default">
                       {{ t('builder.settings.title') }}
                     </p>
-                    <p class="text-sm text-muted">
+                    <p class="ff:formforge:text-sm ff:formforge:text-muted">
                       {{ t('builder.settings.description') }}
                     </p>
                   </div>
                 </template>
 
-                <div class="space-y-6">
+                <div class="ff:formforge:stack-6">
                   <div
                     v-if="!disableTitleInput || !disableCategoryControl"
-                    class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]"
+                    class="ff:formforge:grid ff:formforge:gap-3 ff:formforge:lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]"
                   >
                     <UInput
                       v-if="!disableTitleInput"
                       v-model="draftTitle"
                       :disabled="readonly"
                       :placeholder="t('builder.settings.formTitlePlaceholder')"
-                      :ui="{ base: 'w-full' }"
+                      :ui="{ base: 'ff:formforge:w-full' }"
                     />
                     <div
                       v-if="!disableCategoryControl"
-                      class="flex flex-row items-center gap-2"
+                      class="ff:formforge:flex ff:formforge:flex-row ff:formforge:items-center ff:formforge:gap-2"
                     >
                       <USelect
                         v-model="draftCategorySelectValue"
@@ -1177,7 +1175,7 @@ defineExpose(builderExpose)
                         :disabled="readonly"
                         :placeholder="t('builder.settings.categoryPlaceholder')"
                         :ui="{
-                          base: 'w-full'
+                          base: 'ff:formforge:w-full'
                         }"
                       />
                       <UTooltip :text="t('builder.tooltip.addCategory')">
@@ -1192,13 +1190,13 @@ defineExpose(builderExpose)
                     </div>
                   </div>
 
-                  <div class="grid gap-6">
-                    <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-                      <div class="space-y-1">
-                        <p class="text-sm font-semibold text-default">
+                  <div class="ff:formforge:grid ff:formforge:gap-6">
+                    <div class="ff:formforge:grid ff:formforge:gap-4 ff:formforge:sm:grid-cols-[minmax(0,1fr)_auto] ff:formforge:sm:items-start">
+                      <div class="ff:formforge:stack-1">
+                        <p class="ff:formforge:text-sm ff:formforge:weight-600 ff:formforge:text-default">
                           {{ t('builder.settings.opening.title') }}
                         </p>
-                        <p class="text-sm text-muted">
+                        <p class="ff:formforge:text-sm ff:formforge:text-muted">
                           {{ t('builder.settings.opening.description') }}
                         </p>
                       </div>
@@ -1210,13 +1208,13 @@ defineExpose(builderExpose)
 
                     <div
                       v-if="openingEnabled"
-                      class="grid gap-4 sm:grid-cols-2"
+                      class="ff:formforge:grid ff:formforge:gap-4 ff:formforge:sm:grid-cols-2"
                     >
                       <UFormField :label="t('builder.settings.opening.date')">
                         <UInputDate
                           v-model="publishAtDate"
                           :disabled="readonly"
-                          :ui="{ base: 'w-full' }"
+                          :ui="{ base: 'ff:formforge:w-full' }"
                         />
                       </UFormField>
                       <UFormField :label="t('builder.settings.opening.time')">
@@ -1224,19 +1222,19 @@ defineExpose(builderExpose)
                           v-model="publishAtTime"
                           :disabled="readonly"
                           :hour-cycle="24"
-                          :ui="{ base: 'w-full' }"
+                          :ui="{ base: 'ff:formforge:w-full' }"
                         />
                       </UFormField>
                     </div>
                   </div>
 
-                  <div class="grid gap-6">
-                    <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-                      <div class="space-y-1">
-                        <p class="text-sm font-semibold text-default">
+                  <div class="ff:formforge:grid ff:formforge:gap-6">
+                    <div class="ff:formforge:grid ff:formforge:gap-4 ff:formforge:sm:grid-cols-[minmax(0,1fr)_auto] ff:formforge:sm:items-start">
+                      <div class="ff:formforge:stack-1">
+                        <p class="ff:formforge:text-sm ff:formforge:weight-600 ff:formforge:text-default">
                           {{ t('builder.settings.closing.title') }}
                         </p>
-                        <p class="text-sm text-muted">
+                        <p class="ff:formforge:text-sm ff:formforge:text-muted">
                           {{ t('builder.settings.closing.description') }}
                         </p>
                       </div>
@@ -1248,13 +1246,13 @@ defineExpose(builderExpose)
 
                     <div
                       v-if="closingEnabled"
-                      class="grid gap-4 sm:grid-cols-2"
+                      class="ff:formforge:grid ff:formforge:gap-4 ff:formforge:sm:grid-cols-2"
                     >
                       <UFormField :label="t('builder.settings.closing.date')">
                         <UInputDate
                           v-model="pauseAtDate"
                           :disabled="readonly"
-                          :ui="{ base: 'w-full' }"
+                          :ui="{ base: 'ff:formforge:w-full' }"
                         />
                       </UFormField>
                       <UFormField :label="t('builder.settings.closing.time')">
@@ -1262,19 +1260,19 @@ defineExpose(builderExpose)
                           v-model="pauseAtTime"
                           :disabled="readonly"
                           :hour-cycle="24"
-                          :ui="{ base: 'w-full' }"
+                          :ui="{ base: 'ff:formforge:w-full' }"
                         />
                       </UFormField>
                     </div>
                   </div>
 
-                  <div class="grid gap-6">
-                    <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-                      <div class="space-y-1">
-                        <p class="text-sm font-semibold text-default">
+                  <div class="ff:formforge:grid ff:formforge:gap-6">
+                    <div class="ff:formforge:grid ff:formforge:gap-4 ff:formforge:sm:grid-cols-[minmax(0,1fr)_auto] ff:formforge:sm:items-start">
+                      <div class="ff:formforge:stack-1">
+                        <p class="ff:formforge:text-sm ff:formforge:weight-600 ff:formforge:text-default">
                           {{ t('builder.settings.submissionLimit.title') }}
                         </p>
-                        <p class="text-sm text-muted">
+                        <p class="ff:formforge:text-sm ff:formforge:text-muted">
                           {{ t('builder.settings.submissionLimit.description') }}
                         </p>
                       </div>
@@ -1292,28 +1290,28 @@ defineExpose(builderExpose)
                         v-model="responseLimitValue"
                         :disabled="readonly"
                         :min="1"
-                        :ui="{ base: 'w-full' }"
+                        :ui="{ base: 'ff:formforge:w-full' }"
                       />
                     </UFormField>
                   </div>
 
-                  <div class="grid gap-6">
-                    <div class="space-y-1">
-                      <p class="text-sm font-semibold text-default">
+                  <div class="ff:formforge:grid ff:formforge:gap-6">
+                    <div class="ff:formforge:stack-1">
+                      <p class="ff:formforge:text-sm ff:formforge:weight-600 ff:formforge:text-default">
                         {{ t('builder.settings.access.title') }}
                       </p>
-                      <p class="text-sm text-muted">
+                      <p class="ff:formforge:text-sm ff:formforge:text-muted">
                         {{ t('builder.settings.access.description') }}
                       </p>
                     </div>
 
-                    <div class="grid gap-4">
-                      <div class="flex items-start justify-between gap-4">
-                        <div class="space-y-1">
-                          <p class="text-sm font-medium text-default">
+                    <div class="ff:formforge:grid ff:formforge:gap-4">
+                      <div class="ff:formforge:flex ff:formforge:items-start ff:formforge:justify-between ff:formforge:gap-4">
+                        <div class="ff:formforge:stack-1">
+                          <p class="ff:formforge:text-sm ff:formforge:weight-500 ff:formforge:text-default">
                             {{ t('builder.settings.access.publicForm.title') }}
                           </p>
-                          <p class="text-sm text-muted">
+                          <p class="ff:formforge:text-sm ff:formforge:text-muted">
                             {{ t('builder.settings.access.publicForm.description') }}
                           </p>
                         </div>
@@ -1329,17 +1327,17 @@ defineExpose(builderExpose)
                             :model-value="publicUrlValue"
                             disabled
                             :placeholder="t('builder.settings.access.publicLinkPlaceholder')"
-                            :ui="{ base: 'w-full' }"
+                            :ui="{ base: 'ff:formforge:w-full' }"
                           />
                         </UFormField>
                       </div>
 
-                      <div class="flex items-start justify-between gap-4 border-t border-muted pt-4">
-                        <div class="space-y-1">
-                          <p class="text-sm font-medium text-default">
+                      <div class="ff:formforge:flex ff:formforge:items-start ff:formforge:justify-between ff:formforge:gap-4 ff:formforge:border-top-thin ff:formforge:border-muted ff:formforge:pt-4">
+                        <div class="ff:formforge:stack-1">
+                          <p class="ff:formforge:text-sm ff:formforge:weight-500 ff:formforge:text-default">
                             {{ t('builder.settings.access.pinProtection.title') }}
                           </p>
-                          <p class="text-sm text-muted">
+                          <p class="ff:formforge:text-sm ff:formforge:text-muted">
                             {{ t('builder.settings.access.pinProtection.description') }}
                           </p>
                         </div>
@@ -1356,24 +1354,24 @@ defineExpose(builderExpose)
                             :disabled="readonly"
                             type="password"
                             :placeholder="t('builder.settings.access.pinPlaceholder')"
-                            :ui="{ base: 'w-full' }"
+                            :ui="{ base: 'ff:formforge:w-full' }"
                           />
                         </UFormField>
                       </div>
                     </div>
                   </div>
 
-                  <div class="flex flex-wrap items-center justify-between gap-3 border-t border-muted pt-4">
-                    <div class="flex flex-wrap gap-2 text-sm text-muted">
+                  <div class="ff:formforge:flex ff:formforge:flex-wrap ff:formforge:items-center ff:formforge:justify-between ff:formforge:gap-3 ff:formforge:border-top-thin ff:formforge:border-muted ff:formforge:pt-4">
+                    <div class="ff:formforge:flex ff:formforge:flex-wrap ff:formforge:gap-2 ff:formforge:text-sm ff:formforge:text-muted">
                       <span v-if="loadingRemoteForm">{{ t('builder.loadingForm') }}</span>
                       <span v-if="formattedLastSavedAt !== null">{{ t('builder.lastSave', { value: formattedLastSavedAt }) }}</span>
                       <span
                         v-if="builderError !== null"
-                        class="text-error"
+                        class="ff:formforge:text-error"
                       >{{ builderError }}</span>
                     </div>
 
-                    <div class="flex flex-wrap items-center gap-2">
+                    <div class="ff:formforge:flex ff:formforge:flex-wrap ff:formforge:items-center ff:formforge:gap-2">
                       <UButton
                         :loading="saving"
                         :disabled="readonly"
@@ -1401,14 +1399,14 @@ defineExpose(builderExpose)
 
         <div
           v-else
-          class="grid gap-6"
+          class="ff:formforge:grid ff:formforge:gap-6"
         >
           <Draggable
             v-model="draftPages"
             item-key="page_key"
-            handle=".page-drag-handle"
+            handle=".formforge-page-drag-handle"
             group="formforge-pages"
-            class="grid gap-6"
+            class="ff:formforge:grid ff:formforge:gap-6"
           >
             <template #item="{ element: page, index }">
               <FormForgeBuilderBlockCard
@@ -1434,12 +1432,12 @@ defineExpose(builderExpose)
             </template>
           </Draggable>
 
-          <div class="flex flex-col items-center justify-between gap-3 rounded-lg border border-dashed border-muted p-4 sm:flex-row">
-            <div class="space-y-1">
-              <p class="text-sm font-semibold text-default">
+          <div class="ff:formforge:flex ff:formforge:flex-col ff:formforge:items-center ff:formforge:justify-between ff:formforge:gap-3 ff:formforge:rounded-lg ff:formforge:border-thin ff:formforge:border-dashed-thin ff:formforge:border-muted ff:formforge:p-4 ff:formforge:sm:flex-row">
+            <div class="ff:formforge:stack-1">
+              <p class="ff:formforge:text-sm ff:formforge:weight-600 ff:formforge:text-default">
                 {{ t('builder.block.addNewBlock') }}
               </p>
-              <p class="text-sm text-muted">
+              <p class="ff:formforge:text-sm ff:formforge:text-muted">
                 {{ t('builder.block.addNewBlockDescription') }}
               </p>
             </div>
@@ -1459,10 +1457,10 @@ defineExpose(builderExpose)
   </div>
   <div
     v-if="loadingRemoteForm"
-    class="space-y-6"
+    class="ff:formforge:stack-6"
   >
     <UCard>
-      <div class="text-sm text-gray-500">
+      <div class="ff:formforge:text-sm ff:formforge:text-muted">
         {{ t('builder.loadingBuilder') }}
       </div>
     </UCard>

@@ -660,35 +660,35 @@ watch(
 </script>
 
 <template>
-  <div class="w-full">
+  <div class="formforge ff:formforge:w-full">
     <p
       v-if="loading"
-      class="text-sm text-default"
+      class="ff:formforge:text-sm ff:formforge:text-default"
     >
       {{ t('response.loading') }}
     </p>
 
     <p
       v-else-if="error !== null"
-      class="text-sm text-red-600"
+      class="ff:formforge:text-sm ff:formforge:text-error"
     >
       {{ error }}
     </p>
 
     <p
       v-else-if="responsePages.length === 0"
-      class="text-sm text-default"
+      class="ff:formforge:text-sm ff:formforge:text-default"
     >
       {{ t('response.empty') }}
     </p>
 
     <div
       v-else
-      class="space-y-12"
+      class="ff:formforge:stack-12"
     >
       <p
         v-if="formLoadError !== null"
-        class="text-sm text-amber-700"
+        class="ff:formforge:text-sm ff:formforge:text-warning"
       >
         {{ formLoadError }}
       </p>
@@ -696,82 +696,82 @@ watch(
       <section
         v-for="(page, pageIndex) in responsePages"
         :key="page.id"
-        class="space-y-4"
+        class="ff:formforge:stack-4"
       >
-        <div class="space-y-1">
-          <h3 class="text-base font-semibold text-default">
+        <div class="ff:formforge:stack-1">
+          <h3 class="ff:formforge:text-base ff:formforge:weight-600 ff:formforge:text-default">
             {{ page.title || t('response.page.fallback', { index: pageIndex + 1 }) }}
           </h3>
           <p
             v-if="typeof page.description === 'string' && page.description.trim() !== ''"
-            class="text-sm text-default"
+            class="ff:formforge:text-sm ff:formforge:text-default"
           >
             {{ page.description }}
           </p>
         </div>
 
-        <div class="space-y-5">
+        <div class="ff:formforge:stack-5">
           <article
             v-for="item in page.items"
             :key="item.id"
-            class="space-y-2"
+            class="ff:formforge:stack-2"
           >
             <div
               v-if="isLineLayout"
-              class="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] md:gap-6"
+              class="ff:formforge:grid ff:formforge:grid-cols-1 ff:formforge:gap-2 ff:formforge:md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] ff:formforge:md:gap-6"
             >
-              <p class="whitespace-pre-wrap text-sm font-medium text-default">
+              <p class="ff:formforge:whitespace-pre-wrap ff:formforge:text-sm ff:formforge:weight-500 ff:formforge:text-default">
                 <span v-html="item.question" />
               </p>
 
               <div
                 v-if="item.answer.kind === 'text'"
-                class="whitespace-pre-wrap text-sm text-default"
+                class="ff:formforge:whitespace-pre-wrap ff:formforge:text-sm ff:formforge:text-default"
               >
                 {{ item.answer.value }}
               </div>
 
               <div
                 v-else
-                class="space-y-2"
+                class="ff:formforge:stack-2"
               >
                 <div
                   v-for="file in item.answer.value"
                   :key="file.id"
-                  class="flex items-center gap-3"
+                  class="ff:formforge:flex ff:formforge:items-center ff:formforge:gap-3"
                 >
                   <button
                     v-if="file.isImage && file.url !== null"
                     type="button"
-                    class="inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded border border-neutral-200 bg-white"
+                    class="ff:formforge:inline-flex ff:formforge:h-12 ff:formforge:w-12 ff:formforge:items-center ff:formforge:justify-center ff:formforge:overflow-hidden ff:formforge:rounded ff:formforge:border-thin ff:formforge:border-default ff:formforge:bg-elevated"
                     @click="openImagePreview(file)"
                   >
                     <img
                       :src="file.url"
                       :alt="file.name"
-                      class="h-full w-full object-cover"
+                      class="ff:formforge:h-full ff:formforge:w-full ff:formforge:object-cover"
                     >
                   </button>
 
                   <UIcon
                     v-else
                     name="i-lucide-file"
-                    class="h-5 w-5 shrink-0 text-default"
+                    class="ff:formforge:h-5 ff:formforge:w-5 ff:formforge:shrink-0 ff:formforge:text-default"
                   />
 
-                  <div class="min-w-0 flex-1">
-                    <p class="truncate text-sm text-default">
+                  <div class="ff:formforge:min-w-0 ff:formforge:flex-1">
+                    <p class="ff:formforge:truncate ff:formforge:text-sm ff:formforge:text-default">
                       {{ file.name }}
                     </p>
                     <p
                       v-if="file.mimeType"
-                      class="text-xs text-default"
+                      class="ff:formforge:text-xs ff:formforge:text-default"
                     >
                       {{ file.mimeType }}
                     </p>
                   </div>
 
-                  <div class="flex items-center gap-1">
+                  <div class="ff:formforge:flex ff:formforge:items-center ff:formforge:gap-1">
                     <UButton
                       v-if="file.url !== null"
                       :href="file.url"
@@ -801,10 +801,10 @@ watch(
                       v-else
                       :text="t('response.file.missingUrlHint')"
                     >
-                      <span class="inline-flex h-7 w-7 items-center justify-center text-amber-600">
+                      <span class="ff:formforge:inline-flex ff:formforge:h-7 ff:formforge:w-7 ff:formforge:items-center ff:formforge:justify-center ff:formforge:text-warning">
                         <UIcon
                           name="i-lucide-triangle-alert"
-                          class="h-4 w-4"
+                          class="ff:formforge:h-4 ff:formforge:w-4"
                         />
                       </span>
                     </UTooltip>
@@ -815,60 +815,60 @@ watch(
 
             <div
               v-else
-              class="space-y-1"
+              class="ff:formforge:stack-1"
             >
-              <p class="whitespace-pre-wrap text-sm font-medium text-default">
+              <p class="ff:formforge:whitespace-pre-wrap ff:formforge:text-sm ff:formforge:weight-500 ff:formforge:text-default">
                 <span v-html="item.question" />
               </p>
 
               <p
                 v-if="item.answer.kind === 'text'"
-                class="whitespace-pre-wrap text-sm text-default"
+                class="ff:formforge:whitespace-pre-wrap ff:formforge:text-sm ff:formforge:text-default"
               >
                 {{ item.answer.value }}
               </p>
 
               <div
                 v-else
-                class="space-y-2"
+                class="ff:formforge:stack-2"
               >
                 <div
                   v-for="file in item.answer.value"
                   :key="file.id"
-                  class="flex items-center gap-3"
+                  class="ff:formforge:flex ff:formforge:items-center ff:formforge:gap-3"
                 >
                   <button
                     v-if="file.isImage && file.url !== null"
                     type="button"
-                    class="inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded border border-neutral-200 bg-white"
+                    class="ff:formforge:inline-flex ff:formforge:h-12 ff:formforge:w-12 ff:formforge:items-center ff:formforge:justify-center ff:formforge:overflow-hidden ff:formforge:rounded ff:formforge:border-thin ff:formforge:border-default ff:formforge:bg-elevated"
                     @click="openImagePreview(file)"
                   >
                     <img
                       :src="file.url"
                       :alt="file.name"
-                      class="h-full w-full object-cover"
+                      class="ff:formforge:h-full ff:formforge:w-full ff:formforge:object-cover"
                     >
                   </button>
 
                   <UIcon
                     v-else
                     name="i-lucide-file"
-                    class="h-5 w-5 shrink-0 text-default"
+                    class="ff:formforge:h-5 ff:formforge:w-5 ff:formforge:shrink-0 ff:formforge:text-default"
                   />
 
-                  <div class="min-w-0 flex-1">
-                    <p class="truncate text-sm text-default">
+                  <div class="ff:formforge:min-w-0 ff:formforge:flex-1">
+                    <p class="ff:formforge:truncate ff:formforge:text-sm ff:formforge:text-default">
                       {{ file.name }}
                     </p>
                     <p
                       v-if="file.mimeType"
-                      class="text-xs text-default"
+                      class="ff:formforge:text-xs ff:formforge:text-default"
                     >
                       {{ file.mimeType }}
                     </p>
                   </div>
 
-                  <div class="flex items-center gap-1">
+                  <div class="ff:formforge:flex ff:formforge:items-center ff:formforge:gap-1">
                     <UButton
                       v-if="file.url !== null"
                       :href="file.url"
@@ -898,10 +898,10 @@ watch(
                       v-else
                       :text="t('response.file.missingUrlHint')"
                     >
-                      <span class="inline-flex h-7 w-7 items-center justify-center text-amber-600">
+                      <span class="ff:formforge:inline-flex ff:formforge:h-7 ff:formforge:w-7 ff:formforge:items-center ff:formforge:justify-center ff:formforge:text-warning">
                         <UIcon
                           name="i-lucide-triangle-alert"
-                          class="h-4 w-4"
+                          class="ff:formforge:h-4 ff:formforge:w-4"
                         />
                       </span>
                     </UTooltip>
@@ -916,19 +916,20 @@ watch(
 
     <UModal
       :open="isPreviewOpen"
+      :ui="{ content: 'formforge' }"
       @update:open="(open: boolean) => !open && closeImagePreview()"
     >
       <template #content>
-        <div class="space-y-3 p-3">
+        <div class="ff:formforge:stack-3 ff:formforge:p-3">
           <img
             v-if="previewImage?.url"
             :src="previewImage.url"
             :alt="previewImage.name"
-            class="max-h-[80vh] w-full rounded object-contain"
+            class="ff:formforge:max-h-[80vh] ff:formforge:w-full ff:formforge:rounded ff:formforge:object-contain"
           >
           <p
             v-if="previewImage"
-            class="truncate text-sm text-neutral-600"
+            class="ff:formforge:truncate ff:formforge:text-sm ff:formforge:text-muted"
           >
             {{ previewImage.name }}
           </p>
