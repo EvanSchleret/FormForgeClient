@@ -11,49 +11,82 @@ on:
           - patch
           - minor
           - major
+          - alpha
+          - beta
+          - rc
+      prerelease_version:
+        description: Exact version for alpha, beta, or rc releases, such as 1.2.0-rc.1
+        required: false
+        type: string
 
 permissions:
+  actions: write
   contents: write
-  id-token: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-main
   cancel-in-progress: false
 
 jobs:
   release:
-    name: Version, tag and publish
+    name: Validate and prepare release
     runs-on: ubuntu-latest
+    timeout-minutes: 40
 
     steps:
-      - name: Checkout
+      - name: Require main branch
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo 'Run releases from the main branch.' >&2
+            exit 1
+          fi
+
+      - name: Checkout requested commit
         uses: actions/checkout@v7
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.4.3"
+          bun-version: '1.4.3'
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
-          node-version: "22.14.0"
-          check-latest: true
-          registry-url: "https://registry.npmjs.org"
+          node-version: '22.14.0'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Update npm
         run: npm install -g npm@^11.5.1
 
-      - name: Show versions
-        run: |
-          node --version
-          npm --version
-          bun --version
-
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Resolve release version
+        id: release_version
+        run: bun .github/scripts/prepare-release.ts
+        env:
+          RELEASE_TYPE: ${{ inputs.release_type }}
+          PRERELEASE_VERSION: ${{ inputs.prerelease_version }}
+
+      - name: Bump version and create local tag
+        if: steps.release_version.outputs.resume != 'true'
+        run: |
+          bun pm version "$RELEASE_VERSION" --message='chore(release): %s'
+          node -e 'const pkg = require("./package.json"); if (pkg.version !== process.env.RELEASE_VERSION) process.exit(1)'
+        env:
+          RELEASE_VERSION: ${{ steps.release_version.outputs.version }}
+
+      - name: Checkout existing release tag
+        if: steps.release_version.outputs.resume == 'true'
+        run: git checkout --detach "refs/tags/v$RELEASE_VERSION"
+        env:
+          RELEASE_VERSION: ${{ steps.release_version.outputs.version }}
+
+      - name: Prepare Nuxt types
+        run: bun run dev:prepare
 
       - name: Lint
         run: bun run lint
@@ -64,39 +97,21 @@ jobs:
       - name: Test
         run: bun run test
 
-      - name: Configure git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Resolve release version
-        id: release_version
-        run: |
-          VERSION=$(node -e "const fs = require('node:fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); const parts = pkg.version.split('.').map(Number); const releaseType = process.env.RELEASE_TYPE; const next = releaseType === 'major' ? [parts[0] + 1, 0, 0] : releaseType === 'minor' ? [parts[0], parts[1] + 1, 0] : [parts[0], parts[1], parts[2] + 1]; process.stdout.write(next.join('.'))")
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
-            echo "already_released=true" >> "$GITHUB_OUTPUT"
-            echo "Tag v$VERSION already exists. Skipping release."
-          fi
-        env:
-          RELEASE_TYPE: ${{ inputs.release_type }}
-
-      - name: Bump version
-        if: steps.release_version.outputs.already_released != 'true'
-        run: |
-          npm version ${{ inputs.release_type }} -m "chore(release): %s"
-
-      - name: Push commit and tag
-        if: steps.release_version.outputs.already_released != 'true'
-        run: |
-          git push origin HEAD
-          git push origin --tags
-
       - name: Build package
-        if: steps.release_version.outputs.already_released != 'true'
         run: bun run build
 
-      - name: Publish package
-        if: steps.release_version.outputs.already_released != 'true'
-        run: npm publish --provenance
+      - name: Verify packed package in a Nuxt consumer
+        id: verify_package
+        run: bun run verify:package
+
+      - name: Push release commit and tag atomically
+        if: steps.release_version.outputs.resume != 'true'
+        run: git push --atomic origin "HEAD:refs/heads/main" "refs/tags/v$RELEASE_VERSION"
+        env:
+          RELEASE_VERSION: ${{ steps.release_version.outputs.version }}
+
+      - name: Dispatch publication from the release tag
+        run: gh workflow run publish.yml --ref "v$RELEASE_VERSION" --field "version=$RELEASE_VERSION"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.release_version.outputs.version }}

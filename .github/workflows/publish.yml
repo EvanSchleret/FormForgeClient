@@ -1,0 +1,79 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to publish from its existing Git tag
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Verify and publish tagged package
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Require matching release tag
+        run: |
+          if [ "$GITHUB_REF_TYPE" != "tag" ] || [ "$GITHUB_REF" != "refs/tags/v$RELEASE_VERSION" ]; then
+            echo 'Publish must run from the matching v<version> tag.' >&2
+            exit 1
+          fi
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: refs/tags/v${{ inputs.version }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.3'
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24.11.0'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Update npm
+        run: npm install -g npm@^11.21.0
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Prepare Nuxt types
+        run: bun run dev:prepare
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Test
+        run: bun run test
+
+      - name: Build package
+        run: bun run build
+
+      - name: Verify packed package in a Nuxt consumer
+        id: verify_package
+        run: bun run verify:package
+
+      - name: Publish verified tarball
+        run: bun .github/scripts/publish-package.ts "${{ steps.verify_package.outputs.tarball }}"
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}

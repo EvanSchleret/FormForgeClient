@@ -12,5 +12,6 @@
     "isolatedModules": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "test/**/*.ts", "build.config.ts", "vitest.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.vue", "test/**/*.ts", ".github/scripts/**/*.ts", "build.config.ts", "vitest.config.ts"],
+  "exclude": ["test/fixtures/**"]
 }

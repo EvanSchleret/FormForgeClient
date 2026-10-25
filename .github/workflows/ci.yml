@@ -5,7 +5,7 @@ on:
     branches:
       - main
       - develop
-      - "feat/**"
+      - 'feat/**'
   pull_request:
   workflow_dispatch:
 
@@ -17,27 +17,87 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  eslint_autofix:
+    name: ESLint autofix
+    if: github.event_name == 'push' && github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.3'
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22.14.0'
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Prepare Nuxt ESLint config
+        run: bun run dev:prepare
+
+      - name: Apply ESLint fixes
+        run: bun run lint --fix
+
+      - name: Verify ESLint
+        run: bun run lint
+
+      - name: Commit and push ESLint fixes
+        run: |
+          if git diff --quiet; then
+            echo 'No ESLint fixes needed.'
+            exit 0
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -u
+          git commit -m 'style: apply ESLint fixes'
+          git push origin "HEAD:$GITHUB_REF_NAME"
+
   quality:
     name: Bun ${{ matrix.bun }}
+    needs: eslint_autofix
+    if: ${{ !cancelled() && needs.eslint_autofix.result != 'failure' }}
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
         bun:
-          - "1.4.3"
+          - '1.4.3'
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ matrix.bun }}
 
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22.14.0'
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Prepare Nuxt types
+        run: bun run dev:prepare
 
       - name: Lint
         run: bun run lint
@@ -48,5 +108,8 @@ jobs:
       - name: Test
         run: bun run test
 
-      - name: Build
+      - name: Build package
         run: bun run build
+
+      - name: Verify packed package in a Nuxt consumer
+        run: bun run verify:package

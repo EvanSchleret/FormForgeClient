@@ -30,10 +30,13 @@
   "scripts": {
     "build": "nuxt-module-build build",
     "dev": "nuxt-module-build build --stub",
+    "dev:prepare": "nuxt prepare playground",
     "playground": "nuxt dev playground",
     "lint": "eslint .",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
+    "test:css:dist": "FORMFORGE_CSS_FILE=dist/runtime/assets/formforge.css vitest run test/formforge-css.spec.ts",
+    "verify:package": "bun .github/scripts/verify-package.ts",
     "types:generate": "cd ../formforge && composer run types:generate",
     "types:check": "cd ../formforge && composer run types:check",
     "prepublishOnly": "npm run build"
