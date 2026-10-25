@@ -156,11 +156,16 @@ async function verifyTarball(tarball: string, manifest: PackageManifest, reposit
     throw new Error('Package tarball stylesheet differs from the built runtime stylesheet')
   }
 
-  if (!stylesheet.includes('@reference "#build/ui.css";') || !stylesheet.includes('prefix(ff)') || !stylesheet.includes('@custom-variant formforge')) {
-    throw new Error('Package stylesheet is missing its host-theme reference or scoped FormForge configuration')
+  const hostThemeAliases = [
+    /--text-color-default:\s*var\(--ui-text\)/,
+    /--background-color-elevated:\s*var\(--ui-bg-elevated\)/,
+    /--border-color-default:\s*var\(--ui-border\)/
+  ]
+  if (!stylesheet.includes('prefix(ff)') || !stylesheet.includes('@custom-variant formforge') || !stylesheet.includes('@theme inline') || hostThemeAliases.some((alias) => !alias.test(stylesheet))) {
+    throw new Error('Package stylesheet is missing its host Nuxt UI token aliases or scoped FormForge configuration')
   }
 
-  if (stylesheet.includes('@import "#build/ui.css"') || /(?:^|[\s,{])(?:html|body|:root|:host)(?:[\s,{.#:[>]|$)/m.test(stylesheet)) {
+  if (stylesheet.includes('@reference "#build/ui.css"') || stylesheet.includes('@import "#build/ui.css"') || /(?:^|[\s,{])(?:html|body|:root|:host)(?:[\s,{.#:[>]|$)/m.test(stylesheet)) {
     throw new Error('Package stylesheet contains a global selector or re-imports the host Nuxt UI stylesheet')
   }
 
