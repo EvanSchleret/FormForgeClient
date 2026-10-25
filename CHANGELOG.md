@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## v2.4.1 - 2026-10-25
+
+**Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v2.4.0...v2.4.1
+
 ## v2.4.0 - 2026-10-25
 
 ### v2.4.0
@@ -22,6 +26,7 @@ const { statistics, fetchStatistics } = useFormForgeStatistics({
 })
 
 await fetchStatistics()
+
 
 ```
 ##### 🎨 Host theme compatibility
@@ -99,6 +104,7 @@ File fields now support accepted types, per-file size limits, maximum file count
   max_files: 3,
   max_total_size: 10_000_000
 }
+
 
 
 
