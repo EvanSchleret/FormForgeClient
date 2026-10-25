@@ -2,6 +2,7 @@ import { ref } from '#imports'
 import { createFormForgeZodSchema } from '../validation/zod'
 import { useFormForgeClient } from './useFormForgeClient'
 import { useFormForgeI18n } from './useFormForgeI18n'
+import { fetchFormForgeClientSchema } from '../utils/form-schema'
 import type { FormForgeClient, FormForgeClientConfig, FormForgeFormSchema, FormForgeScope, FormForgeSubmissionPayload } from '../types'
 import type { FormForgeRequestOptions } from '../api/request'
 
@@ -99,10 +100,11 @@ export function useFormForgeForm(options: UseFormForgeFormOptions) {
     try {
       const endpoint = resolveEndpoint(requestOptions)
       const scope = resolveScope(requestOptions)
-      const accessOptions = requestOptions.accessToken === undefined ? {} : { accessToken: requestOptions.accessToken }
-      const nextSchema = options.version !== undefined && options.version !== ''
-        ? await client.getFormVersion(options.key, options.version, { endpoint, scope, ...accessOptions })
-        : await client.getForm(options.key, { endpoint, scope, ...accessOptions })
+      const nextSchema = await fetchFormForgeClientSchema(client, options.key, options.version, {
+        endpoint,
+        scope,
+        ...(requestOptions.accessToken === undefined ? {} : { accessToken: requestOptions.accessToken })
+      })
 
       const nextState = createInitialPayload(nextSchema)
 

@@ -1,7 +1,11 @@
 import { computed, ref, toRaw, watch } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const createForm = vi.fn(async () => ({
+const createForm = vi.fn<(input: Record<string, unknown>) => Promise<{
+  uuid: string
+  key: string
+  public_url: string
+}>>(async () => ({
   uuid: 'form-uuid',
   key: 'form-key',
   public_url: 'https://example.test/forms/form-key'
@@ -130,8 +134,15 @@ describe('useFormForgeBuilder', () => {
     const page = builder.addPage('address')
 
     expect(builder.draft.value.pages).toHaveLength(initialPageCount + 1)
+    expect(page.title).toBe(`Page ${initialPageCount + 1}`)
     expect(page.fields).toHaveLength(1)
     expect(page.fields[0]?.type).toBe('address')
     expect(page.fields[0]?.page_key).toBe(page.page_key)
+
+    builder.draft.value.title = 'Generated pages'
+    await builder.save()
+
+    const payload = createForm.mock.calls[0]?.[0] as { pages: Array<{ title: string }> } | undefined
+    expect(payload?.pages.map((item) => item.title)).toEqual(['Page 1', `Page ${initialPageCount + 1}`])
   })
 })

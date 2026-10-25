@@ -1,5 +1,6 @@
 import { ref } from '#imports'
 import { useFormForgeClient } from './useFormForgeClient'
+import { fetchFormForgeClientSchema } from '../utils/form-schema'
 import type { FormForgeClient, FormForgeClientConfig, FormForgeFormSchema, FormForgeScope } from '../types'
 import type { FormForgeRequestOptions } from '../api/request'
 
@@ -28,10 +29,11 @@ export function useFormForgeGetForm(options: UseFormForgeGetFormOptions = {}) {
     try {
       const endpoint = params.endpoint ?? options.endpoint
       const scope = params.scope ?? options.scope
-      const accessOptions = params.accessToken === undefined ? {} : { accessToken: params.accessToken }
-      const response = params.version !== undefined && params.version !== ''
-        ? await client.getFormVersion(params.key, params.version, { endpoint, scope, ...accessOptions })
-        : await client.getForm(params.key, { endpoint, scope, ...accessOptions })
+      const response = await fetchFormForgeClientSchema(client, params.key, params.version, {
+        endpoint,
+        scope,
+        ...(params.accessToken === undefined ? {} : { accessToken: params.accessToken })
+      })
 
       form.value = response
       return response
