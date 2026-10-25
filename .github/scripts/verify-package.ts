@@ -256,7 +256,7 @@ async function fetchNuxtPage(url: string, server: ReturnType<typeof spawn>): Pro
 async function verifyConsumerRendering(consumerDirectory: string): Promise<void> {
   const port = await getAvailablePort()
   let serverOutput = ''
-  const server = spawn('bun', ['run', '--bun', 'nuxt', 'dev', '--host', '127.0.0.1', '--port', String(port)], {
+  const server = spawn('node', ['node_modules/nuxt/bin/nuxt.mjs', 'dev', '--host', '127.0.0.1', '--port', String(port)], {
     cwd: consumerDirectory,
     stdio: ['ignore', 'pipe', 'pipe']
   })
