@@ -74,6 +74,8 @@ jobs:
       - name: Bump version and create local tag
         if: steps.release_version.outputs.resume != 'true'
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           bun pm version "$RELEASE_VERSION" --message='chore(release): %s'
           node -e 'const pkg = require("./package.json"); if (pkg.version !== process.env.RELEASE_VERSION) process.exit(1)'
         env:
