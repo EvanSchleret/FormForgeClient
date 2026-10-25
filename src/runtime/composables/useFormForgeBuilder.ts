@@ -40,6 +40,9 @@ export interface FormForgeBuilderDraft {
   response_limit?: number | null
   submission_code_required?: boolean
   submission_code?: string | null
+  access_code_required?: boolean
+  access_code?: string | null
+  has_access_code?: boolean
   public_url?: string | null
   category: string | null
   pages: FormForgePageSchema[]
@@ -390,6 +393,10 @@ function sanitizeDraftShape(value: FormForgeBuilderDraft, locale?: string): void
     value.submission_code = null
   }
 
+  if (typeof value.access_code !== 'string') {
+    value.access_code = null
+  }
+
   if (value.uuid === null && typeof value.key === 'string' && isUuidLike(value.key)) {
     value.uuid = value.key
   }
@@ -519,6 +526,9 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
     response_limit: options.initial?.response_limit ?? null,
     submission_code_required: options.initial?.submission_code_required ?? false,
     submission_code: options.initial?.submission_code ?? null,
+    access_code_required: options.initial?.access_code_required,
+    access_code: options.initial?.access_code ?? null,
+    has_access_code: options.initial?.has_access_code,
     public_url: options.initial?.public_url ?? null,
     category: options.initial?.category ?? null,
     pages: options.initial?.pages ?? [defaultPage],
@@ -588,6 +598,14 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
       input.submission_code = draft.value.submission_code
     }
 
+    if (typeof draft.value.access_code_required === 'boolean') {
+      input.access_code_required = draft.value.access_code_required
+    }
+
+    if (typeof draft.value.access_code === 'string' && draft.value.access_code.trim() !== '') {
+      input.access_code = draft.value.access_code.trim()
+    }
+
     if (autoPublish) {
       input.auto_publish = true
     }
@@ -642,6 +660,8 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
         if (typeof created.public_url === 'string') {
           draft.value.public_url = created.public_url
         }
+
+        draft.value.has_access_code = created.has_access_code ?? draft.value.access_code_required === true
       } else {
         const patchInput: FormForgeManagementPatchInput = input
         const patched = await client.patchForm(mutationIdentifier, patchInput, {
@@ -664,7 +684,11 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
         if (typeof patched.public_url === 'string') {
           draft.value.public_url = patched.public_url
         }
+
+        draft.value.has_access_code = patched.has_access_code ?? draft.value.access_code_required === true
       }
+
+      draft.value.access_code = null
 
       lastSavedAt.value = new Date().toISOString()
     } catch (caughtError) {

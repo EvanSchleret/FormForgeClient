@@ -212,6 +212,16 @@ const submissionPinEnabled = computed<boolean>({
   }
 })
 
+const formAccessCodeEnabled = computed<boolean>({
+  get: () => settings.value.access_code_required === true,
+  set: (value) => {
+    settings.value.access_code_required = value
+    if (!value) {
+      settings.value.access_code = ''
+    }
+  }
+})
+
 const draftsEnabled = computed<boolean>({
   get: () => (toRaw(settings.value as unknown as FormForgeSettingsModel) as FormForgeSettingsModel).drafts.enabled,
   set: (value) => {
@@ -307,13 +317,24 @@ const validationSchema = computed(() => z.object({
   }),
   submission_code_required: z.boolean(),
   submission_code: z.string(),
-  has_submission_code: z.boolean()
+  has_submission_code: z.boolean(),
+  access_code_required: z.boolean(),
+  access_code: z.string().max(255, t('builder.settings.access.accessCodeTooLong')),
+  has_access_code: z.boolean()
 }).superRefine((value, context) => {
   if (value.submission_code_required && !value.has_submission_code && value.submission_code.trim() === '') {
     context.addIssue({
       code: 'custom',
       path: ['submission_code'],
       message: t('builder.settings.access.pinRequired')
+    })
+  }
+
+  if (value.access_code_required && !value.has_access_code && value.access_code.trim() === '') {
+    context.addIssue({
+      code: 'custom',
+      path: ['access_code'],
+      message: t('builder.settings.access.accessCodeRequired')
     })
   }
 }))
@@ -349,6 +370,9 @@ function normalizeModelValue(value: object): FormForgeSettingsModel {
     has_submission_code: typeof input.has_submission_code === 'boolean'
       ? input.has_submission_code
       : input.submission_code_required === true,
+    access_code_required: input.access_code_required === true,
+    access_code: typeof input.access_code === 'string' ? input.access_code : '',
+    has_access_code: input.has_access_code === true,
     public_url: typeof input.public_url === 'string' ? input.public_url : null,
     drafts: isSettingsObject(input.drafts)
       ? JSON.parse(JSON.stringify(input.drafts)) as FormForgeDraftSettings
@@ -752,6 +776,47 @@ defineExpose(settingsExpose)
               :placeholder="settings.has_submission_code
                 ? t('builder.settings.access.pinUnchanged')
                 : t('builder.settings.access.pinPlaceholder')"
+              :ui="{ base: 'ff:formforge:w-full' }"
+            />
+          </UFormField>
+
+          <div class="ff:formforge:flex ff:formforge:items-start ff:formforge:justify-between ff:formforge:gap-4 ff:formforge:border-top-thin ff:formforge:border-muted ff:formforge:pt-4">
+            <div class="ff:formforge:stack-1">
+              <p class="ff:formforge:text-sm ff:formforge:weight-500 ff:formforge:text-default">
+                {{ t('builder.settings.access.accessCode.title') }}
+              </p>
+              <p class="ff:formforge:text-sm ff:formforge:text-muted">
+                {{ t('builder.settings.access.accessCode.description') }}
+              </p>
+              <p
+                v-if="formAccessCodeEnabled && settings.has_access_code"
+                class="ff:formforge:text-sm ff:formforge:text-success"
+              >
+                {{ t('builder.settings.access.accessCode.configured') }}
+              </p>
+            </div>
+            <USwitch
+              v-model="formAccessCodeEnabled"
+              :disabled="readonly || loading || saving"
+              :aria-label="t('builder.settings.access.accessCode.title')"
+            />
+          </div>
+
+          <UFormField
+            v-if="formAccessCodeEnabled"
+            name="access_code"
+            :label="t('builder.settings.access.accessCode.label')"
+            :required="!settings.has_access_code"
+          >
+            <UInput
+              v-model="settings.access_code"
+              :disabled="readonly || loading || saving"
+              type="password"
+              maxlength="255"
+              autocomplete="new-password"
+              :placeholder="settings.has_access_code
+                ? t('builder.settings.access.accessCode.unchanged')
+                : t('builder.settings.access.accessCode.placeholder')"
               :ui="{ base: 'ff:formforge:w-full' }"
             />
           </UFormField>

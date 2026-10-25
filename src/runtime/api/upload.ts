@@ -1,6 +1,6 @@
 import type { FormForgeHttpAdapter, FormForgeJsonObject, FormForgeStageUploadInput, FormForgeStagedUploadResponse } from '../types'
 import { pickFormForgeDataEnvelope } from '../utils/object'
-import { resolveEndpointPath, type FormForgeRequestOptions } from './request'
+import { formForgeAccessHeaders, resolveEndpointPath, type FormForgeRequestOptions } from './request'
 
 interface FormForgeStageUploadOptions extends FormForgeRequestOptions {
   version?: string
@@ -38,6 +38,8 @@ export async function stageFormForgeUpload(
       version: options.version ?? ''
     }, options.scope),
     method: 'POST',
+    headers: formForgeAccessHeaders(options),
+    sensitive: options.accessToken !== undefined,
     body: formData
   })
 

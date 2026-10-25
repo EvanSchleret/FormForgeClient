@@ -58,7 +58,8 @@ export function useFormForgeResolver(options: UseFormForgeResolverOptions) {
         {
           version: options.version,
           endpoint: resolveOptions.endpoint ?? options.endpoint,
-          scope: resolveOptions.scope ?? options.scope
+          scope: resolveOptions.scope ?? options.scope,
+          ...(resolveOptions.accessToken === undefined ? {} : { accessToken: resolveOptions.accessToken })
         }
       )
 

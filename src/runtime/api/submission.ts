@@ -1,7 +1,7 @@
 import type { FormForgeHttpAdapter, FormForgeJsonObject, FormForgeSubmitInput, FormForgeSubmissionResponse } from '../types'
 import { buildJsonSubmitBody } from '../utils/form-data'
 import { pickFormForgeDataEnvelope } from '../utils/object'
-import { resolveEndpointPath, type FormForgeRequestOptions } from './request'
+import { formForgeAccessHeaders, resolveEndpointPath, type FormForgeRequestOptions } from './request'
 
 interface FormForgeSubmitOptions extends FormForgeRequestOptions {
   version?: string
@@ -21,7 +21,7 @@ export async function submitFormForgeJson(
   input: FormForgeSubmitInput,
   options: FormForgeSubmitOptions = {}
 ): Promise<FormForgeSubmissionResponse> {
-  const headers: Record<string, string> = {}
+  const headers: Record<string, string> = formForgeAccessHeaders(options)
 
   if (input.test === true) {
     headers['X-FormForge-Test'] = 'true'
@@ -34,6 +34,7 @@ export async function submitFormForgeJson(
     }, options.scope),
     method: 'POST',
     headers,
+    sensitive: options.accessToken !== undefined,
     json: buildJsonSubmitBody(input.payload, input.meta)
   })
 
@@ -49,7 +50,7 @@ export async function submitFormForgeMultipart(
   formData: FormData,
   options: FormForgeSubmitOptions & { test?: boolean } = {}
 ): Promise<FormForgeSubmissionResponse> {
-  const headers: Record<string, string> = {}
+  const headers: Record<string, string> = formForgeAccessHeaders(options)
 
   if (options.test === true) {
     headers['X-FormForge-Test'] = 'true'
@@ -62,6 +63,7 @@ export async function submitFormForgeMultipart(
     }, options.scope),
     method: 'POST',
     headers,
+    sensitive: options.accessToken !== undefined,
     body: formData
   })
 

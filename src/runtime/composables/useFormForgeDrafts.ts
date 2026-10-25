@@ -19,7 +19,7 @@ export interface UseFormForgeDraftsOptions {
   clientConfig?: FormForgeClientConfig
 }
 
-export type FormForgeDraftRequestOptions = FormForgeRequestOptions
+export type FormForgeDraftRequestOptions = Omit<FormForgeRequestOptions, 'accessToken'>
 
 export function useFormForgeDrafts(options: UseFormForgeDraftsOptions) {
   const client = options.client ?? useFormForgeClient(options.clientConfig)

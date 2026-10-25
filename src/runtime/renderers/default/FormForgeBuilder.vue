@@ -160,6 +160,9 @@ const settingsModel = computed<FormForgeSettingsModel>(() => ({
   submission_code_required: draft.value.submission_code_required === true,
   submission_code: typeof draft.value.submission_code === 'string' ? draft.value.submission_code : '',
   has_submission_code: draft.value.uuid !== null && draft.value.submission_code_required === true,
+  access_code_required: draft.value.access_code_required === true,
+  access_code: typeof draft.value.access_code === 'string' ? draft.value.access_code : '',
+  has_access_code: draft.value.has_access_code === true,
   public_url: draft.value.public_url ?? null,
   drafts: draft.value.drafts,
   api: draft.value.api
@@ -178,6 +181,15 @@ function updateSettingsModel(value: FormForgeSettingsModel): void {
     drafts: value.drafts,
     api: value.api
   })
+
+  if (draft.value.access_code_required !== undefined || value.access_code_required === true) {
+    draft.value.access_code_required = value.access_code_required === true
+  }
+
+  const accessCode = typeof value.access_code === 'string' ? value.access_code : ''
+  if (draft.value.access_code !== undefined || accessCode.trim() !== '') {
+    draft.value.access_code = accessCode.trim() === '' ? null : accessCode
+  }
 }
 
 function twoDigits(value: number): string {
@@ -351,7 +363,7 @@ function resolveLoadedFormUuid(): string | null {
   return typeof draft.value?.uuid === 'string' && draft.value.uuid !== '' ? draft.value.uuid : null
 }
 
-function applyLoadedForm(schema: FormForgeFormSchema): void {
+function applyLoadedForm(schema: FormForgeFormSchema, hasAccessCode?: boolean): void {
   const nextUuid = resolveLoadedFormUuid()
 
   draft.value = {
@@ -364,6 +376,9 @@ function applyLoadedForm(schema: FormForgeFormSchema): void {
     response_limit: schema.response_limit ?? null,
     submission_code_required: schema.submission_code_required === true,
     submission_code: null,
+    access_code_required: hasAccessCode,
+    access_code: null,
+    has_access_code: hasAccessCode,
     public_url: schema.public_url ?? null,
     category: schema.category ?? null,
     pages: cloneValue(schema.pages),
@@ -382,15 +397,27 @@ async function loadFormIntoBuilder(key: string, version?: string): Promise<void>
   loadingRemoteForm.value = true
 
   try {
+    let managementForm: Awaited<ReturnType<FormForgeClient['listForms']>>[number] | undefined
+    try {
+      const forms = await builder.client.listForms(false, {
+        endpoint: props.endpoint,
+        scope: props.scope,
+        filters: { key }
+      })
+      managementForm = forms.find(form => form.key === key || form.form_uuid === key || form.uuid === key)
+    } catch {
+      managementForm = undefined
+    }
+
     const schema = version !== undefined && version !== ''
       ? await builder.client.getFormVersion(key, version, { endpoint: props.endpoint, scope: props.scope, locale: props.locale })
-      : await builder.client.getForm(key, { endpoint: props.endpoint, scope: props.scope, locale: props.locale })
+      : managementForm?.schema ?? await builder.client.getForm(key, { endpoint: props.endpoint, scope: props.scope, locale: props.locale })
 
     if (requestId !== loadRequestId) {
       return
     }
 
-    applyLoadedForm(schema)
+    applyLoadedForm(schema, managementForm?.has_access_code)
 
     nextTick(() => {
       syncSelectionWithDraft(safePages.value)

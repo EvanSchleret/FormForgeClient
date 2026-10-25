@@ -7,7 +7,7 @@ import type {
 } from '../types'
 import { isFormForgeJsonObject, pickFormForgeDataEnvelope } from '../utils/object'
 import { normalizeFormForgeSchema } from '../utils/schema'
-import { resolveEndpointPath, type FormForgeRequestOptions } from './request'
+import { formForgeAccessHeaders, resolveEndpointPath, type FormForgeRequestOptions } from './request'
 
 export async function fetchFormForgeSchema(
   http: FormForgeHttpAdapter,
@@ -18,7 +18,9 @@ export async function fetchFormForgeSchema(
     path: resolveEndpointPath(options.endpoint, `/forms/${key}`, {
       key
     }, options.scope),
-    method: 'GET'
+    method: 'GET',
+    headers: formForgeAccessHeaders(options),
+    sensitive: options.accessToken !== undefined
   })
 
   return normalizeFormForgeSchema(response.data, options.locale)
@@ -33,7 +35,9 @@ export async function fetchFormForgeSchemaVersions(
     path: resolveEndpointPath(options.endpoint, `/forms/${key}/versions`, {
       key
     }, options.scope),
-    method: 'GET'
+    method: 'GET',
+    headers: formForgeAccessHeaders(options),
+    sensitive: options.accessToken !== undefined
   })
 
   return {
@@ -53,7 +57,9 @@ export async function fetchFormForgeSchemaVersion(
       key,
       version
     }, options.scope),
-    method: 'GET'
+    method: 'GET',
+    headers: formForgeAccessHeaders(options),
+    sensitive: options.accessToken !== undefined
   })
 
   return normalizeFormForgeSchema(response.data, options.locale)
@@ -82,6 +88,8 @@ export async function resolveFormForgeSchema(
   const response = await http<FormForgeJsonObject>({
     path,
     method: 'POST',
+    headers: formForgeAccessHeaders(options),
+    sensitive: options.accessToken !== undefined,
     json: body
   })
 

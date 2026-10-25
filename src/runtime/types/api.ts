@@ -87,6 +87,26 @@ export interface FormForgeSchemaVersionsResponse {
   meta?: FormForgeJsonObject
 }
 
+export interface FormForgeAccessStatusResponse {
+  data: {
+    required: boolean
+  }
+}
+
+export interface FormForgeAccessChallengeResponse {
+  data: {
+    challenge_id: string
+    expires_at: string
+  }
+}
+
+export interface FormForgeAccessAuthorizationResponse {
+  data: {
+    access_token: string
+    expires_at: string
+  }
+}
+
 export interface FormForgeStageUploadInput {
   field?: string
   field_key?: string
@@ -137,6 +157,7 @@ export interface FormForgeHttpRequest {
   query?: Record<string, string | number | boolean | undefined>
   json?: FormForgeJsonObject
   body?: BodyInit
+  sensitive?: boolean
 }
 
 export interface FormForgeHttpResponse<TData> {

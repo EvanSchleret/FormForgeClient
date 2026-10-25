@@ -128,13 +128,49 @@ async function runBeforeRequest(
     return
   }
 
+  const safeHeaders: Record<string, string> = { ...headers }
+
+  for (const headerName of Object.keys(safeHeaders)) {
+    if (headerName.toLowerCase() === 'x-formforge-access-token') {
+      safeHeaders[headerName] = '[redacted]'
+    }
+  }
+
+  const requestHeaders = request.headers === undefined ? undefined : { ...request.headers }
+
+  if (requestHeaders !== undefined) {
+    for (const headerName of Object.keys(requestHeaders)) {
+      if (headerName.toLowerCase() === 'x-formforge-access-token') {
+        requestHeaders[headerName] = '[redacted]'
+      }
+    }
+  }
+
+  const safeRequest: FormForgeHttpRequest = {
+    ...request,
+    headers: requestHeaders,
+    json: request.sensitive && request.json !== undefined ? { redacted: true } : request.json
+  }
+
   const context: FormForgeBeforeRequestContext = {
-    request,
-    headers,
+    request: safeRequest,
+    headers: safeHeaders,
     url
   }
 
   await callback(context)
+
+  for (const headerName of Object.keys(headers)) {
+    if (headerName.toLowerCase() !== 'x-formforge-access-token' && safeHeaders[headerName] === undefined) {
+      delete headers[headerName]
+    }
+  }
+
+  for (const [headerName, headerValue] of Object.entries(safeHeaders)) {
+    if (headerName.toLowerCase() !== 'x-formforge-access-token') {
+      headers[headerName] = headerValue
+    }
+  }
 }
 
 export function createFormForgeHttpAdapter(config: FormForgeClientConfig = {}): FormForgeHttpAdapter {

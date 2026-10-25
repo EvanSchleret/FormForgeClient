@@ -1,4 +1,7 @@
 import type {
+  FormForgeAccessAuthorizationResponse,
+  FormForgeAccessChallengeResponse,
+  FormForgeAccessStatusResponse,
   FormForgeCategory,
   FormForgeCategoryCreateInput,
   FormForgeCategoryListQuery,
@@ -30,6 +33,7 @@ import type {
   FormForgeStatisticsResponse
 } from '../types'
 import { createFormForgeHttpAdapter } from './http'
+import { createFormForgeAccessChallenge, fetchFormForgeAccessStatus, verifyFormForgeAccessChallenge } from './access'
 import { deleteCurrentFormForgeDraft, fetchCurrentFormForgeDraft, saveFormForgeDraft } from './drafts'
 import { fetchFormForgeDiff, fetchFormForgeFormRoute, fetchFormForgeForms, fetchFormForgeRevisions, createFormForgeForm, deleteFormForgeForm, patchFormForgeForm, publishFormForgeForm, type FormForgeManagementRequestOptions, type FormForgeMutationOptions, unpublishFormForgeForm } from './management'
 import { createFormForgeCategory, deleteFormForgeCategory, fetchFormForgeCategories, fetchFormForgeCategory, fetchFormForgeCategoryRoute, patchFormForgeCategory } from './categories'
@@ -50,13 +54,16 @@ export interface FormForgeSubmitMultipartOptions extends FormForgeRequestOptions
 }
 
 export type FormForgeSchemaRequestOptions = FormForgeRequestOptions
-export type FormForgeDraftRequestOptions = FormForgeRequestOptions
+export type FormForgeDraftRequestOptions = Omit<FormForgeRequestOptions, 'accessToken'>
 export type FormForgeResponsesRequestOptions = FormForgeRequestOptions
 export type FormForgeStatisticsRequestOptions = FormForgeRequestOptions
 export type FormForgeCategoryRequestOptions = FormForgeRequestOptions
 
 export interface FormForgeClient {
   config: Readonly<FormForgeClientConfig>
+  getAccessStatus(key: string, options?: FormForgeSchemaRequestOptions): Promise<FormForgeAccessStatusResponse>
+  createAccessChallenge(key: string, options?: FormForgeSchemaRequestOptions): Promise<FormForgeAccessChallengeResponse>
+  verifyAccessChallenge(key: string, challengeId: string, code: string, options?: FormForgeSchemaRequestOptions): Promise<FormForgeAccessAuthorizationResponse>
   getForm(key: string, options?: FormForgeSchemaRequestOptions): Promise<FormForgeFormSchema>
   getFormVersions(key: string, options?: FormForgeSchemaRequestOptions): Promise<FormForgeSchemaVersionsResponse>
   getFormVersion(key: string, version: string, options?: FormForgeSchemaRequestOptions): Promise<FormForgeFormSchema>
@@ -183,6 +190,23 @@ class FormForgeClientImpl implements FormForgeClient {
       ...(resolvedScope === undefined ? {} : { scope: resolvedScope }),
       ...(resolvedLocale === undefined ? {} : { locale: resolvedLocale })
     }
+  }
+
+  async getAccessStatus(key: string, options: FormForgeSchemaRequestOptions = {}): Promise<FormForgeAccessStatusResponse> {
+    return fetchFormForgeAccessStatus(this.http, key, this.withRequestScope(options))
+  }
+
+  async createAccessChallenge(key: string, options: FormForgeSchemaRequestOptions = {}): Promise<FormForgeAccessChallengeResponse> {
+    return createFormForgeAccessChallenge(this.http, key, this.withRequestScope(options))
+  }
+
+  async verifyAccessChallenge(
+    key: string,
+    challengeId: string,
+    code: string,
+    options: FormForgeSchemaRequestOptions = {}
+  ): Promise<FormForgeAccessAuthorizationResponse> {
+    return verifyFormForgeAccessChallenge(this.http, key, challengeId, code, this.withRequestScope(options))
   }
 
   async getForm(key: string, options: FormForgeSchemaRequestOptions = {}): Promise<FormForgeFormSchema> {

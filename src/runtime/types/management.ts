@@ -13,6 +13,9 @@ export interface FormForgeSettingsModel {
   submission_code_required: boolean
   submission_code: string
   has_submission_code: boolean
+  access_code_required?: boolean
+  access_code?: string
+  has_access_code?: boolean
   public_url: string | null
   drafts: FormForgeDraftSettings
   api: FormForgeJsonObject
@@ -41,6 +44,8 @@ export interface FormForgeManagementCreateInput {
   response_limit?: number | null
   submission_code?: string | null
   submission_code_required?: boolean
+  access_code?: string | null
+  access_code_required?: boolean
   fields?: FormForgeFieldSchema[]
   pages?: FormForgePageSchema[]
   conditions?: FormForgeCondition[]
@@ -60,6 +65,8 @@ export interface FormForgeManagementPatchInput {
   response_limit?: number | null
   submission_code?: string | null
   submission_code_required?: boolean
+  access_code?: string | null
+  access_code_required?: boolean
   fields?: FormForgeFieldSchema[]
   pages?: FormForgePageSchema[]
   conditions?: FormForgeCondition[]
@@ -81,6 +88,7 @@ export interface FormForgeManagementForm {
   category?: string | null
   public_url?: string | null
   has_submission_code?: boolean
+  has_access_code?: boolean
   schema?: FormForgeFormSchema
   meta?: FormForgeJsonObject
   is_published?: boolean

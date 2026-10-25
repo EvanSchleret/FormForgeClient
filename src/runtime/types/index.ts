@@ -52,6 +52,9 @@ export type {
 } from './schema'
 export type {
   FormForgeBeforeRequestContext,
+  FormForgeAccessAuthorizationResponse,
+  FormForgeAccessChallengeResponse,
+  FormForgeAccessStatusResponse,
   FormForgeBaseURLParams,
   FormForgeBaseURLParamsInput,
   FormForgeClientConfig,
