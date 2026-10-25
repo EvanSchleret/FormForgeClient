@@ -430,7 +430,7 @@ export function useFormForgeBuilder(options: UseFormForgeBuilderOptions = {}) {
 
   function addPage(type: FormForgeFieldType = 'text'): FormForgePageSchema {
     const pages = draft.value.pages as FormForgePageSchema[]
-    const page = createFormForgeBuilderPage(type, locale)
+    const page = createFormForgeBuilderPage(type, locale, pages.length)
     pages.push(page)
 
     return page

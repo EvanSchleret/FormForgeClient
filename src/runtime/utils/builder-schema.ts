@@ -173,12 +173,12 @@ export function createFormForgeBuilderField(type: FormForgeFieldType, pageKey: s
   return baseField
 }
 
-export function createFormForgeBuilderPage(type: FormForgeFieldType = 'text', locale?: string): FormForgePageSchema {
+export function createFormForgeBuilderPage(type: FormForgeFieldType = 'text', locale?: string, pageIndex: number = 0): FormForgePageSchema {
   const pageKey = createFormForgeBuilderKey('pg')
 
   return {
     page_key: pageKey,
-    title: '',
+    title: `Page ${pageIndex + 1}`,
     description: null,
     meta: {
       logic: createPageLogic() as unknown as FormForgeJsonValue
@@ -253,13 +253,13 @@ export function sanitizeFormForgeBuilderDraft(value: FormForgeBuilderDraftShape,
 
   value.pages = pages
 
-  for (const page of value.pages) {
+  for (const [pageIndex, page] of value.pages.entries()) {
     if (typeof page.page_key !== 'string' || page.page_key === '') {
       page.page_key = createFormForgeBuilderKey('pg')
     }
 
-    if (typeof page.title !== 'string') {
-      page.title = ''
+    if (typeof page.title !== 'string' || page.title.trim() === '') {
+      page.title = `Page ${pageIndex + 1}`
     }
 
     if (typeof page.meta !== 'object' || page.meta === null || Array.isArray(page.meta)) {

@@ -40,7 +40,18 @@ describe('FormForge builder schema helpers', () => {
     expect(draft.api).toEqual({})
     expect(draft.submission_code_required).toBe(false)
     expect(draft.pages).toHaveLength(1)
+    expect(draft.pages[0]?.title).toBe('Page 1')
     expect(draft.pages[0]?.fields[0]?.type).toBe('text')
     expect(draft.pages[0]?.fields[0]?.page_key).toBe(draft.pages[0]?.page_key)
+
+    const page = draft.pages[0]
+    if (page === undefined) {
+      return
+    }
+
+    page.title = '  '
+    sanitizeFormForgeBuilderDraft(draft)
+
+    expect(page.title).toBe('Page 1')
   })
 })
