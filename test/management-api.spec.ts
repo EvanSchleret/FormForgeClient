@@ -25,6 +25,25 @@ describe('fetchFormForgeForms', () => {
     expect(requestedPaths[0]).toBe('/custom/forms')
   })
 
+  it('sends an exact form identifier filter', async () => {
+    const requests: FormForgeHttpRequest[] = []
+    const http: FormForgeHttpAdapter = async <TData>(request: FormForgeHttpRequest) => {
+      requests.push(request)
+
+      return {
+        status: 200,
+        headers: new Headers(),
+        data: { data: [] } as TData
+      }
+    }
+
+    await fetchFormForgeForms(http, false, {
+      filters: { key: 'form-uuid' }
+    })
+
+    expect(requests[0]?.query).toEqual({ key: 'form-uuid', include_deleted: 0 })
+  })
+
   it('reads top-level data array responses', async () => {
     const http: FormForgeHttpAdapter = async <TData>() => ({
       status: 200,
@@ -178,6 +197,63 @@ describe('form create/patch category support', () => {
 
     expect(form.category).toBeNull()
     expect(form.category_item).toBeNull()
+  })
+})
+
+describe('settings-only form patch payloads', () => {
+  it('sends changed settings in one PATCH and preserves nested api keys', async () => {
+    const requests: FormForgeHttpRequest[] = []
+    const http: FormForgeHttpAdapter = async <TData>(request: FormForgeHttpRequest) => {
+      requests.push(request)
+
+      return {
+        status: 200,
+        headers: new Headers(),
+        data: {
+          data: {
+            key: 'form-uuid',
+            has_submission_code: true,
+            schema: {
+              title: 'Updated title'
+            }
+          }
+        } as TData
+      }
+    }
+    const api = {
+      submission: {
+        auth: 'required',
+        public: false,
+        custom: { provider: 'integration' }
+      },
+      integration: { token: 'preserve-me' }
+    }
+
+    const form = await patchFormForgeForm(http, 'form-uuid', {
+      title: 'Updated title',
+      publish_at: null,
+      pause_at: '2026-11-15T09:30:00+00:00',
+      response_limit: null,
+      submission_code_required: false,
+      drafts: { enabled: false, retention_days: 14 },
+      api
+    })
+
+    expect(requests).toHaveLength(1)
+    expect(requests[0]?.method).toBe('PATCH')
+    expect(requests[0]?.json).toEqual({
+      title: 'Updated title',
+      publish_at: null,
+      pause_at: '2026-11-15T09:30:00+00:00',
+      response_limit: null,
+      submission_code_required: false,
+      drafts: { enabled: false, retention_days: 14 },
+      api
+    })
+    expect(requests[0]?.json).not.toHaveProperty('pages')
+    expect(requests[0]?.json).not.toHaveProperty('fields')
+    expect(requests[0]?.json).not.toHaveProperty('conditions')
+    expect(form.has_submission_code).toBe(true)
   })
 })
 

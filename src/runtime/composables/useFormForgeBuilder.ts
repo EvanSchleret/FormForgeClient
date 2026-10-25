@@ -17,6 +17,7 @@ import type {
   FormForgeJsonObject,
   FormForgeJsonValue,
   FormForgeManagementCreateInput,
+  FormForgeManagementForm,
   FormForgeManagementPatchInput,
   FormForgeScope,
   FormForgePageSchema
@@ -320,7 +321,7 @@ function isUuidLike(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 }
 
-function extractFormUuid(payload: FormForgeJsonObject): string | null {
+function extractFormUuid(payload: Pick<FormForgeManagementForm, 'uuid' | 'form_uuid' | 'id'>): string | null {
   if (typeof payload.uuid === 'string' && payload.uuid !== '') {
     return payload.uuid
   }
@@ -336,7 +337,7 @@ function extractFormUuid(payload: FormForgeJsonObject): string | null {
   return null
 }
 
-function extractFormKey(payload: FormForgeJsonObject): string | null {
+function extractFormKey(payload: Pick<FormForgeManagementForm, 'key' | 'form_key'>): string | null {
   if (typeof payload.key === 'string' && payload.key !== '') {
     return payload.key
   }
@@ -354,6 +355,10 @@ function resolveMutationIdentifier(draft: FormForgeBuilderDraft): string | null 
   }
 
   return null
+}
+
+export function isFormForgeBuilderSettingsHidden(hideSettings: boolean, disableSettingsTab: boolean): boolean {
+  return hideSettings || disableSettingsTab
 }
 
 function sanitizeDraftShape(value: FormForgeBuilderDraft, locale?: string): void {

@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from '#imports'
-import { parseDate, parseTime } from '@internationalized/date'
-import type { DateValue, Time } from '@internationalized/date'
-import { useOverlay } from '@nuxt/ui/composables/useOverlay'
 import { useToast } from '@nuxt/ui/composables/useToast'
 import Draggable from 'vuedraggable'
 import {
   FORM_FORGE_BUILDER_FIELD_TYPES,
+  isFormForgeBuilderSettingsHidden,
   useFormForgeBuilder
 } from '../../composables/useFormForgeBuilder'
-import { useFormForgeCategory, useFormForgeCategoryOptions } from '../../composables/useFormForgeCategory'
 import { useFormForgeI18n } from '../../composables/useFormForgeI18n'
 import { normalizeFormForgeFieldTypeChange } from '../../utils/field-type'
 import type {
@@ -17,18 +14,20 @@ import type {
   FormForgeBuilderExpose,
   UseFormForgeBuilderOptions
 } from '../../composables/useFormForgeBuilder'
-import type { FormForgeFieldSchema, FormForgeFieldType, FormForgeFormSchema, FormForgePageSchema } from '../../types'
-import type { FormForgeCategory, FormForgeCategorySelectOption } from '../../types'
+import type { FormForgeClient, FormForgeClientConfig, FormForgeFieldSchema, FormForgeFieldType, FormForgeFormSchema, FormForgePageSchema, FormForgeScope, FormForgeSettingsModel } from '../../types'
 import {
   ensurePageLogic,
 } from '../../utils/page-logic'
-import FormForgeCategoryCreateModal from './FormForgeCategoryCreateModal.vue'
 import FormForgeBuilderBlockCard from './builder/FormForgeBuilderBlockCard.vue'
+import FormForgeSettings from './FormForgeSettings.vue'
 
 interface Props {
   formUuid?: string
   formKey?: string
   endpoint?: string
+  scope?: FormForgeScope
+  client?: FormForgeClient
+  clientConfig?: FormForgeClientConfig
   loadFormKey?: string
   loadFormVersion?: string
   formRouteKey?: string
@@ -52,6 +51,9 @@ const props = withDefaults(defineProps<Props>(), {
   formUuid: undefined,
   formKey: undefined,
   endpoint: undefined,
+  scope: undefined,
+  client: undefined,
+  clientConfig: undefined,
   loadFormKey: undefined,
   loadFormVersion: undefined,
   formRouteKey: undefined,
@@ -84,6 +86,9 @@ const builderOptions: UseFormForgeBuilderOptions = {
   formUuid: props.formUuid,
   formKey: props.formKey,
   endpoint: props.endpoint,
+  scope: props.scope,
+  client: props.client,
+  clientConfig: props.clientConfig,
   locale: props.locale,
   initial: props.modelValue,
   autosave: props.autosave,
@@ -102,25 +107,11 @@ const publishing = builder.publishing
 const publishable = builder.publishable
 const lastSavedAt = builder.lastSavedAt
 const builderError = builder.error
-const overlay = useOverlay()
-const categoryManager = useFormForgeCategory({
-  immediate: !props.disableCategoryControl,
-  initialQuery: {
-    per_page: 200
-  },
-  endpoint: props.endpoint,
-  categoryRouteKey: props.categoryRouteKey
-})
-const categoryOptions = useFormForgeCategoryOptions({
-  source: categoryManager,
-  includeInactive: true
-})
-const CATEGORY_NONE_VALUE = '__formforge_no_category__'
 
 const loadingRemoteForm = ref<boolean>(false)
 const isPublished = ref<boolean>(props.defaultPublished)
 let loadRequestId = 0
-const settingsHidden = computed<boolean>(() => props.hideSettings || props.disableSettingsTab)
+const settingsHidden = computed<boolean>(() => isFormForgeBuilderSettingsHidden(props.hideSettings, props.disableSettingsTab))
 
 const safePages = computed<FormForgePageSchema[]>(() => {
   const pages = draft.value?.pages
@@ -129,66 +120,6 @@ const safePages = computed<FormForgePageSchema[]>(() => {
   }
 
   return pages.filter((page): page is FormForgePageSchema => page !== undefined && page !== null)
-})
-
-const draftTitle = computed<string>({
-  get() {
-    return typeof draft.value?.title === 'string' ? draft.value.title : ''
-  },
-  set(value: string) {
-    if (draft.value === undefined || draft.value === null) {
-      return
-    }
-
-    draft.value.title = value
-  }
-})
-
-const draftCategory = computed<string | null>({
-  get() {
-    return typeof draft.value?.category === 'string' ? draft.value.category : null
-  },
-  set(value: string | null) {
-    if (draft.value === undefined || draft.value === null) {
-      return
-    }
-
-    draft.value.category = value
-  }
-})
-
-const draftCategorySelectValue = computed<string>({
-  get() {
-    return draftCategory.value ?? CATEGORY_NONE_VALUE
-  },
-  set(value: string) {
-    draftCategory.value = value === CATEGORY_NONE_VALUE ? null : value
-  }
-})
-
-const categorySelectItems = computed<FormForgeCategorySelectOption[]>(() => {
-  const items: FormForgeCategorySelectOption[] = [
-    {
-      label: t('builder.categoryNone'),
-      value: CATEGORY_NONE_VALUE,
-      disabled: false
-    },
-    ...categoryOptions.value
-  ]
-
-  if (
-    typeof draftCategory.value === 'string'
-    && draftCategory.value !== ''
-    && !items.some((item) => item.value === draftCategory.value)
-  ) {
-    items.push({
-      label: draftCategory.value,
-      value: draftCategory.value,
-      disabled: false
-    })
-  }
-
-  return items
 })
 
 const draftPages = computed<FormForgePageSchema[]>({
@@ -218,17 +149,39 @@ const builderLayoutClass = computed<string>(() => {
     : 'ff:formforge:grid ff:formforge:gap-4 ff:formforge:lg:grid-cols-[minmax(0,1fr)_4rem]'
 })
 
-function twoDigits(value: number): string {
-  return String(value).padStart(2, '0')
+const selectedTab = ref<string>('builder')
+
+const settingsModel = computed<FormForgeSettingsModel>(() => ({
+  title: draft.value.title,
+  category: draft.value.category,
+  publish_at: draft.value.publish_at ?? null,
+  pause_at: draft.value.pause_at ?? null,
+  response_limit: draft.value.response_limit ?? null,
+  submission_code_required: draft.value.submission_code_required === true,
+  submission_code: typeof draft.value.submission_code === 'string' ? draft.value.submission_code : '',
+  has_submission_code: draft.value.uuid !== null && draft.value.submission_code_required === true,
+  public_url: draft.value.public_url ?? null,
+  drafts: draft.value.drafts,
+  api: draft.value.api
+}))
+
+function updateSettingsModel(value: FormForgeSettingsModel): void {
+  Object.assign(draft.value, {
+    title: value.title,
+    category: value.category,
+    publish_at: value.publish_at,
+    pause_at: value.pause_at,
+    response_limit: value.response_limit,
+    submission_code_required: value.submission_code_required,
+    submission_code: value.submission_code,
+    public_url: value.public_url,
+    drafts: value.drafts,
+    api: value.api
+  })
 }
 
-function isFormForgeCategory(value: unknown): value is FormForgeCategory {
-  if (value === null || typeof value !== 'object') {
-    return false
-  }
-
-  const candidate = value as FormForgeCategory
-  return typeof candidate.key === 'string' && candidate.key !== '' && typeof candidate.name === 'string'
+function twoDigits(value: number): string {
+  return String(value).padStart(2, '0')
 }
 
 const formattedLastSavedAt = computed<string | null>(() => {
@@ -249,273 +202,6 @@ const formattedLastSavedAt = computed<string | null>(() => {
   const minutes = twoDigits(parsed.getMinutes())
 
   return `${day}.${month}.${year} à ${hours}:${minutes}`
-})
-
-interface DateTimeParts {
-  date: DateValue | null
-  time: Time | null
-}
-
-function parseDateTimeValue(value: string | null | undefined): DateTimeParts {
-  if (typeof value !== 'string' || value.trim() === '') {
-    return {
-      date: null,
-      time: null
-    }
-  }
-
-  const parsed = new Date(value)
-
-  if (Number.isNaN(parsed.getTime())) {
-    return {
-      date: null,
-      time: null
-    }
-  }
-
-  return {
-    date: parseDate([
-      parsed.getFullYear(),
-      twoDigits(parsed.getMonth() + 1),
-      twoDigits(parsed.getDate())
-    ].join('-')),
-    time: parseTime([
-      twoDigits(parsed.getHours()),
-      twoDigits(parsed.getMinutes()),
-      twoDigits(parsed.getSeconds())
-    ].join(':'))
-  }
-}
-
-function serializeDateTimeValue(date: DateValue | null, time: Time | null): string | null {
-  if (date === null) {
-    return null
-  }
-
-  const year = date.year
-  const month = twoDigits(date.month)
-  const day = twoDigits(date.day)
-  const hours = time !== null ? twoDigits(time.hour) : '00'
-  const minutes = time !== null ? twoDigits(time.minute) : '00'
-  const seconds = time !== null ? twoDigits(time.second) : '00'
-
-  return new Date(`${year}-${month}-${day}T${hours}:${minutes}:${seconds}`).toISOString()
-}
-
-function currentDateTimeValue(): string {
-  return new Date().toISOString()
-}
-
-const selectedTab = ref<string>('builder')
-const publishAtParts = computed<DateTimeParts>(() => parseDateTimeValue(draft.value?.publish_at))
-const pauseAtParts = computed<DateTimeParts>(() => parseDateTimeValue(draft.value?.pause_at))
-
-const publishAtDate = computed<DateValue | null>({
-  get() {
-    return publishAtParts.value.date
-  },
-  set(value: DateValue | null) {
-    if (draft.value === undefined || draft.value === null) {
-      return
-    }
-
-    draft.value.publish_at = serializeDateTimeValue(value, publishAtParts.value.time)
-  }
-})
-
-const publishAtTime = computed<Time | null>({
-  get() {
-    return publishAtParts.value.time
-  },
-  set(value: Time | null) {
-    if (draft.value === undefined || draft.value === null) {
-      return
-    }
-
-    draft.value.publish_at = serializeDateTimeValue(publishAtParts.value.date, value)
-  }
-})
-
-const pauseAtDate = computed<DateValue | null>({
-  get() {
-    return pauseAtParts.value.date
-  },
-  set(value: DateValue | null) {
-    if (draft.value === undefined || draft.value === null) {
-      return
-    }
-
-    draft.value.pause_at = serializeDateTimeValue(value, pauseAtParts.value.time)
-  }
-})
-
-const pauseAtTime = computed<Time | null>({
-  get() {
-    return pauseAtParts.value.time
-  },
-  set(value: Time | null) {
-    if (draft.value === undefined || draft.value === null) {
-      return
-    }
-
-    draft.value.pause_at = serializeDateTimeValue(pauseAtParts.value.date, value)
-  }
-})
-
-const responseLimitValue = computed<number | null>({
-  get() {
-    return typeof draft.value?.response_limit === 'number' ? draft.value.response_limit : null
-  },
-  set(value: number | null) {
-    if (draft.value === undefined || draft.value === null) {
-      return
-    }
-
-    draft.value.response_limit = typeof value === 'number' && Number.isFinite(value) ? value : null
-  }
-})
-
-const openingEnabled = computed<boolean>({
-  get() {
-    return draft.value?.publish_at !== null && draft.value?.publish_at !== undefined
-  },
-  set(value: boolean) {
-    if (draft.value === undefined || draft.value === null) {
-      return
-    }
-
-    if (value && (draft.value.publish_at === null || draft.value.publish_at === undefined)) {
-      draft.value.publish_at = currentDateTimeValue()
-      return
-    }
-
-    if (!value) {
-      draft.value.publish_at = null
-    }
-  }
-})
-
-const closingEnabled = computed<boolean>({
-  get() {
-    return draft.value?.pause_at !== null && draft.value?.pause_at !== undefined
-  },
-  set(value: boolean) {
-    if (draft.value === undefined || draft.value === null) {
-      return
-    }
-
-    if (value && (draft.value.pause_at === null || draft.value.pause_at === undefined)) {
-      draft.value.pause_at = currentDateTimeValue()
-      return
-    }
-
-    if (!value) {
-      draft.value.pause_at = null
-    }
-  }
-})
-
-const responseLimitEnabled = computed<boolean>({
-  get() {
-    return draft.value?.response_limit !== null && draft.value?.response_limit !== undefined
-  },
-  set(value: boolean) {
-    if (draft.value === undefined || draft.value === null) {
-      return
-    }
-
-    if (value && (draft.value.response_limit === null || draft.value.response_limit === undefined)) {
-      draft.value.response_limit = 1
-      return
-    }
-
-    if (!value) {
-      draft.value.response_limit = null
-    }
-  }
-})
-
-const submissionPinEnabled = computed<boolean>({
-  get() {
-    return draft.value?.submission_code_required === true
-  },
-  set(value: boolean) {
-    if (draft.value === undefined || draft.value === null) {
-      return
-    }
-
-    draft.value.submission_code_required = value
-
-    if (!value) {
-      draft.value.submission_code = null
-    }
-  }
-})
-
-const submissionPinValue = computed<string>({
-  get() {
-    return typeof draft.value?.submission_code === 'string' ? draft.value.submission_code : ''
-  },
-  set(value: string) {
-    if (draft.value === undefined || draft.value === null) {
-      return
-    }
-
-    draft.value.submission_code = value
-  }
-})
-
-const publicUrlValue = computed<string>(() => {
-  return typeof draft.value?.public_url === 'string' ? draft.value.public_url : ''
-})
-
-function ensureSubmissionApi(): Record<string, unknown> {
-  if (draft.value === undefined || draft.value === null) {
-    return {}
-  }
-
-  if (typeof draft.value.api !== 'object' || draft.value.api === null || Array.isArray(draft.value.api)) {
-    draft.value.api = {}
-  }
-
-  const api = draft.value.api as Record<string, unknown>
-
-  if (typeof api.submission !== 'object' || api.submission === null || Array.isArray(api.submission)) {
-    api.submission = {}
-  }
-
-  return api.submission as Record<string, unknown>
-}
-
-const submissionIsPublic = computed<boolean>({
-  get() {
-    const api = draft.value?.api
-
-    if (typeof api !== 'object' || api === null || Array.isArray(api)) {
-      return true
-    }
-
-    const submission = api.submission
-
-    if (typeof submission !== 'object' || submission === null || Array.isArray(submission)) {
-      return true
-    }
-
-    if (typeof submission.public === 'boolean') {
-      return submission.public
-    }
-
-    if (typeof submission.auth === 'string') {
-      return submission.auth === 'public'
-    }
-
-    return true
-  },
-  set(value: boolean) {
-    const submission = ensureSubmissionApi()
-    submission.public = value
-    submission.auth = value ? 'public' : 'required'
-  }
 })
 
 const builderTabs = computed<Array<{ label: string, icon: string, slot: 'builder' | 'settings' }>>(() => {
@@ -697,8 +383,8 @@ async function loadFormIntoBuilder(key: string, version?: string): Promise<void>
 
   try {
     const schema = version !== undefined && version !== ''
-      ? await builder.client.getFormVersion(key, version, { endpoint: props.endpoint })
-      : await builder.client.getForm(key, { endpoint: props.endpoint })
+      ? await builder.client.getFormVersion(key, version, { endpoint: props.endpoint, scope: props.scope, locale: props.locale })
+      : await builder.client.getForm(key, { endpoint: props.endpoint, scope: props.scope, locale: props.locale })
 
     if (requestId !== loadRequestId) {
       return
@@ -721,7 +407,9 @@ async function loadFormIntoBuilder(key: string, version?: string): Promise<void>
 
 async function loadFormRouteIntoBuilder(routeKey: string, version?: string): Promise<void> {
   const forms = await builder.client.listFormRoute(routeKey, {
-    endpoint: props.endpoint
+    endpoint: props.endpoint,
+    scope: props.scope,
+    locale: props.locale
   })
   const first = forms[0]
   const key = typeof first?.key === 'string' ? first.key : ''
@@ -921,33 +609,6 @@ function moveFieldToBlockByKey(pageKey: string, fieldKey: string, targetPageKey:
   builder.normalizeFieldLocations()
 }
 
-async function openCategoryCreateModal(): Promise<void> {
-  if (props.readonly) {
-    return
-  }
-
-  try {
-    const createCategoryModal = overlay.create(FormForgeCategoryCreateModal, {
-      destroyOnClose: true
-    })
-    const result = await createCategoryModal.open({
-      locale: props.locale,
-      endpoint: props.endpoint,
-      categoryRouteKey: props.categoryRouteKey
-    })
-
-    if (!isFormForgeCategory(result)) {
-      return
-    }
-
-    categoryManager.list.value = [result, ...categoryManager.list.value.filter((item) => item.key !== result.key)]
-    draftCategory.value = result.key
-  } catch (caughtError) {
-    const message = caughtError instanceof Error ? caughtError.message : t('builder.error.categoryCreate')
-    emit('error', message)
-  }
-}
-
 function duplicateField(page: FormForgePageSchema, fieldKey: string): void {
   builder.duplicateField(page.page_key, fieldKey)
   builder.normalizeFieldLocations()
@@ -1141,258 +802,50 @@ defineExpose(builderExpose)
             </template>
 
             <template #settings>
-              <UCard variant="subtle">
-                <template #header>
-                  <div class="ff:formforge:stack-1">
-                    <p class="ff:formforge:text-sm ff:formforge:weight-600 ff:formforge:text-default">
-                      {{ t('builder.settings.title') }}
-                    </p>
-                    <p class="ff:formforge:text-sm ff:formforge:text-muted">
-                      {{ t('builder.settings.description') }}
-                    </p>
+              <FormForgeSettings
+                :model-value="settingsModel"
+                :endpoint="props.endpoint"
+                :scope="props.scope"
+                :client="props.client"
+                :client-config="props.clientConfig"
+                :locale="props.locale"
+                :category-route-key="props.categoryRouteKey"
+                :readonly="readonly || loadingRemoteForm"
+                :disable-title-input="disableTitleInput"
+                :disable-category-control="disableCategoryControl"
+                @update:model-value="updateSettingsModel"
+                @save="save"
+                @error="emit('error', $event)"
+              >
+                <template #actions>
+                  <div class="ff:formforge:flex ff:formforge:flex-wrap ff:formforge:items-center ff:formforge:gap-2">
+                    <span v-if="loadingRemoteForm">{{ t('builder.loadingForm') }}</span>
+                    <span v-if="formattedLastSavedAt !== null">{{ t('builder.lastSave', { value: formattedLastSavedAt }) }}</span>
+                    <span
+                      v-if="builderError !== null"
+                      class="ff:formforge:text-error"
+                    >{{ builderError }}</span>
+                    <UButton
+                      type="submit"
+                      :loading="saving"
+                      :disabled="readonly || loadingRemoteForm"
+                    >
+                      {{ t('builder.save') }}
+                    </UButton>
+                    <UButton
+                      v-if="!disablePublishAction && !defaultPublished"
+                      type="button"
+                      :color="publishButtonColor"
+                      :variant="publishButtonVariant"
+                      :loading="publishing"
+                      :disabled="!canTogglePublish"
+                      @click="togglePublishState"
+                    >
+                      {{ publishButtonLabel }}
+                    </UButton>
                   </div>
                 </template>
-
-                <div class="ff:formforge:stack-6">
-                  <div
-                    v-if="!disableTitleInput || !disableCategoryControl"
-                    class="ff:formforge:grid ff:formforge:gap-3 ff:formforge:lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]"
-                  >
-                    <UInput
-                      v-if="!disableTitleInput"
-                      v-model="draftTitle"
-                      :disabled="readonly"
-                      :placeholder="t('builder.settings.formTitlePlaceholder')"
-                      :ui="{ base: 'ff:formforge:w-full' }"
-                    />
-                    <div
-                      v-if="!disableCategoryControl"
-                      class="ff:formforge:flex ff:formforge:flex-row ff:formforge:items-center ff:formforge:gap-2"
-                    >
-                      <USelect
-                        v-model="draftCategorySelectValue"
-                        :items="categorySelectItems"
-                        :disabled="readonly"
-                        :placeholder="t('builder.settings.categoryPlaceholder')"
-                        :ui="{
-                          base: 'ff:formforge:w-full'
-                        }"
-                      />
-                      <UTooltip :text="t('builder.tooltip.addCategory')">
-                        <UButton
-                          color="neutral"
-                          variant="soft"
-                          icon="i-lucide-folder-plus"
-                          :disabled="readonly"
-                          @click="openCategoryCreateModal"
-                        />
-                      </UTooltip>
-                    </div>
-                  </div>
-
-                  <div class="ff:formforge:grid ff:formforge:gap-6">
-                    <div class="ff:formforge:grid ff:formforge:gap-4 ff:formforge:sm:grid-cols-[minmax(0,1fr)_auto] ff:formforge:sm:items-start">
-                      <div class="ff:formforge:stack-1">
-                        <p class="ff:formforge:text-sm ff:formforge:weight-600 ff:formforge:text-default">
-                          {{ t('builder.settings.opening.title') }}
-                        </p>
-                        <p class="ff:formforge:text-sm ff:formforge:text-muted">
-                          {{ t('builder.settings.opening.description') }}
-                        </p>
-                      </div>
-                      <USwitch
-                        v-model="openingEnabled"
-                        :disabled="readonly"
-                      />
-                    </div>
-
-                    <div
-                      v-if="openingEnabled"
-                      class="ff:formforge:grid ff:formforge:gap-4 ff:formforge:sm:grid-cols-2"
-                    >
-                      <UFormField :label="t('builder.settings.opening.date')">
-                        <UInputDate
-                          v-model="publishAtDate"
-                          :disabled="readonly"
-                          :ui="{ base: 'ff:formforge:w-full' }"
-                        />
-                      </UFormField>
-                      <UFormField :label="t('builder.settings.opening.time')">
-                        <UInputTime
-                          v-model="publishAtTime"
-                          :disabled="readonly"
-                          :hour-cycle="24"
-                          :ui="{ base: 'ff:formforge:w-full' }"
-                        />
-                      </UFormField>
-                    </div>
-                  </div>
-
-                  <div class="ff:formforge:grid ff:formforge:gap-6">
-                    <div class="ff:formforge:grid ff:formforge:gap-4 ff:formforge:sm:grid-cols-[minmax(0,1fr)_auto] ff:formforge:sm:items-start">
-                      <div class="ff:formforge:stack-1">
-                        <p class="ff:formforge:text-sm ff:formforge:weight-600 ff:formforge:text-default">
-                          {{ t('builder.settings.closing.title') }}
-                        </p>
-                        <p class="ff:formforge:text-sm ff:formforge:text-muted">
-                          {{ t('builder.settings.closing.description') }}
-                        </p>
-                      </div>
-                      <USwitch
-                        v-model="closingEnabled"
-                        :disabled="readonly"
-                      />
-                    </div>
-
-                    <div
-                      v-if="closingEnabled"
-                      class="ff:formforge:grid ff:formforge:gap-4 ff:formforge:sm:grid-cols-2"
-                    >
-                      <UFormField :label="t('builder.settings.closing.date')">
-                        <UInputDate
-                          v-model="pauseAtDate"
-                          :disabled="readonly"
-                          :ui="{ base: 'ff:formforge:w-full' }"
-                        />
-                      </UFormField>
-                      <UFormField :label="t('builder.settings.closing.time')">
-                        <UInputTime
-                          v-model="pauseAtTime"
-                          :disabled="readonly"
-                          :hour-cycle="24"
-                          :ui="{ base: 'ff:formforge:w-full' }"
-                        />
-                      </UFormField>
-                    </div>
-                  </div>
-
-                  <div class="ff:formforge:grid ff:formforge:gap-6">
-                    <div class="ff:formforge:grid ff:formforge:gap-4 ff:formforge:sm:grid-cols-[minmax(0,1fr)_auto] ff:formforge:sm:items-start">
-                      <div class="ff:formforge:stack-1">
-                        <p class="ff:formforge:text-sm ff:formforge:weight-600 ff:formforge:text-default">
-                          {{ t('builder.settings.submissionLimit.title') }}
-                        </p>
-                        <p class="ff:formforge:text-sm ff:formforge:text-muted">
-                          {{ t('builder.settings.submissionLimit.description') }}
-                        </p>
-                      </div>
-                      <USwitch
-                        v-model="responseLimitEnabled"
-                        :disabled="readonly"
-                      />
-                    </div>
-
-                    <UFormField
-                      v-if="responseLimitEnabled"
-                      :label="t('builder.settings.submissionLimit.maximumResponses')"
-                    >
-                      <UInputNumber
-                        v-model="responseLimitValue"
-                        :disabled="readonly"
-                        :min="1"
-                        :ui="{ base: 'ff:formforge:w-full' }"
-                      />
-                    </UFormField>
-                  </div>
-
-                  <div class="ff:formforge:grid ff:formforge:gap-6">
-                    <div class="ff:formforge:stack-1">
-                      <p class="ff:formforge:text-sm ff:formforge:weight-600 ff:formforge:text-default">
-                        {{ t('builder.settings.access.title') }}
-                      </p>
-                      <p class="ff:formforge:text-sm ff:formforge:text-muted">
-                        {{ t('builder.settings.access.description') }}
-                      </p>
-                    </div>
-
-                    <div class="ff:formforge:grid ff:formforge:gap-4">
-                      <div class="ff:formforge:flex ff:formforge:items-start ff:formforge:justify-between ff:formforge:gap-4">
-                        <div class="ff:formforge:stack-1">
-                          <p class="ff:formforge:text-sm ff:formforge:weight-500 ff:formforge:text-default">
-                            {{ t('builder.settings.access.publicForm.title') }}
-                          </p>
-                          <p class="ff:formforge:text-sm ff:formforge:text-muted">
-                            {{ t('builder.settings.access.publicForm.description') }}
-                          </p>
-                        </div>
-                        <USwitch
-                          v-model="submissionIsPublic"
-                          :disabled="readonly"
-                        />
-                      </div>
-
-                      <div v-if="submissionIsPublic">
-                        <UFormField :label="t('builder.settings.access.publicLink')">
-                          <UInput
-                            :model-value="publicUrlValue"
-                            disabled
-                            :placeholder="t('builder.settings.access.publicLinkPlaceholder')"
-                            :ui="{ base: 'ff:formforge:w-full' }"
-                          />
-                        </UFormField>
-                      </div>
-
-                      <div class="ff:formforge:flex ff:formforge:items-start ff:formforge:justify-between ff:formforge:gap-4 ff:formforge:border-top-thin ff:formforge:border-muted ff:formforge:pt-4">
-                        <div class="ff:formforge:stack-1">
-                          <p class="ff:formforge:text-sm ff:formforge:weight-500 ff:formforge:text-default">
-                            {{ t('builder.settings.access.pinProtection.title') }}
-                          </p>
-                          <p class="ff:formforge:text-sm ff:formforge:text-muted">
-                            {{ t('builder.settings.access.pinProtection.description') }}
-                          </p>
-                        </div>
-                        <USwitch
-                          v-model="submissionPinEnabled"
-                          :disabled="readonly"
-                        />
-                      </div>
-
-                      <div v-if="submissionPinEnabled">
-                        <UFormField :label="t('builder.settings.access.pin')">
-                          <UInput
-                            v-model="submissionPinValue"
-                            :disabled="readonly"
-                            type="password"
-                            :placeholder="t('builder.settings.access.pinPlaceholder')"
-                            :ui="{ base: 'ff:formforge:w-full' }"
-                          />
-                        </UFormField>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="ff:formforge:flex ff:formforge:flex-wrap ff:formforge:items-center ff:formforge:justify-between ff:formforge:gap-3 ff:formforge:border-top-thin ff:formforge:border-muted ff:formforge:pt-4">
-                    <div class="ff:formforge:flex ff:formforge:flex-wrap ff:formforge:gap-2 ff:formforge:text-sm ff:formforge:text-muted">
-                      <span v-if="loadingRemoteForm">{{ t('builder.loadingForm') }}</span>
-                      <span v-if="formattedLastSavedAt !== null">{{ t('builder.lastSave', { value: formattedLastSavedAt }) }}</span>
-                      <span
-                        v-if="builderError !== null"
-                        class="ff:formforge:text-error"
-                      >{{ builderError }}</span>
-                    </div>
-
-                    <div class="ff:formforge:flex ff:formforge:flex-wrap ff:formforge:items-center ff:formforge:gap-2">
-                      <UButton
-                        :loading="saving"
-                        :disabled="readonly"
-                        @click="save"
-                      >
-                        {{ t('builder.save') }}
-                      </UButton>
-                      <UButton
-                        v-if="!disablePublishAction && !defaultPublished"
-                        :color="publishButtonColor"
-                        :variant="publishButtonVariant"
-                        :loading="publishing"
-                        :disabled="!canTogglePublish"
-                        @click="togglePublishState"
-                      >
-                        {{ publishButtonLabel }}
-                      </UButton>
-                    </div>
-                  </div>
-                </div>
-              </UCard>
+              </FormForgeSettings>
             </template>
           </UTabs>
         </template>
