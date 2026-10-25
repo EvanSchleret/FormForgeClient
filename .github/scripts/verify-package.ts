@@ -255,17 +255,25 @@ async function fetchNuxtPage(url: string, server: ReturnType<typeof spawn>): Pro
 
 async function verifyConsumerRendering(consumerDirectory: string): Promise<void> {
   const port = await getAvailablePort()
+  let serverOutput = ''
   const server = spawn('bun', ['run', '--bun', 'nuxt', 'dev', '--host', '127.0.0.1', '--port', String(port)], {
     cwd: consumerDirectory,
-    stdio: 'ignore'
+    stdio: ['ignore', 'pipe', 'pipe']
   })
+  const captureServerOutput = (chunk: Buffer) => {
+    serverOutput = `${serverOutput}${chunk.toString('utf8')}`.slice(-20_000)
+  }
+  server.stdout?.on('data', captureServerOutput)
+  server.stderr?.on('data', captureServerOutput)
 
   try {
     const response = await fetchNuxtPage(`http://127.0.0.1:${port}/formforge-consumer`, server)
     const html = await response.text()
 
     if (!response.ok) {
-      throw new Error(`Nuxt consumer failed to render FormForge (HTTP ${response.status}):\n${html.slice(0, 2000)}`)
+      const errorHtml = html.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+      const details = [errorHtml.slice(0, 4000), serverOutput].filter(Boolean).join('\n')
+      throw new Error(`Nuxt consumer failed to render FormForge (HTTP ${response.status}):\n${details}`)
     }
 
     for (const marker of ['Consumer builder question', 'Consumer renderer question']) {
