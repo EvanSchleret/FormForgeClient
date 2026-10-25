@@ -15,6 +15,7 @@ export { useFormForgeCategory, useFormForgeCategoryOptions, normalizeFormForgeCa
 export { useFormForgeManagement } from './useFormForgeManagement'
 export { useFormForgeWizard } from './useFormForgeWizard'
 export { useFormForgeBuilder } from './useFormForgeBuilder'
+export { useFormForgeSettings, buildFormForgeSettingsPatch } from './useFormForgeSettings'
 export type { UseFormForgeSchemaOptions, FormForgeSchemaFetchOptions } from './useFormForgeSchema'
 export type { UseFormForgeGetFormOptions, FormForgeGetFormParams } from './useFormForgeGetForm'
 export type { UseFormForgeI18nOptions, FormForgeLocale } from './useFormForgeI18n'
@@ -48,3 +49,4 @@ export type {
   FormForgeBuilderDraft,
   FormForgeBuilderExpose
 } from './useFormForgeBuilder'
+export type { UseFormForgeSettingsOptions } from './useFormForgeSettings'

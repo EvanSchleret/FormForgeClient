@@ -57,6 +57,14 @@ describe('useFormForgeBuilder', () => {
     })
   })
 
+  it('keeps both settings visibility props working as hide aliases', async () => {
+    const { isFormForgeBuilderSettingsHidden } = await import('../src/runtime/composables/useFormForgeBuilder')
+
+    expect(isFormForgeBuilderSettingsHidden(false, false)).toBe(false)
+    expect(isFormForgeBuilderSettingsHidden(true, false)).toBe(true)
+    expect(isFormForgeBuilderSettingsHidden(false, true)).toBe(true)
+  })
+
   it('uses localized default labels when locale is set', async () => {
     const { useFormForgeBuilder } = await import('../src/runtime/composables/useFormForgeBuilder')
 

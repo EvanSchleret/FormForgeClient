@@ -13,3 +13,4 @@ export {
   normalizeFormForgeCategoryOptions
 } from './utils/category'
 export type { FormForgeBuilderExpose } from './composables/useFormForgeBuilder'
+export type { FormForgeSettingsExpose } from './types'

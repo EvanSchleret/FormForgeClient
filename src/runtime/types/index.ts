@@ -90,6 +90,9 @@ export type {
   FormForgeManagementCreateInput,
   FormForgeManagementPatchInput,
   FormForgeManagementForm,
+  FormForgeSettingsModel,
+  FormForgeSettingsOptions,
+  FormForgeSettingsExpose,
   FormForgeRevisionSummary,
   FormForgeDiffResponse
 } from './management'

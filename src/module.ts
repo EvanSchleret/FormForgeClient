@@ -7,6 +7,7 @@ import type {
   FormForgeUploadMode
 } from './runtime/types'
 export type { FormForgeBuilderExpose } from './runtime/composables/useFormForgeBuilder'
+export type { FormForgeSettingsExpose } from './runtime/types'
 
 export interface ModuleOptions {
   baseURL?: string
@@ -76,6 +77,11 @@ export default defineNuxtModule<ModuleOptions>({
     })
 
     addComponent({
+      name: 'FormForgeSettings',
+      filePath: resolver.resolve('./runtime/renderers/default/FormForgeSettings.vue')
+    })
+
+    addComponent({
       name: 'FormForgeResponse',
       filePath: resolver.resolve('./runtime/renderers/default/FormForgeResponse.vue')
     })
@@ -104,7 +110,8 @@ export default defineNuxtModule<ModuleOptions>({
         { from: resolver.resolve('./runtime/composables/useFormForgeCategory'), name: 'useFormForgeCategoryOptions' },
         { from: resolver.resolve('./runtime/composables/useFormForgeManagement'), name: 'useFormForgeManagement' },
         { from: resolver.resolve('./runtime/composables/useFormForgeWizard'), name: 'useFormForgeWizard' },
-        { from: resolver.resolve('./runtime/composables/useFormForgeBuilder'), name: 'useFormForgeBuilder' }
+        { from: resolver.resolve('./runtime/composables/useFormForgeBuilder'), name: 'useFormForgeBuilder' },
+        { from: resolver.resolve('./runtime/composables/useFormForgeSettings'), name: 'useFormForgeSettings' }
       ])
     }
 

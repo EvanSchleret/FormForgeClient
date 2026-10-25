@@ -2,17 +2,23 @@
 import { computed, ref } from '#imports'
 import { useFormForgeCategory } from '../../composables/useFormForgeCategory'
 import { useFormForgeI18n } from '../../composables/useFormForgeI18n'
-import type { FormForgeCategory } from '../../types'
+import type { FormForgeCategory, FormForgeClient, FormForgeClientConfig, FormForgeScope } from '../../types'
 
 interface Props {
   locale?: string
   endpoint?: string
+  scope?: FormForgeScope
+  client?: FormForgeClient
+  clientConfig?: FormForgeClientConfig
   categoryRouteKey?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   locale: undefined,
   endpoint: undefined,
+  scope: undefined,
+  client: undefined,
+  clientConfig: undefined,
   categoryRouteKey: undefined
 })
 
@@ -26,6 +32,9 @@ const { t } = useFormForgeI18n({
 const categoryManager = useFormForgeCategory({
   immediate: false,
   endpoint: props.endpoint,
+  scope: props.scope,
+  client: props.client,
+  clientConfig: props.clientConfig,
   categoryRouteKey: props.categoryRouteKey
 })
 
