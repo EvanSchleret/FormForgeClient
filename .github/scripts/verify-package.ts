@@ -276,10 +276,51 @@ async function verifyConsumerRendering(consumerDirectory: string): Promise<void>
       throw new Error(`Nuxt consumer failed to render FormForge (HTTP ${response.status}):\n${details}`)
     }
 
-    for (const marker of ['Consumer builder question', 'Consumer renderer question']) {
+    for (const marker of ['Consumer builder question', 'Consumer renderer question', 'Outside FormForge']) {
       if (!html.includes(marker)) {
         throw new Error(`Nuxt consumer response did not render "${marker}":\n${html.slice(-4000)}`)
       }
+    }
+
+    if (!html.includes('data-formforge-scope-probe') || !html.includes('class="formforge ')) {
+      throw new Error('Nuxt consumer did not render the scoped Builder and its outside-scope regression probe')
+    }
+
+    const stylesheetUrls = Array.from(html.matchAll(/<link\b[^>]*\brel="stylesheet"[^>]*>/g), ([link]) => {
+      const href = link?.match(/\bhref="([^"]+)"/)?.[1]
+      return href === undefined ? undefined : new URL(href, `http://127.0.0.1:${port}`).toString()
+    }).filter((url): url is string => url !== undefined)
+    const formforgeStylesheetUrl = stylesheetUrls.find(url => new URL(url).pathname.endsWith('/assets/formforge.css'))
+
+    if (!formforgeStylesheetUrl) {
+      throw new Error(`Nuxt consumer did not include the FormForge stylesheet from the packed package:\n${stylesheetUrls.join('\n')}`)
+    }
+
+    const directStylesheetUrl = new URL(formforgeStylesheetUrl)
+    directStylesheetUrl.searchParams.set('direct', '')
+    const stylesheetResponse = await fetch(directStylesheetUrl)
+
+    if (!stylesheetResponse.ok || !stylesheetResponse.headers.get('content-type')?.startsWith('text/css')) {
+      throw new Error(`Nuxt consumer did not serve the FormForge stylesheet as CSS (${stylesheetResponse.status}): ${directStylesheetUrl}`)
+    }
+
+    const formforgeCss = await stylesheetResponse.text()
+
+    if (/@theme\b|@custom-variant\b|@utility\b|@source\b|@import\s+["']tailwindcss\/(?:theme|utilities)\.css/.test(formforgeCss)) {
+      throw new Error(`Nuxt consumer served uncompiled FormForge Tailwind directives from ${directStylesheetUrl}`)
+    }
+
+    for (const selector of ['.ff\\:formforge\\:grid', '.ff\\:formforge\\:gap-4', '.ff\\:formforge\\:min-w-56', '.ff\\:formforge\\:max-w-7xl']) {
+      if (!formforgeCss.includes(selector)) {
+        throw new Error(`Nuxt consumer FormForge stylesheet is missing ${selector}`)
+      }
+    }
+
+    const generatedSelectors = Array.from(formforgeCss.matchAll(/([^{}]+)\{/g), ([, selector]) => selector?.trim() ?? '')
+      .filter(selector => selector.includes('.ff\\:formforge\\:'))
+
+    if (generatedSelectors.length === 0 || generatedSelectors.some(selector => !selector.includes('.formforge'))) {
+      throw new Error('Nuxt consumer FormForge utilities are not scoped to a .formforge root')
     }
   } finally {
     if (server.exitCode === null) {

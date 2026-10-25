@@ -86,12 +86,16 @@ const rendererSchema: FormForgeFormSchema = {
 
 <template>
   <main>
+    <p
+      data-formforge-scope-probe
+      class="ff:formforge:min-w-56"
+    >
+      Outside FormForge
+    </p>
     <section data-formforge-builder-smoke>
       <FormForgeBuilder
         v-model="builderDraft"
         standalone
-        readonly
-        hide-settings
         disable-category-control
         :autosave="false"
       />
