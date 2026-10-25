@@ -463,16 +463,16 @@ function validationDescription(): string {
 </script>
 
 <template>
-  <div class="grid gap-4">
+  <div class="ff:formforge:grid ff:formforge:gap-4">
     <UCard
       v-if="mode === 'text'"
-      :ui="{ body: 'grid gap-4' }"
+      :ui="{ body: 'ff:formforge:grid ff:formforge:gap-4' }"
     >
-      <div class="grid gap-4">
-        <div class="flex items-start justify-between gap-4">
-          <div class="grid gap-1">
-            <span class="text-sm font-medium text-default">{{ t('builder.longResponse') }}</span>
-            <p class="text-sm text-muted">
+      <div class="ff:formforge:grid ff:formforge:gap-4">
+        <div class="ff:formforge:flex ff:formforge:items-start ff:formforge:justify-between ff:formforge:gap-4">
+          <div class="ff:formforge:grid ff:formforge:gap-1">
+            <span class="ff:formforge:text-sm ff:formforge:weight-500 ff:formforge:text-default">{{ t('builder.longResponse') }}</span>
+            <p class="ff:formforge:text-sm ff:formforge:text-muted">
               {{ t('builder.longResponseDescription') }}
             </p>
           </div>
@@ -487,10 +487,10 @@ function validationDescription(): string {
           />
         </div>
 
-        <div class="flex items-start justify-between gap-4">
-          <div class="grid gap-1">
-            <span class="text-sm font-medium text-default">{{ t('builder.validationRules') }}</span>
-            <p class="text-sm text-muted">
+        <div class="ff:formforge:flex ff:formforge:items-start ff:formforge:justify-between ff:formforge:gap-4">
+          <div class="ff:formforge:grid ff:formforge:gap-1">
+            <span class="ff:formforge:text-sm ff:formforge:weight-500 ff:formforge:text-default">{{ t('builder.validationRules') }}</span>
+            <p class="ff:formforge:text-sm ff:formforge:text-muted">
               {{ t('builder.validationRulesDescription') }}
             </p>
           </div>
@@ -505,17 +505,17 @@ function validationDescription(): string {
 
     <UCard
       v-if="mode === 'address' || mode === 'temporal' || mode === 'text'"
-      :ui="{ body: 'grid gap-4' }"
+      :ui="{ body: 'ff:formforge:grid ff:formforge:gap-4' }"
     >
       <div
         v-if="mode === 'temporal'"
-        class="flex items-center justify-between gap-4"
+        class="ff:formforge:flex ff:formforge:items-center ff:formforge:justify-between ff:formforge:gap-4"
       >
-        <div class="grid gap-1">
-          <span class="text-sm font-medium text-default">
+        <div class="ff:formforge:grid ff:formforge:gap-1">
+          <span class="ff:formforge:text-sm ff:formforge:weight-500 ff:formforge:text-default">
             {{ t('builder.temporalHourCycle.label') }}
           </span>
-          <p class="text-sm text-muted">
+          <p class="ff:formforge:text-sm ff:formforge:text-muted">
             {{ t('builder.temporalHourCycle.description') }}
           </p>
         </div>
@@ -527,10 +527,10 @@ function validationDescription(): string {
         />
       </div>
 
-      <div class="flex items-start justify-between gap-4">
-        <div class="grid gap-1">
-          <span class="text-sm font-medium text-default">{{ t('builder.validationRules') }}</span>
-          <p class="text-sm text-muted">
+      <div class="ff:formforge:flex ff:formforge:items-start ff:formforge:justify-between ff:formforge:gap-4">
+        <div class="ff:formforge:grid ff:formforge:gap-1">
+          <span class="ff:formforge:text-sm ff:formforge:weight-500 ff:formforge:text-default">{{ t('builder.validationRules') }}</span>
+          <p class="ff:formforge:text-sm ff:formforge:text-muted">
             {{ validationDescription() }}
           </p>
         </div>
@@ -543,41 +543,41 @@ function validationDescription(): string {
 
       <div
         v-if="isValidationEnabled()"
-        class="grid gap-4 border-t border-gray-200 pt-4 dark:border-white/10"
+        class="ff:formforge:grid ff:formforge:gap-4 ff:formforge:border-top-thin ff:formforge:border-default ff:formforge:pt-4"
       >
-        <div class="flex items-center gap-4">
-          <div class="min-w-0 flex-1 grid gap-1">
-            <span class="text-sm font-medium text-default">{{ t('builder.validationRules') }}</span>
-            <p class="text-sm text-muted">
+        <div class="ff:formforge:flex ff:formforge:items-center ff:formforge:gap-4">
+          <div class="ff:formforge:min-w-0 ff:formforge:flex-1 ff:formforge:grid ff:formforge:gap-1">
+            <span class="ff:formforge:text-sm ff:formforge:weight-500 ff:formforge:text-default">{{ t('builder.validationRules') }}</span>
+            <p class="ff:formforge:text-sm ff:formforge:text-muted">
               {{ validationModeLabel() }}
             </p>
           </div>
           <div
             v-if="validationRules().length > 1"
-            class="shrink-0"
+            class="ff:formforge:shrink-0"
           >
             <USelect
               :model-value="validationConfig()?.match ?? 'all'"
               :items="validationMatchItems()"
               :disabled="readonly"
-              class="w-56"
+              class="ff:formforge:w-56"
               @update:model-value="(value: FormForgeFieldValidationMatch) => updateValidationMatch(value)"
             />
           </div>
         </div>
 
-        <div class="grid gap-3">
+        <div class="ff:formforge:grid ff:formforge:gap-3">
           <div
             v-for="(rule, ruleIndex) in validationRules()"
             :key="rule.validation_key"
-            class="flex flex-col gap-3 lg:flex-row lg:items-end"
+            class="ff:formforge:flex ff:formforge:flex-col ff:formforge:gap-3 ff:formforge:lg:flex-row ff:formforge:lg:items-end"
           >
             <USelect
               v-if="mode === 'address'"
               :model-value="validationRuleTarget(rule)"
               :items="validationTargetItems()"
               :disabled="readonly"
-              class="w-full lg:w-72 lg:shrink-0"
+              class="ff:formforge:w-full ff:formforge:lg:w-72 ff:formforge:lg:shrink-0"
               @update:model-value="(value: string) => setValidationRuleTarget(rule, value)"
             />
 
@@ -585,15 +585,15 @@ function validationDescription(): string {
               :model-value="rule.operator"
               :items="validationRuleItems()"
               :disabled="readonly"
-              class="w-full lg:w-72 lg:shrink-0"
+              class="ff:formforge:w-full ff:formforge:lg:w-72 ff:formforge:lg:shrink-0"
               @update:model-value="(value: FormForgeFieldValidationOperator) => setValidationRuleOperator(rule, value)"
             />
 
             <template v-if="mode === 'temporal'">
               <template v-if="isTemporalRangeValidationOperator(rule.operator)">
-                <div class="grid min-w-0 flex-1 gap-2 sm:grid-cols-2">
-                  <div class="grid gap-1">
-                    <span class="text-sm font-medium text-muted">
+                <div class="ff:formforge:grid ff:formforge:min-w-0 ff:formforge:flex-1 ff:formforge:gap-2 ff:formforge:sm:grid-cols-2">
+                  <div class="ff:formforge:grid ff:formforge:gap-1">
+                    <span class="ff:formforge:text-sm ff:formforge:weight-500 ff:formforge:text-muted">
                       {{ t('builder.validation.rangeStart') }}
                     </span>
                     <UInputTime
@@ -601,20 +601,20 @@ function validationDescription(): string {
                       :model-value="validationRuleTemporalRangeStartValue(rule)"
                       :disabled="readonly"
                       :hour-cycle="props.field.hour_cycle === 12 ? 12 : 24"
-                      class="min-w-0"
+                      class="ff:formforge:min-w-0"
                       @update:model-value="(value: Time | null | undefined) => setValidationRuleTemporalRangeValue(rule, 'start', value)"
                     />
                     <UInputDate
                       v-else
                       :model-value="validationRuleTemporalRangeStartValue(rule)"
                       :disabled="readonly"
-                      class="min-w-0"
+                      class="ff:formforge:min-w-0"
                       @update:model-value="(value: DateValue | null | undefined) => setValidationRuleTemporalRangeValue(rule, 'start', value)"
                     />
                   </div>
 
-                  <div class="grid gap-1">
-                    <span class="text-sm font-medium text-muted">
+                  <div class="ff:formforge:grid ff:formforge:gap-1">
+                    <span class="ff:formforge:text-sm ff:formforge:weight-500 ff:formforge:text-muted">
                       {{ t('builder.validation.rangeEnd') }}
                     </span>
                     <UInputTime
@@ -622,14 +622,14 @@ function validationDescription(): string {
                       :model-value="validationRuleTemporalRangeEndValue(rule)"
                       :disabled="readonly"
                       :hour-cycle="props.field.hour_cycle === 12 ? 12 : 24"
-                      class="min-w-0"
+                      class="ff:formforge:min-w-0"
                       @update:model-value="(value: Time | null | undefined) => setValidationRuleTemporalRangeValue(rule, 'end', value)"
                     />
                     <UInputDate
                       v-else
                       :model-value="validationRuleTemporalRangeEndValue(rule)"
                       :disabled="readonly"
-                      class="min-w-0"
+                      class="ff:formforge:min-w-0"
                       @update:model-value="(value: DateValue | null | undefined) => setValidationRuleTemporalRangeValue(rule, 'end', value)"
                     />
                   </div>
@@ -641,14 +641,14 @@ function validationDescription(): string {
                   :model-value="validationRuleTemporalValue(rule)"
                   :disabled="readonly"
                   :hour-cycle="props.field.hour_cycle === 12 ? 12 : 24"
-                  class="min-w-0 flex-1"
+                  class="ff:formforge:min-w-0 ff:formforge:flex-1"
                   @update:model-value="(value: Time | null | undefined) => setValidationRuleTemporalValue(rule, value)"
                 />
                 <UInputDate
                   v-else
                   :model-value="validationRuleTemporalValue(rule)"
                   :disabled="readonly"
-                  class="min-w-0 flex-1"
+                  class="ff:formforge:min-w-0 ff:formforge:flex-1"
                   @update:model-value="(value: DateValue | null | undefined) => setValidationRuleTemporalValue(rule, value)"
                 />
               </template>
@@ -660,14 +660,14 @@ function validationDescription(): string {
                 :disabled="readonly"
                 :placeholder="validationRulePlaceholder(rule.operator)"
                 :min="0"
-                class="min-w-0 flex-1"
+                class="ff:formforge:min-w-0 ff:formforge:flex-1"
                 @update:model-value="(value: number | null) => setValidationRuleValue(rule, String(value ?? 0))"
               />
               <USelect
                 :model-value="rule.unit ?? 'characters'"
                 :items="validationRuleUnitItems(rule)"
                 :disabled="readonly"
-                class="w-full lg:w-40 lg:shrink-0"
+                class="ff:formforge:w-full ff:formforge:lg:w-40 ff:formforge:lg:shrink-0"
                 @update:model-value="(value: 'characters') => { rule.unit = value }"
               />
             </template>
@@ -677,12 +677,12 @@ function validationDescription(): string {
                 :model-value="validationRuleValue(rule)"
                 :disabled="readonly"
                 :placeholder="validationRulePlaceholder(rule.operator)"
-                class="min-w-0 flex-1"
+                class="ff:formforge:min-w-0 ff:formforge:flex-1"
                 @update:model-value="(value: string) => setValidationRuleValue(rule, value)"
               />
             </template>
 
-            <div class="flex shrink-0 items-center justify-end gap-2">
+            <div class="ff:formforge:flex ff:formforge:shrink-0 ff:formforge:items-center ff:formforge:justify-end ff:formforge:gap-2">
               <UButton
                 color="neutral"
                 variant="ghost"

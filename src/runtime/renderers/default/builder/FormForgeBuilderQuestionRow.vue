@@ -172,23 +172,23 @@ function blockEnterKeydown(_editor: unknown, event: KeyboardEvent): boolean {
 </script>
 
 <template>
-  <div class="grid">
+  <div class="ff:formforge:grid">
     <div
-      class="flex items-start justify-between gap-4 px-5 py-4"
-      :class="selected ? 'bg-white dark:bg-default/50' : 'hover:bg-default'"
+      class="ff:formforge:flex ff:formforge:items-start ff:formforge:justify-between ff:formforge:gap-4 ff:formforge:px-5 ff:formforge:py-4"
+      :class="selected ? 'ff:formforge:bg-elevated' : 'ff:formforge:hover:bg-muted'"
       @click="emit('select')"
     >
-      <div class="min-w-0 flex-1">
-        <div class="flex min-w-0 items-center gap-2">
+      <div class="ff:formforge:min-w-0 ff:formforge:flex-1">
+        <div class="ff:formforge:flex ff:formforge:min-w-0 ff:formforge:items-center ff:formforge:gap-2">
           <UIcon
             :name="fieldTypeIcon(field.type)"
-            class="size-4 shrink-0 text-muted"
+            class="ff:formforge:size-4 ff:formforge:shrink-0 ff:formforge:text-muted"
           />
-          <div class="min-w-0">
-            <p class="text-xs text-muted">
+          <div class="ff:formforge:min-w-0">
+            <p class="ff:formforge:text-xs ff:formforge:text-muted">
               {{ t('builder.questionLabel') }} {{ index + 1 }}
             </p>
-            <p class="truncate text-sm font-bold">
+            <p class="ff:formforge:truncate ff:formforge:text-sm ff:formforge:weight-700">
               <span
                 v-if="questionLabelHtml() !== ''"
                 v-html="questionLabelHtml()"
@@ -197,14 +197,14 @@ function blockEnterKeydown(_editor: unknown, event: KeyboardEvent): boolean {
                 {{ field.placeholder || field.type }}
               </span>
             </p>
-            <p class="text-xs text-muted">
+            <p class="ff:formforge:text-xs ff:formforge:text-muted">
               {{ questionRequiredLabel() }}
             </p>
           </div>
         </div>
       </div>
 
-      <div class="flex shrink-0 items-center gap-1">
+      <div class="ff:formforge:flex ff:formforge:shrink-0 ff:formforge:items-center ff:formforge:gap-1">
         <UButton
           color="neutral"
           variant="ghost"
@@ -236,6 +236,7 @@ function blockEnterKeydown(_editor: unknown, event: KeyboardEvent): boolean {
         <UDropdownMenu
           :items="fieldMenuItems()"
           :content="{ align: 'end', sideOffset: 8 }"
+          :ui="{ content: 'formforge ff:formforge:min-w-56' }"
         >
           <UButton
             color="neutral"
@@ -250,7 +251,7 @@ function blockEnterKeydown(_editor: unknown, event: KeyboardEvent): boolean {
 
     <div
       v-if="selected"
-      class="grid gap-4 px-5 py-4"
+      class="ff:formforge:grid ff:formforge:gap-4 ff:formforge:px-5 ff:formforge:py-4"
     >
       <UFormField
         :label="t('builder.questionPlaceholder')"
@@ -258,7 +259,7 @@ function blockEnterKeydown(_editor: unknown, event: KeyboardEvent): boolean {
         <template #hint>
           <div
             v-if="field.type !== 'address'"
-            class="flex items-center gap-2 mb-1"
+            class="ff:formforge:flex ff:formforge:items-center ff:formforge:gap-2 ff:formforge:mb-1"
           >
             <USwitch
               v-model="field.required"
@@ -268,7 +269,7 @@ function blockEnterKeydown(_editor: unknown, event: KeyboardEvent): boolean {
           </div>
         </template>
 
-        <div class="rounded-lg bg-white dark:bg-gray-800 p-2 shadow-sm ring-1 ring-gray-900/5 dark:ring-white/10">
+        <div class="ff:formforge:rounded-lg ff:formforge:bg-elevated ff:formforge:p-2 ff:formforge:border-thin ff:formforge:border-default">
           <UEditor
             v-slot="{ editor }"
             v-model="field.label"
@@ -347,7 +348,7 @@ function blockEnterKeydown(_editor: unknown, event: KeyboardEvent): boolean {
           :disabled="readonly"
           :placeholder="t('builder.consentLabel')"
           :ui="{
-            root: 'w-full'
+            root: 'ff:formforge:w-full'
           }"
         />
       </UFormField>
@@ -361,7 +362,7 @@ function blockEnterKeydown(_editor: unknown, event: KeyboardEvent): boolean {
           :disabled="readonly"
           :placeholder="t('builder.placeholderPlaceholder')"
           :ui="{
-            root: 'w-full'
+            root: 'ff:formforge:w-full'
           }"
         />
       </UFormField>

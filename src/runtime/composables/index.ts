@@ -10,6 +10,7 @@ export { useFormForgeForm } from './useFormForgeForm'
 export { useFormForgeSubmit } from './useFormForgeSubmit'
 export { useFormForgeSubmission } from './useFormForgeSubmission'
 export { useFormForgeResponses } from './useFormForgeResponses'
+export { useFormForgeStatistics } from './useFormForgeStatistics'
 export { useFormForgeCategory, useFormForgeCategoryOptions, normalizeFormForgeCategoryOptions } from './useFormForgeCategory'
 export { useFormForgeManagement } from './useFormForgeManagement'
 export { useFormForgeWizard } from './useFormForgeWizard'
@@ -29,6 +30,7 @@ export type {
   FormForgeResponsesRefreshOptions,
   FormForgeResponsesRequestOptions
 } from './useFormForgeResponses'
+export type { UseFormForgeStatisticsOptions, FormForgeStatisticsFetchOptions } from './useFormForgeStatistics'
 export type {
   UseFormForgeCategoryOptions,
   FormForgeCategoryRequestOptions,

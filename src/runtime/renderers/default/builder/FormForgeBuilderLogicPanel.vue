@@ -235,9 +235,9 @@ function removeLogicClause(rule: FormForgePageLogicRule, clauseIndex: number): v
 </script>
 
 <template>
-  <div class="grid gap-4">
-    <div class="flex items-center justify-between gap-3">
-      <div class="text-sm">
+  <div class="ff:formforge:grid ff:formforge:gap-4">
+    <div class="ff:formforge:flex ff:formforge:items-center ff:formforge:justify-between ff:formforge:gap-3">
+      <div class="ff:formforge:text-sm">
         {{ logic.rules.length === 0 ? t('builder.logic.empty') : t('builder.logic.rulesCount', { count: logic.rules.length }) }}
       </div>
       <UButton
@@ -255,14 +255,14 @@ function removeLogicClause(rule: FormForgePageLogicRule, clauseIndex: number): v
       v-for="rule in logic.rules"
       :key="rule.rule_key"
       :ui="{
-        body: 'grid gap-4'
+        body: 'ff:formforge:grid ff:formforge:gap-4'
       }"
     >
-      <div class="grid gap-2">
-        <span class="text-sm font-bold text-default">
+      <div class="ff:formforge:grid ff:formforge:gap-2">
+        <span class="ff:formforge:text-sm ff:formforge:weight-700 ff:formforge:text-default">
           {{ t('builder.logic.rule') }}
         </span>
-        <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <div class="ff:formforge:grid ff:formforge:gap-3 ff:formforge:lg:grid-cols-[minmax(0,1fr)_auto] ff:formforge:lg:items-center">
           <USelect
             v-model="rule.match"
             :items="logicMatchItems()"
@@ -280,11 +280,11 @@ function removeLogicClause(rule: FormForgePageLogicRule, clauseIndex: number): v
         </div>
       </div>
 
-      <div class="grid gap-3">
+      <div class="ff:formforge:grid ff:formforge:gap-3">
         <div
           v-for="(clause, clauseIndex) in rule.when"
           :key="`${rule.rule_key}-${clauseIndex}`"
-          class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto] lg:items-center"
+          class="ff:formforge:grid ff:formforge:gap-3 ff:formforge:lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto] ff:formforge:lg:items-center"
         >
           <USelect
             :model-value="clause.field_key"
@@ -344,7 +344,7 @@ function removeLogicClause(rule: FormForgePageLogicRule, clauseIndex: number): v
         </div>
       </div>
 
-      <div class="flex flex-wrap gap-2">
+      <div class="ff:formforge:flex ff:formforge:flex-wrap ff:formforge:gap-2">
         <UButton
           color="neutral"
           variant="soft"
@@ -356,13 +356,13 @@ function removeLogicClause(rule: FormForgePageLogicRule, clauseIndex: number): v
         </UButton>
       </div>
 
-      <div class="grid gap-2">
-        <span class="text-sm font-bold text-default">{{ t('builder.logic.then') }}</span>
-        <div class="grid gap-3">
+      <div class="ff:formforge:grid ff:formforge:gap-2">
+        <span class="ff:formforge:text-sm ff:formforge:weight-700 ff:formforge:text-default">{{ t('builder.logic.then') }}</span>
+        <div class="ff:formforge:grid ff:formforge:gap-3">
           <div
             v-for="(thenAction, thenIndex) in rule.then"
             :key="`${rule.rule_key}-${thenIndex}`"
-            class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-center"
+            class="ff:formforge:grid ff:formforge:gap-3 ff:formforge:lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] ff:formforge:lg:items-center"
           >
             <USelect
               :model-value="thenAction.action"
@@ -401,7 +401,7 @@ function removeLogicClause(rule: FormForgePageLogicRule, clauseIndex: number): v
             </UTooltip>
           </div>
         </div>
-        <div class="flex flex-wrap gap-2">
+        <div class="ff:formforge:flex ff:formforge:flex-wrap ff:formforge:gap-2">
           <UButton
             color="neutral"
             variant="soft"
@@ -414,9 +414,9 @@ function removeLogicClause(rule: FormForgePageLogicRule, clauseIndex: number): v
         </div>
       </div>
 
-      <div class="grid gap-2">
-        <span class="text-sm font-bold text-default">{{ t('builder.logic.fallback') }}</span>
-        <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center">
+      <div class="ff:formforge:grid ff:formforge:gap-2">
+        <span class="ff:formforge:text-sm ff:formforge:weight-700 ff:formforge:text-default">{{ t('builder.logic.fallback') }}</span>
+        <div class="ff:formforge:grid ff:formforge:gap-3 ff:formforge:lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] ff:formforge:lg:items-center">
           <USelect
             v-model="rule.fallback.action"
             :items="logicFallbackActionItems()"

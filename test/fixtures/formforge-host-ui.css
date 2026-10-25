@@ -1,0 +1,71 @@
+:root {
+  --ui-bg: white;
+  --ui-bg-elevated: white;
+  --ui-bg-muted: #f5f5f5;
+  --ui-text: #111;
+  --ui-text-muted: #666;
+  --ui-text-toned: #444;
+  --ui-border: #ddd;
+  --ui-border-muted: #eee;
+  --ui-error: #c00;
+  --ui-warning: #a60;
+}
+
+.dark {
+  --ui-bg: #111;
+  --ui-bg-elevated: #222;
+  --ui-bg-muted: #333;
+  --ui-text: white;
+  --ui-text-muted: #aaa;
+  --ui-text-toned: #ccc;
+  --ui-border: #444;
+  --ui-border-muted: #555;
+  --ui-error: #f88;
+  --ui-warning: #fc8;
+}
+
+@utility bg-default {
+  background-color: var(--ui-bg);
+}
+
+@utility bg-elevated {
+  background-color: var(--ui-bg-elevated);
+}
+
+@utility bg-muted {
+  background-color: var(--ui-bg-muted);
+}
+
+@utility text-default {
+  color: var(--ui-text);
+}
+
+@utility text-muted {
+  color: var(--ui-text-muted);
+}
+
+@utility text-toned {
+  color: var(--ui-text-toned);
+}
+
+@utility text-error {
+  color: var(--ui-error);
+}
+
+@utility text-warning {
+  color: var(--ui-warning);
+}
+
+@utility border-default {
+  border-color: var(--ui-border);
+}
+
+@utility ring-muted {
+  --tw-ring-color: var(--ui-border-muted);
+}
+
+@layer base {
+  body {
+    @apply antialiased text-default bg-default scheme-light dark:scheme-dark;
+  }
+}

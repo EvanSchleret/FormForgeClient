@@ -38,14 +38,14 @@ const temporalInputProps = computed(() => {
 function fullWidthUi(ui: unknown): Record<string, unknown> {
   if (ui === null || typeof ui !== 'object' || Array.isArray(ui)) {
     return {
-      base: 'w-full',
-      root: 'w-full'
+      base: 'ff:formforge:w-full',
+      root: 'ff:formforge:w-full'
     }
   }
 
   return {
     ...(ui as Record<string, unknown>),
-    base: 'w-full'
+    base: 'ff:formforge:w-full'
   }
 }
 
@@ -209,9 +209,9 @@ function helpTextHtml(): string {
 
       <div
         v-else-if="field.type === 'address'"
-        class="grid gap-4 w-full"
+        class="ff:formforge:grid ff:formforge:gap-4 ff:formforge:w-full"
       >
-        <div class="grid gap-3">
+        <div class="ff:formforge:grid ff:formforge:gap-3">
           <UFormField
             v-for="addressField in addressFields"
             v-show="addressField.visible"
@@ -265,7 +265,7 @@ function helpTextHtml(): string {
 
       <div
         v-if="typeof field.help_text === 'string' && field.help_text.trim() !== ''"
-        class="formforge-rich-text mt-2 text-sm text-muted"
+        class="formforge-rich-text ff:formforge:mt-2 ff:formforge:text-sm ff:formforge:text-muted"
         v-html="helpTextHtml()"
       />
     </UFormField>

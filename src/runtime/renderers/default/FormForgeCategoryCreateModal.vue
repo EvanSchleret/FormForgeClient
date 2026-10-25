@@ -85,9 +85,10 @@ async function submit(): Promise<void> {
     :title="t('builder.categoryModal.title')"
     :description="t('builder.categoryModal.description')"
     :dismissible="true"
+    :ui="{ content: 'formforge' }"
   >
     <template #body>
-      <div class="space-y-4">
+      <div class="ff:formforge:stack-4">
         <UAlert
           v-if="submitError !== null"
           color="error"
@@ -117,11 +118,11 @@ async function submit(): Promise<void> {
           />
         </UFormField>
 
-        <div class="flex items-center justify-between rounded-lg border border-default px-3 py-2">
-          <div class="flex items-center gap-2 text-sm text-toned">
+        <div class="ff:formforge:flex ff:formforge:items-center ff:formforge:justify-between ff:formforge:rounded-lg ff:formforge:border-thin ff:formforge:border-default ff:formforge:px-3 ff:formforge:py-2">
+          <div class="ff:formforge:flex ff:formforge:items-center ff:formforge:gap-2 ff:formforge:text-sm ff:formforge:text-toned">
             <UIcon
               name="i-lucide-circle-check-big"
-              class="size-4"
+              class="ff:formforge:size-4"
             />
             <span>{{ t('builder.categoryModal.activeLabel') }}</span>
           </div>
@@ -131,7 +132,7 @@ async function submit(): Promise<void> {
     </template>
 
     <template #footer>
-      <div class="flex w-full justify-end gap-2">
+      <div class="ff:formforge:flex ff:formforge:w-full ff:formforge:justify-end ff:formforge:gap-2">
         <UButton
           color="neutral"
           variant="ghost"
