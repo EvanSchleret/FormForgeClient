@@ -63,20 +63,19 @@ function hostThemeToken(selector: string, property: string): string | undefined 
   return declaration?.type === 'decl' ? declaration.value : undefined
 }
 
-const renderedCss = await postcss([tailwind()]).process(
-  sourceCss.replace('@reference "#build/ui.css";', `@reference "${fixturePath}";`),
-  { from: cssPath }
-)
+const renderedCss = await postcss([tailwind()]).process(sourceCss, { from: cssPath })
 const generatedCss = renderedCss.css
 const generatedRoot = postcss.parse(generatedCss)
 
 describe('FormForge CSS asset', () => {
-  it('uses the host Nuxt UI stylesheet as a reference without importing it', () => {
-    expect(sourceCss).toContain('@reference "#build/ui.css";')
+  it('uses host Nuxt UI theme variables without referencing the host stylesheet', () => {
+    expect(sourceCss).not.toContain('@reference "#build/ui.css"')
     expect(sourceCss).not.toContain('@import "#build/ui.css"')
     expect(sourceCss).toContain('prefix(ff)')
     expect(sourceCss).toContain('@custom-variant formforge')
     expect(sourceCss).toContain('@source "../renderers/**/*.{vue,ts}"')
+    expect(sourceCss).toMatch(/--text-color-default:\s*var\(--ui-text\)/)
+    expect(sourceCss).toMatch(/--background-color-elevated:\s*var\(--ui-bg-elevated\)/)
   })
 
   it('keeps renderer utilities package-prefixed and scoped to the FormForge root', () => {
@@ -96,6 +95,11 @@ describe('FormForge CSS asset', () => {
     generatedRoot.walkAtRules('property', (rule) => {
       expect.fail(`FormForge CSS should not register global properties: ${rule.params}`)
     })
+
+    expect(generatedCss).toContain('color: var(--ui-text)')
+    expect(generatedCss).toContain('color: var(--ui-error)')
+    expect(generatedCss).toContain('background-color: var(--ui-bg-elevated)')
+    expect(generatedCss).toContain('border-color: var(--ui-border)')
   })
 
   it.each([
@@ -114,6 +118,7 @@ describe('FormForge CSS asset', () => {
     expect(generatedCss).not.toMatch(/(?:^|[,\s])(?:html|body|:root|:host)(?:[,\s{.#:[>]|$)/)
     expect(generatedCss).not.toContain('@layer base')
     expect(generatedCss).not.toContain('@import "#build/ui.css"')
+    expect(generatedCss).not.toContain('@apply antialiased')
 
     generatedRoot.walkRules((rule) => {
       rule.walkDecls((declaration) => {

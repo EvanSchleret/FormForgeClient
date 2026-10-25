@@ -1,6 +1,17 @@
 @import "tailwindcss/theme.css" layer(theme) prefix(ff) theme(reference);
-@reference "#build/ui.css";
 @import "tailwindcss/utilities.css" layer(utilities) prefix(ff) source(none);
+
+@theme inline {
+  --text-color-default: var(--ui-text);
+  --text-color-muted: var(--ui-text-muted);
+  --text-color-toned: var(--ui-text-toned);
+  --text-color-error: var(--ui-error);
+  --text-color-warning: var(--ui-warning);
+  --background-color-elevated: var(--ui-bg-elevated);
+  --background-color-muted: var(--ui-bg-muted);
+  --border-color-default: var(--ui-border);
+  --border-color-muted: var(--ui-border-muted);
+}
 
 @custom-variant formforge (&:where(.formforge, .formforge *));
 

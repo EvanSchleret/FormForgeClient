@@ -63,3 +63,9 @@
 @utility ring-muted {
   --tw-ring-color: var(--ui-border-muted);
 }
+
+@layer base {
+  body {
+    @apply antialiased text-default bg-default scheme-light dark:scheme-dark;
+  }
+}
