@@ -4,6 +4,44 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## v2.5.0 - 2026-10-25
+
+### v2.5.0
+
+#### ✨ Highlights
+
+##### ⚙️ Standalone form settings
+
+Use `FormForgeSettings` on a dedicated page to load and save a form’s settings without embedding the settings UI in `FormForgeBuilder`.
+
+```vue
+<FormForgeSettings form-key="customer-survey" />
+
+```
+##### 🔐 Protected form rendering
+
+`FormForgeRenderer` now checks whether access is required before loading the form schema. When protection is enabled, it displays the challenge first and loads the form after successful verification. Existing `submission_code` behavior remains available for protecting submissions.
+
+##### 🌍 Normalized, localized address countries
+
+Address country values are normalized to country codes, with translated, searchable country names in the renderer.
+
+#### 🚀 Features
+
+- **Settings**: expose the standalone `FormForgeSettings` component and `useFormForgeSettings` composable ([ (22d8c22) ](https://github.com/EvanSchleret/FormForgeClient/commit/22d8c2217745915c84c0735ab7a29bbaae91204e))
+- **Renderer**: add the access challenge flow and load protected schemas only after authorization ([ (3f7b54c) ](https://github.com/EvanSchleret/FormForgeClient/commit/3f7b54c052ea70effd66761d320d27ee0e696b97))
+- **Address field**: normalize country values and show localized country options ([ (8edb225) ](https://github.com/EvanSchleret/FormForgeClient/commit/8edb2253bb7eafb52344f53a75a87f8182cbc5b8))
+
+#### 🐛 Bug Fixes
+
+- **Builder**: assign a default page title when creating or repairing pages in the form draft ([ (16785d0) ](https://github.com/EvanSchleret/FormForgeClient/commit/16785d035a8505c93f1407760fddaea10a6dd3e1))
+
+#### ❤️ Contributors
+
+- @EvanSchleret
+
+Full Changelog: [v2.4.0...v2.5.0](https://github.com/EvanSchleret/FormForgeClient/compare/v2.4.0...v2.5.0)
+
 ## v2.4.1 - 2026-10-25
 
 **Full Changelog**: https://github.com/EvanSchleret/FormForgeClient/compare/v2.4.0...v2.4.1
@@ -26,6 +64,7 @@ const { statistics, fetchStatistics } = useFormForgeStatistics({
 })
 
 await fetchStatistics()
+
 
 
 ```
@@ -104,6 +143,7 @@ File fields now support accepted types, per-file size limits, maximum file count
   max_files: 3,
   max_total_size: 10_000_000
 }
+
 
 
 
