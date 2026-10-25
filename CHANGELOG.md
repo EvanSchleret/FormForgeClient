@@ -4,6 +4,46 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## v2.4.0 - 2026-10-25
+
+### v2.4.0
+
+#### ✨ Highlights
+
+##### 📊 Typed statistics client
+
+FormForgeClient can now retrieve form statistics with typed totals, response time series, and question level aggregates. Use `useFormForgeStatistics` to fetch the data on demand and refresh it with query filters.
+
+```ts
+const { statistics, fetchStatistics } = useFormForgeStatistics({
+  key: 'customer-survey',
+  query: { version: '2', granularity: 'week', timezone: 'Europe/Zurich' },
+  immediate: false
+})
+
+await fetchStatistics()
+
+```
+##### 🎨 Host theme compatibility
+
+FormForge renderer styles now stay scoped to FormForge and follow the host application’s Nuxt UI theme. This prevents the package from changing global styles in the integrating application.
+
+#### 🚀 Features
+
+- **Statistics**: Add a typed statistics API helper, `getFormStatistics` client method, and `useFormForgeStatistics` composable. ([#39](https://github.com/EvanSchleret/FormForgeClient/pull/39)) [(5f3bc02)](https://github.com/EvanSchleret/FormForgeClient/commit/5f3bc0256cc66bedaa123a77b727b6b8e350e9b0)
+
+#### 🐛 Bug Fixes
+
+- **Builder**: Keep dropdown menus readable by sizing the question picker to its trigger and giving the icon menu a minimum width. ([#39](https://github.com/EvanSchleret/FormForgeClient/pull/39)) [(199a1c7)](https://github.com/EvanSchleret/FormForgeClient/commit/199a1c72304f532b57d55c3cfd1f62b88657f670)
+- **Statistics**: Preserve the response type and API error details when statistics requests fail. ([#39](https://github.com/EvanSchleret/FormForgeClient/pull/39)) [(bb671d5)](https://github.com/EvanSchleret/FormForgeClient/commit/bb671d549a04ad04716319dd1d1867c22d3b3df1)
+- **Styles**: Scope FormForge styles to its own root and use host theme tokens without importing the host UI stylesheet. ([#39](https://github.com/EvanSchleret/FormForgeClient/pull/39)) [(f7ea093)](https://github.com/EvanSchleret/FormForgeClient/commit/f7ea093e1d77fc5d0a3af7e4e3cbe86a8db2e7ad), [(21d6c1e)](https://github.com/EvanSchleret/FormForgeClient/commit/21d6c1ef14a522017e88e54539ee7b73ff2971f1)
+
+#### ❤️ Contributors
+
+- @EvanSchleret
+
+Full Changelog: [v2.3.2...v2.4.0](https://github.com/EvanSchleret/FormForgeClient/compare/v2.3.2...v2.4.0)
+
 ## v2.3.2 - 2026-09-30
 
 ### v2.3.2
@@ -59,6 +99,7 @@ File fields now support accepted types, per-file size limits, maximum file count
   max_files: 3,
   max_total_size: 10_000_000
 }
+
 
 
 
