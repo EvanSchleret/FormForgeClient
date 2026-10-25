@@ -18,4 +18,9 @@ describe('response answer formatting', () => {
       city: 'Geneva'
     })).toBe('Rue de Lyon, Geneva')
   })
+
+  it('localizes normalized country codes and legacy country names', () => {
+    expect(formatFormForgeAddressAnswer({ country: 'CH' }, 'fr')).toBe('Suisse')
+    expect(formatFormForgeAddressAnswer({ country: 'Switzerland' }, 'fr')).toBe('Suisse')
+  })
 })

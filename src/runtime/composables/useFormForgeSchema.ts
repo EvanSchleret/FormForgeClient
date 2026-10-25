@@ -1,5 +1,6 @@
 import { ref } from '#imports'
 import { useFormForgeClient } from './useFormForgeClient'
+import { fetchFormForgeClientSchema } from '../utils/form-schema'
 import type { FormForgeClient, FormForgeClientConfig, FormForgeFormSchema, FormForgeSchemaVersionsResponse, FormForgeScope } from '../types'
 import type { FormForgeRequestOptions } from '../api/request'
 
@@ -38,9 +39,11 @@ export function useFormForgeSchema(options: UseFormForgeSchemaOptions) {
     try {
       const endpoint = resolveEndpoint(requestOptions)
       const scope = resolveScope(requestOptions)
-      const nextSchema = options.version !== undefined && options.version !== ''
-        ? await client.getFormVersion(options.key, options.version, { endpoint, scope, ...(requestOptions.accessToken === undefined ? {} : { accessToken: requestOptions.accessToken }) })
-        : await client.getForm(options.key, { endpoint, scope, ...(requestOptions.accessToken === undefined ? {} : { accessToken: requestOptions.accessToken }) })
+      const nextSchema = await fetchFormForgeClientSchema(client, options.key, options.version, {
+        endpoint,
+        scope,
+        ...(requestOptions.accessToken === undefined ? {} : { accessToken: requestOptions.accessToken })
+      })
 
       schema.value = nextSchema
       return nextSchema

@@ -25,6 +25,7 @@ import { resolveTemporalMode } from '../../utils/temporal'
 import { sanitizePayloadWithSchema } from '../../utils/renderer-payload'
 import { resolveFormForgeSubmitVisibility } from '../../utils/submit-visibility'
 import { discoverFormForgeAccessAndLoadSchema, verifyFormForgeAccessAndLoadSchema } from '../../utils/renderer-access'
+import { areFormForgeRuntimeValuesEqual, resolveFormForgeRendererConditions } from '../../utils/renderer-conditions'
 import {
   resolveFormForgeRenderedPages,
   shouldShowFormForgeNavigation,
@@ -35,11 +36,7 @@ import { useFormForgeAccess } from '../../composables/useFormForgeAccess'
 import { useFormForgeI18n } from '../../composables/useFormForgeI18n'
 import { useFormForgeSubmit } from '../../composables/useFormForgeSubmit'
 import { createFormForgeZodSchema } from '../../validation/zod'
-import {
-  evaluatePageLogicRule,
-  getPageLogic,
-  resolvePageLogicJumpTarget
-} from '../../utils/page-logic'
+import { evaluatePageLogicRule, getPageLogic, resolvePageLogicJumpTarget } from '../../utils/page-logic'
 import FormForgeRendererField from './FormForgeRendererField.vue'
 import FormForgeRendererPage from './FormForgeRendererPage.vue'
 
@@ -72,17 +69,6 @@ interface FormForgeSelectItem {
   value: string | number | boolean | null
   description?: string
   disabled?: boolean
-}
-
-interface FormForgePageRuntimeState {
-  visible: boolean
-  disabled: boolean
-}
-
-interface FormForgeFieldRuntimeState {
-  visible: boolean
-  disabled: boolean
-  required: boolean
 }
 
 type FormForgeTemporalValue = DateValue | Time
@@ -476,7 +462,7 @@ watch(
     }
 
     const sanitizedValue = sanitizePayloadWithSchema(modelValue, schema)
-    if (areValuesEqual(modelValue, sanitizedValue)) {
+    if (areFormForgeRuntimeValuesEqual(modelValue, sanitizedValue)) {
       return
     }
 
@@ -540,436 +526,12 @@ const pageLogicByKey = computed<Record<string, ReturnType<typeof getPageLogic>>>
   return map
 })
 
-const hasPageLogicRules = computed<boolean>(() => {
-  return Object.values(pageLogicByKey.value).some((logic) => logic.rules.length > 0)
-})
-
-const fieldsByKey = computed<Record<string, FormForgeFieldSchema>>(() => {
-  const map: Record<string, FormForgeFieldSchema> = {}
-
-  for (const page of displayPages.value) {
-    for (const field of page.fields) {
-      map[field.field_key] = field
-    }
-  }
-
-  return map
-})
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return false
-  }
-
-  if (typeof File !== 'undefined' && value instanceof File) {
-    return false
-  }
-
-  return true
-}
-
-function isEmptyValue(value: unknown): boolean {
-  if (value === undefined || value === null) {
-    return true
-  }
-
-  if (typeof value === 'string') {
-    return value.trim() === ''
-  }
-
-  if (Array.isArray(value)) {
-    return value.length === 0
-  }
-
-  if (isPlainObject(value)) {
-    if ('start' in value || 'end' in value) {
-      const rangeValue = value as { start?: unknown; end?: unknown }
-      return isEmptyValue(rangeValue.start) && isEmptyValue(rangeValue.end)
-    }
-
-    return Object.values(value).every((entry) => isEmptyValue(entry))
-  }
-
-  return false
-}
-
-function areValuesEqual(left: unknown, right: unknown): boolean {
-  if (Object.is(left, right)) {
-    return true
-  }
-
-  if (Array.isArray(left) && Array.isArray(right)) {
-    if (left.length !== right.length) {
-      return false
-    }
-
-    return left.every((leftItem, index) => areValuesEqual(leftItem, right[index]))
-  }
-
-  if (isPlainObject(left) && isPlainObject(right)) {
-    const leftKeys = Object.keys(left)
-    const rightKeys = Object.keys(right)
-
-    if (leftKeys.length !== rightKeys.length) {
-      return false
-    }
-
-    for (const key of leftKeys) {
-      if (!areValuesEqual(left[key], right[key])) {
-        return false
-      }
-    }
-
-    return true
-  }
-
-  return false
-}
-
-function compareValues(left: unknown, right: unknown): number | null {
-  if (typeof left === 'number' && typeof right === 'number') {
-    if (left < right) {
-      return -1
-    }
-
-    if (left > right) {
-      return 1
-    }
-
-    return 0
-  }
-
-  if (typeof left === 'string' && typeof right === 'string') {
-    const leftAsNumber = Number(left)
-    const rightAsNumber = Number(right)
-    if (Number.isFinite(leftAsNumber) && Number.isFinite(rightAsNumber)) {
-      if (leftAsNumber < rightAsNumber) {
-        return -1
-      }
-
-      if (leftAsNumber > rightAsNumber) {
-        return 1
-      }
-
-      return 0
-    }
-
-    const leftTime = Date.parse(left)
-    const rightTime = Date.parse(right)
-    if (!Number.isNaN(leftTime) && !Number.isNaN(rightTime)) {
-      if (leftTime < rightTime) {
-        return -1
-      }
-
-      if (leftTime > rightTime) {
-        return 1
-      }
-
-      return 0
-    }
-
-    if (left < right) {
-      return -1
-    }
-
-    if (left > right) {
-      return 1
-    }
-
-    return 0
-  }
-
-  return null
-}
-
-function getFieldStateValueByFieldKey(fieldKey: string): unknown {
-  const field = fieldsByKey.value[fieldKey]
-  if (field === undefined) {
-    return undefined
-  }
-
-  return formState.value[field.name]
-}
-
-function evaluateConditionClause(
-  clause: { field_key: string; operator: string; value: unknown }
-): boolean {
-  const actualValue = getFieldStateValueByFieldKey(clause.field_key)
-  const expectedValue = clause.value
-
-  if (clause.operator === 'eq') {
-    return areValuesEqual(actualValue, expectedValue)
-  }
-
-  if (clause.operator === 'neq') {
-    return !areValuesEqual(actualValue, expectedValue)
-  }
-
-  if (clause.operator === 'in') {
-    if (Array.isArray(expectedValue)) {
-      if (Array.isArray(actualValue)) {
-        return actualValue.some((item) => expectedValue.some((entry) => areValuesEqual(item, entry)))
-      }
-
-      return expectedValue.some((entry) => areValuesEqual(actualValue, entry))
-    }
-
-    if (Array.isArray(actualValue)) {
-      return actualValue.some((entry) => areValuesEqual(entry, expectedValue))
-    }
-
-    return areValuesEqual(actualValue, expectedValue)
-  }
-
-  if (clause.operator === 'not_in') {
-    return !evaluateConditionClause({
-      ...clause,
-      operator: 'in'
-    })
-  }
-
-  if (clause.operator === 'gt' || clause.operator === 'gte' || clause.operator === 'lt' || clause.operator === 'lte') {
-    const comparison = compareValues(actualValue, expectedValue)
-    if (comparison === null) {
-      return false
-    }
-
-    if (clause.operator === 'gt') {
-      return comparison > 0
-    }
-
-    if (clause.operator === 'gte') {
-      return comparison >= 0
-    }
-
-    if (clause.operator === 'lt') {
-      return comparison < 0
-    }
-
-    return comparison <= 0
-  }
-
-  if (clause.operator === 'contains') {
-    if (typeof actualValue === 'string') {
-      return actualValue.includes(String(expectedValue ?? ''))
-    }
-
-    if (Array.isArray(actualValue)) {
-      return actualValue.some((entry) => areValuesEqual(entry, expectedValue))
-    }
-
-    if (isPlainObject(actualValue) && typeof expectedValue === 'string') {
-      return expectedValue in actualValue
-    }
-
-    return false
-  }
-
-  if (clause.operator === 'not_contains') {
-    return !evaluateConditionClause({
-      ...clause,
-      operator: 'contains'
-    })
-  }
-
-  if (clause.operator === 'is_empty') {
-    return isEmptyValue(actualValue)
-  }
-
-  if (clause.operator === 'not_empty') {
-    return !isEmptyValue(actualValue)
-  }
-
-  return false
-}
-
-function evaluateCondition(
-  condition: { match: 'all' | 'any'; when: Array<{ field_key: string; operator: string; value: unknown }> }
-): boolean {
-  if (!Array.isArray(condition.when) || condition.when.length === 0) {
-    return false
-  }
-
-  if (condition.match === 'any') {
-    return condition.when.some((clause) => evaluateConditionClause(clause))
-  }
-
-  return condition.when.every((clause) => evaluateConditionClause(clause))
-}
-
-const runtimeConditions = computed<{
-  pages: Record<string, FormForgePageRuntimeState>
-  fields: Record<string, FormForgeFieldRuntimeState>
-}>(() => {
-  const schema = getResolvedSchema()
-  const pagesState: Record<string, FormForgePageRuntimeState> = {}
-  const fieldsState: Record<string, FormForgeFieldRuntimeState> = {}
-
-  for (const page of displayPages.value) {
-    pagesState[page.page_key] = {
-      visible: true,
-      disabled: false
-    }
-
-    for (const field of page.fields) {
-      fieldsState[field.field_key] = {
-        visible: true,
-        disabled: field.disabled === true,
-        required: field.required === true
-      }
-    }
-  }
-
-  const requiredByLogic = new Set<string>()
-
-  if (schema === null || hasPageLogicRules.value || !Array.isArray(schema.conditions)) {
-    for (const [pageKey, logic] of Object.entries(pageLogicByKey.value)) {
-      const page = displayPages.value.find((item) => item.page_key === pageKey)
-      if (page === undefined) {
-        continue
-      }
-
-      for (const rule of logic.rules) {
-        if (!evaluatePageLogicRule(rule, page, (field) => formState.value[field.name])) {
-          continue
-        }
-
-        for (const thenAction of rule.then) {
-          if (thenAction.action === 'require' && typeof thenAction.field_key === 'string' && thenAction.field_key !== '') {
-            requiredByLogic.add(thenAction.field_key)
-          }
-        }
-      }
-    }
-
-    for (const fieldKey of requiredByLogic) {
-      const fieldState = fieldsState[fieldKey]
-      if (fieldState !== undefined) {
-        fieldState.required = true
-      }
-    }
-
-    return {
-      pages: pagesState,
-      fields: fieldsState
-    }
-  }
-
-  const hasShowByPageKey = new Set<string>()
-  const hasShowByFieldKey = new Set<string>()
-
-  for (const condition of schema.conditions) {
-    if (condition.action !== 'show') {
-      continue
-    }
-
-    if (condition.target_type === 'page') {
-      hasShowByPageKey.add(condition.target_key)
-      continue
-    }
-
-    if (condition.target_type === 'field') {
-      hasShowByFieldKey.add(condition.target_key)
-    }
-  }
-
-  for (const pageKey of hasShowByPageKey) {
-    const pageState = pagesState[pageKey]
-    if (pageState !== undefined) {
-      pageState.visible = false
-    }
-  }
-
-  for (const fieldKey of hasShowByFieldKey) {
-    const fieldState = fieldsState[fieldKey]
-    if (fieldState !== undefined) {
-      fieldState.visible = false
-    }
-  }
-
-  for (const condition of schema.conditions) {
-    if (!evaluateCondition(condition)) {
-      continue
-    }
-
-    if (condition.target_type === 'page') {
-      const pageState = pagesState[condition.target_key]
-      if (pageState === undefined) {
-        continue
-      }
-
-      if (condition.action === 'show') {
-        pageState.visible = true
-      }
-
-      if (condition.action === 'hide' || condition.action === 'skip') {
-        pageState.visible = false
-      }
-
-      if (condition.action === 'disable') {
-        pageState.disabled = true
-      }
-
-      continue
-    }
-
-    if (condition.target_type !== 'field') {
-      continue
-    }
-
-    const fieldState = fieldsState[condition.target_key]
-    if (fieldState === undefined) {
-      continue
-    }
-
-    if (condition.action === 'show') {
-      fieldState.visible = true
-    }
-
-    if (condition.action === 'hide' || condition.action === 'skip') {
-      fieldState.visible = false
-    }
-
-    if (condition.action === 'disable') {
-      fieldState.disabled = true
-    }
-
-    if (condition.action === 'require') {
-      fieldState.required = true
-    }
-  }
-
-  for (const [pageKey, logic] of Object.entries(pageLogicByKey.value)) {
-    const page = displayPages.value.find((item) => item.page_key === pageKey)
-    if (page === undefined) {
-      continue
-    }
-
-    for (const rule of logic.rules) {
-      if (!evaluatePageLogicRule(rule, page, (field) => formState.value[field.name])) {
-        continue
-      }
-
-      for (const thenAction of rule.then) {
-        if (thenAction.action === 'require' && typeof thenAction.field_key === 'string' && thenAction.field_key !== '') {
-          requiredByLogic.add(thenAction.field_key)
-        }
-      }
-    }
-  }
-
-  for (const fieldKey of requiredByLogic) {
-    const fieldState = fieldsState[fieldKey]
-    if (fieldState !== undefined) {
-      fieldState.required = true
-    }
-  }
-
-  return {
-    pages: pagesState,
-    fields: fieldsState
-  }
-})
+const runtimeConditions = computed(() => resolveFormForgeRendererConditions(
+  getResolvedSchema(),
+  displayPages.value,
+  pageLogicByKey.value,
+  formState.value
+))
 
 const visiblePages = computed<FormForgePageSchema[]>(() => {
   return displayPages.value.filter((page) => isPageVisible(page))
@@ -1974,6 +1536,7 @@ async function onSubmit(): Promise<void> {
           :address-fields="addressFieldDefinitions(field)"
           :required="isFieldRequired(field)"
           :disabled="isFieldDisabled(field, page)"
+          :locale="locale"
           @update:model-value="(nextValue) => onFieldModelUpdate(field, nextValue)"
           @blur="() => onFieldBlur(field.name)"
         />

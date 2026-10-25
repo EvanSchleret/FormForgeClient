@@ -5,6 +5,8 @@ import type {
   FormForgeAddressFieldSchema,
   FormForgeFieldSchema
 } from '../../types'
+import { useFormForgeI18n } from '../../composables/useFormForgeI18n'
+import { getFormForgeCountryOptions, normalizeFormForgeCountryCode } from '../../utils/country'
 import { sanitizeFormForgeInlineRichText, sanitizeFormForgeRichText } from '../../utils/rich-text'
 import { resolveTemporalMode } from '../../utils/temporal'
 
@@ -18,6 +20,7 @@ interface Props {
   addressFields: FormForgeAddressFieldSchema[]
   required: boolean
   disabled: boolean
+  locale?: string
 }
 
 const props = defineProps<Props>()
@@ -27,8 +30,29 @@ const emit = defineEmits<{
   (event: 'blur'): void
 }>()
 
+const { locale, t } = useFormForgeI18n({
+  locale: () => props.locale
+})
+
 const temporalMode = computed(() => resolveTemporalMode(props.field))
 const temporalHourCycle = computed(() => props.field.hour_cycle === 12 ? 12 : 24)
+const countryOptions = computed(() => {
+  const options = getFormForgeCountryOptions(locale.value)
+  const currentValue = addressFieldValue('country').trim()
+
+  if (currentValue !== '' && normalizeFormForgeCountryCode(currentValue, locale.value) === null) {
+    return [{ label: currentValue, value: currentValue }, ...options]
+  }
+
+  return options
+})
+const selectedCountry = computed<string | null>({
+  get: () => {
+    const currentValue = addressFieldValue('country')
+    return normalizeFormForgeCountryCode(currentValue, locale.value) ?? (currentValue.trim() === '' ? null : currentValue)
+  },
+  set: (value) => updateAddressFieldValue('country', value ?? '')
+})
 const temporalInputProps = computed(() => {
   const { placeholder, ...rest } = props.componentProps
   void placeholder
@@ -219,7 +243,20 @@ function helpTextHtml(): string {
             :label="addressField.label"
             :required="addressField.required"
           >
+            <USelectMenu
+              v-if="addressField.key === 'country'"
+              v-model="selectedCountry"
+              :items="countryOptions"
+              value-key="value"
+              :disabled="disabled"
+              :placeholder="t('renderer.country.placeholder')"
+              :search-input="{ placeholder: t('renderer.country.search'), autofocus: false }"
+              :filter-fields="['label', 'value']"
+              :ui="fullWidthUi(componentProps.ui)"
+              clear
+            />
             <UInput
+              v-else
               :model-value="addressFieldValue(addressField.key)"
               :disabled="disabled"
               :placeholder="addressField.label"
