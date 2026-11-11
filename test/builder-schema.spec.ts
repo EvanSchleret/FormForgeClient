@@ -3,6 +3,51 @@ import { createFormForgeBuilderField, sanitizeFormForgeBuilderDraft } from '../s
 import type { FormForgeJsonObject, FormForgePageSchema } from '../src/runtime/types'
 
 describe('FormForge builder schema helpers', () => {
+  it('creates file fields with defaults and preserves configurable upload limits', () => {
+    const field = createFormForgeBuilderField('file', 'page_1')
+
+    expect(field).toMatchObject({
+      type: 'file',
+      multiple: false,
+      accept: []
+    })
+
+    if (field.type !== 'file') {
+      throw new Error('Expected a file field')
+    }
+
+    field.multiple = true
+    field.accept = ['.pdf']
+    field.max_size = 5 * 1024 * 1024
+    field.max_files = 3
+    field.max_total_size = 12 * 1024 * 1024
+
+    const draft = {
+      uuid: null,
+      key: null,
+      schema_version: 2,
+      api: {},
+      pages: [{
+        page_key: 'page_1',
+        title: 'Files',
+        description: null,
+        meta: {},
+        fields: [field]
+      }],
+      conditions: []
+    }
+
+    sanitizeFormForgeBuilderDraft(draft)
+
+    expect(draft.pages[0]?.fields[0]).toMatchObject({
+      multiple: true,
+      accept: ['.pdf'],
+      max_size: 5 * 1024 * 1024,
+      max_files: 3,
+      max_total_size: 12 * 1024 * 1024
+    })
+  })
+
   it('creates address fields with localized defaults', () => {
     const field = createFormForgeBuilderField('address', 'page_1', 'fr')
 

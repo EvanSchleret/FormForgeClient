@@ -2,6 +2,29 @@ import { describe, expect, it } from 'vitest'
 import { normalizeFormForgeSchema } from '../src/runtime/utils/schema'
 
 describe('normalizeFormForgeSchema', () => {
+  it('normalizes effective global upload limits', () => {
+    const schema = normalizeFormForgeSchema({
+      key: 'uploads',
+      version: '1',
+      schema_version: 2,
+      title: 'Uploads',
+      is_published: true,
+      api: {},
+      upload_limits: {
+        max_file_size: 5 * 1024 * 1024,
+        max_total_size: 12 * 1024 * 1024,
+        max_files: 3
+      },
+      fields: []
+    })
+
+    expect(schema.upload_limits).toEqual({
+      max_file_size: 5 * 1024 * 1024,
+      max_total_size: 12 * 1024 * 1024,
+      max_files: 3
+    })
+  })
+
   it('normalizes schema and preserves field order', () => {
     const schema = normalizeFormForgeSchema({
       key: 'contact-form',

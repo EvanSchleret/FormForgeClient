@@ -3,6 +3,95 @@ import { createFormForgeZodSchema, validateFormForgePayload } from '../src/runti
 import type { FormForgeFileFieldSchema } from '../src/runtime/types'
 
 describe('createFormForgeZodSchema', () => {
+  it('validates file limits across the whole submission', () => {
+    const originalFile = globalThis.File
+
+    class TestFile {
+      name: string
+      type: string
+      size: number
+
+      constructor(name: string, type: string, size: number) {
+        this.name = name
+        this.type = type
+        this.size = size
+      }
+    }
+
+    Object.defineProperty(globalThis, 'File', { configurable: true, value: TestFile })
+
+    try {
+      const file = (name: string, size: number): File => new TestFile(name, 'text/plain', size) as unknown as File
+      const schema = createFormForgeZodSchema({
+        key: 'submission-limits',
+        version: '1',
+        schema_version: 2,
+        title: 'Submission limits',
+        is_published: true,
+        api: {},
+        pages: [],
+        conditions: [],
+        drafts: { enabled: false },
+        upload_limits: {
+          max_file_size: 100,
+          max_total_size: 120,
+          max_files: 2
+        },
+        fields: [
+          {
+            field_key: 'fk_documents',
+            type: 'file',
+            name: 'documents',
+            page_key: 'page_1',
+            required: false,
+            nullable: false,
+            default: null,
+            rules: [],
+            meta: {},
+            multiple: true,
+            accept: ['.txt'],
+            max_size: 100,
+            max_files: 2,
+            max_total_size: 120
+          },
+          {
+            field_key: 'fk_evidence',
+            type: 'file',
+            name: 'evidence',
+            page_key: 'page_1',
+            required: false,
+            nullable: false,
+            default: null,
+            rules: [],
+            meta: {},
+            multiple: true,
+            accept: ['.txt'],
+            max_size: 100,
+            max_files: 2,
+            max_total_size: 120
+          }
+        ]
+      })
+
+      expect(validateFormForgePayload(schema, {
+        documents: [file('one.txt', 60)],
+        evidence: [file('two.txt', 60)]
+      })).toEqual({})
+
+      expect(validateFormForgePayload(schema, {
+        documents: [file('one.txt', 70)],
+        evidence: [file('two.txt', 60)]
+      })).toHaveProperty('documents')
+
+      expect(validateFormForgePayload(schema, {
+        documents: [file('one.txt', 20), file('two.txt', 20)],
+        evidence: [file('three.txt', 20)]
+      })).toHaveProperty('documents')
+    } finally {
+      Object.defineProperty(globalThis, 'File', { configurable: true, value: originalFile })
+    }
+  })
+
   it('validates file type, per-file size, file count and total size limits', () => {
     const originalFile = globalThis.File
 
