@@ -39,7 +39,7 @@ export default defineNuxtModule<ModuleOptions>({
     scopeParams: {},
     credentials: 'include',
     headers: {},
-    uploadMode: 'staged',
+    uploadMode: 'managed',
     datetimeMode: 'offset',
     locale: 'en',
     autoImports: true

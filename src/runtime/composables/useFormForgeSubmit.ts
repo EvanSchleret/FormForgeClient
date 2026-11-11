@@ -49,6 +49,17 @@ const RESERVED_SUBMISSION_FIELD_NAMES: string[] = [
   'ip_address'
 ]
 
+const warnedDeprecatedUploadModes: Set<FormForgeUploadMode> = new Set()
+
+function warnDeprecatedUploadMode(mode: FormForgeUploadMode): void {
+  if ((mode !== 'staged' && mode !== 'direct') || warnedDeprecatedUploadModes.has(mode)) {
+    return
+  }
+
+  warnedDeprecatedUploadModes.add(mode)
+  console.warn(`[FormForge] The ${mode} upload mode is deprecated and will be removed in 3.0.0. Use managed uploads.`)
+}
+
 function isReservedSubmissionFieldName(fieldName: string): boolean {
   return RESERVED_SUBMISSION_FIELD_NAMES.includes(fieldName)
 }
@@ -326,7 +337,8 @@ export function useFormForgeSubmit(options: UseFormForgeSubmitOptions) {
       fields: submittableFields
     }
 
-    const mode: FormForgeUploadMode = submitOptions.mode ?? options.clientConfig?.uploadMode ?? 'staged'
+    const mode: FormForgeUploadMode = submitOptions.mode ?? options.clientConfig?.uploadMode ?? 'managed'
+    warnDeprecatedUploadMode(mode)
     const version: string | undefined = submitOptions.version ?? options.version
     const endpoint: string | undefined = submitOptions.endpoint ?? options.endpoint
     const scope: FormForgeScope | undefined = submitOptions.scope ?? options.scope
