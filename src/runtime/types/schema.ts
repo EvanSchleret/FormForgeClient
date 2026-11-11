@@ -245,6 +245,12 @@ export interface FormForgeDraftSettings {
   [key: string]: FormForgeJsonValue | undefined
 }
 
+export interface FormForgeUploadLimits {
+  max_file_size: number
+  max_total_size: number
+  max_files: number
+}
+
 export interface FormForgeFormSchema {
   key: string
   version: string
@@ -258,6 +264,7 @@ export interface FormForgeFormSchema {
   category_item?: FormForgeCategory | null
   is_published: boolean
   public_url?: string | null
+  upload_limits?: FormForgeUploadLimits
   fields: FormForgeFieldSchema[]
   pages: FormForgePageSchema[]
   conditions: FormForgeCondition[]

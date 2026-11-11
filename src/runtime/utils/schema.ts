@@ -13,6 +13,7 @@ import type {
   FormForgeFieldType,
   FormForgeFileFieldSchema,
   FormForgeFormSchema,
+  FormForgeUploadLimits,
   FormForgeJsonObject,
   FormForgeJsonValue,
   FormForgePageSchema
@@ -477,6 +478,14 @@ export function normalizeFormForgeSchema(payload: FormForgeJsonObject, locale?: 
 
   const metaValue: FormForgeJsonValue | undefined = data.meta
   const meta: FormForgeJsonObject | undefined = isFormForgeJsonObject(metaValue) ? metaValue : undefined
+  const uploadLimitsValue: FormForgeJsonValue | undefined = data.upload_limits
+  const uploadLimits: FormForgeUploadLimits | undefined = isFormForgeJsonObject(uploadLimitsValue)
+    ? {
+        max_file_size: toPositiveNumber(uploadLimitsValue.max_file_size) ?? 0,
+        max_total_size: toPositiveNumber(uploadLimitsValue.max_total_size) ?? 0,
+        max_files: toPositiveNumber(uploadLimitsValue.max_files) ?? 0
+      }
+    : undefined
   const categoryItem = data.category_item === null
     ? null
     : normalizeFormForgeCategory(data.category_item)
@@ -494,6 +503,7 @@ export function normalizeFormForgeSchema(payload: FormForgeJsonObject, locale?: 
     category_item: categoryItem ?? undefined,
     is_published: toBoolean(data.is_published, false),
     public_url: toNullableString(data.public_url),
+    upload_limits: uploadLimits,
     fields,
     pages,
     conditions: normalizeConditions(data.conditions),

@@ -46,6 +46,7 @@ export type {
   FormForgeConditionOperator,
   FormForgeConditionTargetType,
   FormForgeDraftSettings,
+  FormForgeUploadLimits,
   FormForgeFormSchema,
   FormForgeOptionValue,
   FormForgeFieldStorage

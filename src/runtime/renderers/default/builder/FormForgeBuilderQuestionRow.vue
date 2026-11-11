@@ -8,6 +8,7 @@ import FormForgeBuilderAddressFieldsCard from './FormForgeBuilderAddressFieldsCa
 import FormForgeBuilderChoiceDisplayField from './FormForgeBuilderChoiceDisplayField.vue'
 import FormForgeBuilderChoiceOptionsField from './FormForgeBuilderChoiceOptionsField.vue'
 import FormForgeBuilderDescriptionField from './FormForgeBuilderDescriptionField.vue'
+import FormForgeBuilderFileSettings from './FormForgeBuilderFileSettings.vue'
 import FormForgeBuilderTemporalModeField from './FormForgeBuilderTemporalModeField.vue'
 import FormForgeBuilderValidationRulesSection from './FormForgeBuilderValidationRulesSection.vue'
 
@@ -301,6 +302,12 @@ function blockEnterKeydown(_editor: unknown, event: KeyboardEvent): boolean {
 
       <FormForgeBuilderTemporalModeField
         v-if="field.type === 'temporal'"
+        :field="field"
+        :readonly="readonly"
+      />
+
+      <FormForgeBuilderFileSettings
+        v-if="field.type === 'file'"
         :field="field"
         :readonly="readonly"
       />

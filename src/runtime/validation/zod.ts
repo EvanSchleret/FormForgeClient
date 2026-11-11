@@ -28,6 +28,8 @@ interface FormForgeZodValidationMessages {
   invalidDate: string
   invalidTime: string
   invalidEmail: string
+  maxUploadTotal: (value: number) => string
+  maxUploadFiles: (value: number) => string
   minLength: (value: number) => string
   maxLength: (value: number) => string
   minItems: (value: number) => string
@@ -71,6 +73,8 @@ function resolveLocaleMessages(locale: string | undefined): FormForgeZodValidati
       invalidDate: 'Veuillez saisir une date valide',
       invalidTime: 'Veuillez saisir une heure valide',
       invalidEmail: 'Veuillez saisir une adresse e-mail valide',
+      maxUploadTotal: (value: number) => `La taille totale des fichiers ne peut pas dépasser ${value} octets`,
+      maxUploadFiles: (value: number) => `Vous ne pouvez pas joindre plus de ${value} fichiers`,
       minLength: (value: number) => `Veuillez saisir au moins ${value} caractères`,
       maxLength: (value: number) => `Veuillez saisir au plus ${value} caractères`,
       minItems: (value: number) => `Veuillez sélectionner au moins ${value} éléments`,
@@ -103,6 +107,8 @@ function resolveLocaleMessages(locale: string | undefined): FormForgeZodValidati
     invalidDate: 'Please enter a valid date',
     invalidTime: 'Please enter a valid time',
     invalidEmail: 'Please enter a valid email address',
+    maxUploadTotal: (value: number) => `The total file size cannot exceed ${value} bytes`,
+    maxUploadFiles: (value: number) => `You can attach no more than ${value} files`,
     minLength: (value: number) => `Please enter at least ${value} characters`,
     maxLength: (value: number) => `Please enter no more than ${value} characters`,
     minItems: (value: number) => `Please select at least ${value} items`,
@@ -165,6 +171,12 @@ function fileValidationSchema(field: FormForgeFileFieldSchema, messages: FormFor
 
   if (typeof field.max_size === 'number' && field.max_size > 0) {
     schema = schema.refine((file) => file.size <= field.max_size!, {
+      error: messages.invalidFile
+    })
+  }
+
+  if (typeof field.max_total_size === 'number' && field.max_total_size > 0) {
+    schema = schema.refine((file) => file.size <= field.max_total_size!, {
       error: messages.invalidFile
     })
   }
@@ -969,7 +981,65 @@ export function createFormForgeZodSchema(form: FormForgeFormSchema, options: For
     shape[field.name] = applyRequiredAndNullable(baseSchema, field, messages, options.locale)
   }
 
-  return z.object(shape)
+  return z.object(shape).superRefine((payload, context) => {
+    const limits = form.upload_limits
+
+    if (limits === undefined) {
+      return
+    }
+
+    let totalSize = 0
+    let totalFiles = 0
+    let firstFileField: string | undefined
+
+    for (const field of form.fields) {
+      if (field.type !== 'file') {
+        continue
+      }
+
+      const value = payload[field.name]
+      const items = Array.isArray(value) ? value : value === undefined || value === null ? [] : [value]
+
+      for (const item of items) {
+        if (typeof File !== 'undefined' && item instanceof File) {
+          totalFiles += 1
+          totalSize += item.size
+          firstFileField ??= field.name
+          continue
+        }
+
+        if (typeof item === 'object' && item !== null) {
+          const metadata = item as Record<string, unknown>
+
+          if ('upload_token' in metadata || 'path' in metadata || typeof metadata.size === 'number') {
+            totalFiles += 1
+            totalSize += typeof metadata.size === 'number' ? metadata.size : 0
+            firstFileField ??= field.name
+          }
+        }
+      }
+    }
+
+    if (firstFileField === undefined) {
+      return
+    }
+
+    if (limits.max_files > 0 && totalFiles > limits.max_files) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [firstFileField],
+        message: messages.maxUploadFiles(limits.max_files)
+      })
+    }
+
+    if (limits.max_total_size > 0 && totalSize > limits.max_total_size) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [firstFileField],
+        message: messages.maxUploadTotal(limits.max_total_size)
+      })
+    }
+  })
 }
 
 export function mapFormForgeZodIssues(error: z.ZodError): Record<string, string[]> {
